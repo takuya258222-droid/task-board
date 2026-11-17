@@ -14,183 +14,187 @@
 <style>
 :root{ --bg:#f4f6fa; --card:#fff; --line:#dde1e7; --txt:#1c2330; --sub:#5b6577; --accent:#2563eb; --accent-d:#1e3a8a; --danger:#b91c1c; --danger-bg:#fef2f2; --pend:#b45309; --pend-bg:#fffbeb; --amber:#d97706; --ok:#0e7a3d; --ok-bg:#f0fdf4;}
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; background:var(--bg); color:var(--txt);}
+body{ margin:0; font-size:15.5px; line-height:1.6; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; background:var(--bg); color:var(--txt);}
 header{ position:sticky; top:0; z-index:20; background:linear-gradient(180deg,#1e3a8a,#2563eb); color:#fff; padding:10px 14px 10px; box-shadow:0 2px 10px rgba(30,58,138,.25);}
-h1{ font-size:17px; margin:0; letter-spacing:.02em;}
-h1 .tag{ font-size:10px; font-weight:700; background:#fbbf24; color:#78350f; border-radius:999px; padding:2px 8px; margin-left:8px; vertical-align:2px;}
+h1{ font-size:19px; margin:0; letter-spacing:.02em;}
+h1 .tag{ font-size:11px; font-weight:700; background:#fbbf24; color:#78350f; border-radius:999px; padding:2px 8px; margin-left:8px; vertical-align:2px;}
 .summary{ display:flex; gap:6px; flex-wrap:wrap; margin-top:9px;}
-.sum-chip{ font-size:11.5px; font-weight:700; border-radius:999px; padding:4px 10px; background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.25);}
-.sum-chip b{ font-size:15px;}
+.sum-chip{ font-size:13px; font-weight:700; border-radius:999px; padding:6px 12px; background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.25);}
+.sum-chip b{ font-size:17px;}
 .sum-chip.red{ background:var(--danger); border-color:#fca5a5;}
 .sum-chip.amber{ background:#92400e; border-color:#fbbf24;}
 .sum-chip.ok{ background:#065f46; border-color:#34d399;}
-.next-meet{ font-size:12px; color:#dbeafe; margin-top:7px; line-height:1.5;}
-#syncNote{ font-size:11px; color:#bfdbfe; margin-top:2px;}
+.next-meet{ font-size:13px; color:#dbeafe; margin-top:7px; line-height:1.5;}
+#syncNote{ font-size:12px; color:#bfdbfe; margin-top:2px;}
 .controls{ margin-top:9px;}
 .controls input[type="search"]{ width:100%; font-size:16px; padding:11px 12px; border:0; border-radius:10px; background:#fff; color:var(--txt);}
 .chips{ display:flex; gap:6px; overflow-x:auto; padding:8px 0 1px; -webkit-overflow-scrolling:touch;}
-.chips .cap{ flex:0 0 auto; font-size:11px; color:#bfdbfe; align-self:center; font-weight:700;}
-.fchip{ flex:0 0 auto; font-size:13px; padding:8px 12px; min-height:38px; border:1px solid rgba(255,255,255,.35); border-radius:999px; background:rgba(255,255,255,.12); cursor:pointer; color:#fff;}
+.chips .cap{ flex:0 0 auto; font-size:12px; color:#bfdbfe; align-self:center; font-weight:700;}
+.fchip{ flex:0 0 auto; font-size:14px; padding:10px 14px; min-height:44px; border:1px solid rgba(255,255,255,.35); border-radius:999px; background:rgba(255,255,255,.12); cursor:pointer; color:#fff;}
 .fchip.active{ background:#fff; border-color:#fff; color:var(--accent-d); font-weight:700;}
 .fchip.red.active{ background:var(--danger); border-color:var(--danger); color:#fff;}
 #tabbar{ position:fixed; left:0; right:0; bottom:0; z-index:30; display:flex; background:#fff; border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); box-shadow:0 -2px 12px rgba(15,23,42,.08);}
-#tabbar .tab{ flex:1; display:flex; flex-direction:column; align-items:center; gap:1px; font-size:10px; padding:7px 2px 6px; min-height:56px; border:0; background:#fff; cursor:pointer; color:var(--sub); position:relative;}
-#tabbar .tab .ic{ font-size:19px; line-height:1.15;}
+#tabbar .tab{ flex:1; display:flex; flex-direction:column; align-items:center; gap:1px; font-size:11.5px; padding:9px 2px 8px; min-height:62px; border:0; background:#fff; cursor:pointer; color:var(--sub); position:relative;}
+#tabbar .tab .ic{ font-size:22px; line-height:1.15;}
 #tabbar .tab.active{ color:var(--accent); font-weight:700;}
-#tabbar .tab .bdg{ position:absolute; top:3px; right:calc(50% - 21px); font-size:10px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:0 6px; min-width:19px; text-align:center;}
+#tabbar .tab .bdg{ position:absolute; top:3px; right:calc(50% - 21px); font-size:11px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:0 6px; min-width:19px; text-align:center;}
 #tabbar .tab .bdg.red{ background:var(--danger); color:#fff;}
-main{ padding:10px 12px 96px; max-width:860px; margin:0 auto;}
-.panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;}
-.panel h2{ font-size:14px; margin:0 0 8px;}
-.panel label{ display:block; font-size:12px; color:var(--sub); margin:8px 0 4px;}
+main{ padding:12px 12px 106px; max-width:860px; margin:0 auto;}
+.panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px;}
+.panel h2{ font-size:16px; margin:0 0 8px;}
+.panel label{ display:block; font-size:13px; color:var(--sub); margin:8px 0 4px;}
 .panel input{ width:100%; font-size:16px; padding:11px 12px; border:1px solid var(--line); border-radius:10px;}
 .panel textarea{ width:100%; font-size:15px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.6;}
 .panel select{ width:100%; font-size:16px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:#fff;}
 .preset-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
-.preset{ font-size:13px; padding:8px 11px; min-height:38px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer;}
+.preset{ font-size:14px; padding:10px 13px; min-height:44px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer;}
 .preset.active{ background:#334155; border-color:#334155; color:#fff; font-weight:700;}
-button.primary{ width:100%; margin-top:12px; font-size:15px; font-weight:700; padding:13px; min-height:50px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
+button.primary{ width:100%; margin-top:12px; font-size:16px; font-weight:700; padding:14px; min-height:54px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
 button.primary:disabled{ opacity:.5;}
-.note{ font-size:11px; color:var(--sub); margin-top:8px; line-height:1.6;}
-.dash-panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;}
-.dash-panel h2{ font-size:14px; margin:0 0 4px; display:flex; align-items:center; gap:8px;}
-.dash-panel h2 .cnt{ font-size:11px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:1px 8px;}
+.note{ font-size:12px; color:var(--sub); margin-top:8px; line-height:1.6;}
+.dash-panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px;}
+.dash-panel h2{ font-size:16px; margin:0 0 4px; display:flex; align-items:center; gap:8px;}
+.dash-panel h2 .cnt{ font-size:12.5px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:2px 9px;}
 .dash-panel h2 .cnt.red{ background:var(--danger); color:#fff;}
-.dash-sub{ font-size:12px; color:var(--sub); margin:2px 0 8px; line-height:1.6;}
+.dash-sub{ font-size:13px; color:var(--sub); margin:2px 0 8px; line-height:1.6;}
 .alert-row{ display:flex; gap:8px; align-items:flex-start; border-top:1px solid #f1f3f6; padding:8px 0;}
-.alert-row .ak{ flex:0 0 auto; font-size:11px; font-weight:700; color:#fff; background:var(--danger); border-radius:999px; padding:2px 8px; margin-top:1px;}
+.alert-row .ak{ flex:0 0 auto; font-size:12px; font-weight:700; color:#fff; background:var(--danger); border-radius:999px; padding:2px 8px; margin-top:1px;}
 .alert-row .ak.amber{ background:var(--amber);}
-.alert-row .al{ flex:1; font-size:13.5px; font-weight:700; line-height:1.45;}
-.alert-row .ad{ font-size:12px; color:var(--sub); line-height:1.5;}
-.meet-date{ font-size:12px; font-weight:700; color:var(--accent-d); background:#eef2ff; border-radius:8px; padding:5px 9px; margin:10px 0 6px;}
-.meet-row{ display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:7px; background:#fff;}
+.alert-row .al{ flex:1; font-size:15px; font-weight:700; line-height:1.45;}
+.alert-row .ad{ font-size:13px; color:var(--sub); line-height:1.5;}
+.meet-date{ font-size:13px; font-weight:700; color:var(--accent-d); background:#eef2ff; border-radius:8px; padding:5px 9px; margin:10px 0 6px;}
+.meet-row{ display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:11px 12px; margin-bottom:7px; background:#fff;}
 .meet-row .mi2{ flex:1; min-width:0;}
-.meet-row .mt{ font-size:14px; font-weight:700; line-height:1.45;}
-.meet-row .mm2{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.55;}
+.meet-row .mt{ font-size:15.5px; font-weight:700; line-height:1.45;}
+.meet-row .mm2{ font-size:13px; color:var(--sub); margin-top:2px; line-height:1.55;}
 .meet-row .acts{ flex:0 0 auto; display:flex; flex-direction:column; gap:6px;}
 .meet-row .mi2[data-gocase]{ cursor:pointer;}
-.ph-badge{ display:inline-block; font-size:11px; font-weight:700; color:#fff; border-radius:999px; padding:1px 8px; vertical-align:1px;}
+.ph-badge{ display:inline-block; font-size:12px; font-weight:700; color:#fff; border-radius:999px; padding:1px 8px; vertical-align:1px;}
 .ph-badge.ph1{ background:#2563eb;} .ph-badge.ph2{ background:#d97706;} .ph-badge.ph3{ background:#ea580c;} .ph-badge.ph4{ background:#7c3aed;} .ph-badge.ph5{ background:#0e7a3d;}
 .start-add{ margin-top:10px; border-top:1px dashed var(--line); padding-top:9px;}
-.start-add label{ display:block; font-size:12px; color:var(--sub); margin:8px 0 4px;}
+.start-add label{ display:block; font-size:13px; color:var(--sub); margin:8px 0 4px;}
 .start-add textarea,.start-add input[type="date"]{ width:100%; font-size:16px; padding:10px; border:1px solid var(--line); border-radius:9px; background:#fff; font-family:inherit; line-height:1.5;}
-button.add-start-btn{ width:100%; font-size:14px; font-weight:700; padding:12px; min-height:48px; border-radius:10px; border:1px dashed var(--accent); background:#f8faff; color:var(--accent); cursor:pointer;}
-button.mini-warn{ font-size:12px; font-weight:700; padding:9px 11px; min-height:40px; border-radius:8px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
-button.mini-ghost{ font-size:12px; font-weight:700; padding:9px 11px; min-height:40px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
+button.add-start-btn{ width:100%; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px dashed var(--accent); background:#f8faff; color:var(--accent); cursor:pointer;}
+button.mini-warn{ font-size:13px; font-weight:700; padding:11px 13px; min-height:44px; border-radius:8px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
+button.mini-ghost{ font-size:13px; font-weight:700; padding:11px 13px; min-height:44px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
 .start-row{ display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:7px;}
 .start-row.soon{ border-color:#fde68a; background:#fffdf5;}
 .start-row.past{ border-color:#fecaca; background:#fff8f8;}
 .start-row .mi2{ flex:1; min-width:0;}
 .start-row .acts{ flex:0 0 auto; display:flex; flex-direction:column; gap:6px;}
-button.res-btn{ font-size:12px; font-weight:700; padding:9px 11px; min-height:40px; border-radius:8px; border:1px solid #bbf7d0; background:var(--ok-bg); color:var(--ok); cursor:pointer;}
+button.res-btn{ font-size:13px; font-weight:700; padding:11px 13px; min-height:44px; border-radius:8px; border:1px solid #bbf7d0; background:var(--ok-bg); color:var(--ok); cursor:pointer;}
 button.res-btn.gray{ border-color:var(--line); background:#fff; color:var(--txt);}
 button.res-btn.red{ border-color:#fecaca; background:#fff; color:var(--danger);}
-.days-badge{ display:inline-block; font-size:12px; font-weight:700; border-radius:8px; padding:2px 8px; background:#eef2ff; color:var(--accent); border:1px solid #c7d2fe;}
+.days-badge{ display:inline-block; font-size:13px; font-weight:700; border-radius:8px; padding:2px 8px; background:#eef2ff; color:var(--accent); border:1px solid #c7d2fe;}
 .days-badge.red{ background:var(--danger-bg); color:var(--danger); border-color:#fecaca;}
 .days-badge.amber{ background:var(--pend-bg); color:var(--pend); border-color:#fde68a;}
-.group-head{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:#eef2ff; border:1px solid #c7d2fe; border-radius:12px; padding:12px; margin:14px 0 8px; cursor:pointer; min-height:48px;}
-.group-head .gt{ font-size:14px; font-weight:700; flex:1; line-height:1.4;}
-.group-head .gn{ font-size:12px; color:var(--sub); font-weight:700;}
-.group-head .chev{ color:var(--sub); font-size:13px;}
-.case-detail{ background:#fff; border:1px solid #c7d2fe; border-radius:12px; padding:12px; margin:-2px 0 10px;}
+.group-head{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:#eef2ff; border:1px solid #c7d2fe; border-radius:12px; padding:13px; margin:14px 0 8px; cursor:pointer; min-height:52px;}
+.group-head .gt{ font-size:15.5px; font-weight:700; flex:1; line-height:1.4;}
+.group-head .gn{ font-size:13px; color:var(--sub); font-weight:700;}
+.group-head .chev{ color:var(--sub); font-size:14px;}
+.case-detail{ background:#fff; border:1px solid #c7d2fe; border-radius:12px; padding:14px; margin:-2px 0 10px;}
 .progress{ display:flex; gap:4px; margin:8px 0;}
-.progress .seg{ flex:1; text-align:center; font-size:10px; padding:6px 2px; border-radius:7px; background:#eef0f3; color:var(--sub); line-height:1.3;}
+.progress .seg{ flex:1; text-align:center; font-size:11px; padding:7px 2px; border-radius:7px; background:#eef0f3; color:var(--sub); line-height:1.3;}
 .progress .seg.done{ background:#dcfce7; color:var(--ok); font-weight:700;}
 .progress .seg.now{ background:#dbeafe; color:var(--accent); font-weight:700; border:1px solid var(--accent);}
-.stage-row{ display:flex; align-items:center; gap:8px; font-size:13px; padding:7px 0; border-top:1px solid #f1f3f6;}
-.stage-row .st{ flex:0 0 auto; font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px;}
+.stage-row{ display:flex; align-items:center; gap:8px; font-size:14px; padding:8px 0; border-top:1px solid #f1f3f6;}
+.stage-row .st{ flex:0 0 auto; font-size:12px; font-weight:700; border-radius:999px; padding:2px 8px;}
 .st.done{ background:#dcfce7; color:var(--ok);} .st.open{ background:#dbeafe; color:var(--accent);} .st.yet{ background:#eef0f3; color:var(--sub);}
 .stage-row .sl{ flex:1;}
 .case-actions{ display:flex; gap:8px; margin-top:10px;}
-button.warn-btn{ flex:1; font-size:14px; font-weight:700; padding:12px; min-height:48px; border-radius:10px; border:1px solid #fecaca; background:var(--danger-bg); color:var(--danger); cursor:pointer;}
-button.ghost-btn{ flex:1; font-size:14px; font-weight:700; padding:12px; min-height:48px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
+button.warn-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px solid #fecaca; background:var(--danger-bg); color:var(--danger); cursor:pointer;}
+button.ghost-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
 .close-zone{ margin-top:12px; border-top:1px dashed #fecaca; padding-top:9px;}
-.close-zone .cz-t{ font-size:12px; font-weight:700; color:var(--danger); margin-bottom:6px;}
-.start-box{ margin-top:12px; border:1px solid #c7d2fe; background:#f8faff; border-radius:10px; padding:10px;}
-.start-box .sb-t{ font-size:13px; font-weight:700; margin-bottom:4px;}
-.start-box .sb-line{ font-size:13px; line-height:1.6;}
-.start-warn{ font-size:14px; font-weight:700; color:var(--danger); background:var(--danger-bg); border:1px solid #fecaca; border-radius:9px; padding:9px 11px; margin-bottom:8px; line-height:1.5;}
-.start-ok{ font-size:13.5px; font-weight:700; color:var(--ok); background:var(--ok-bg); border:1px solid #bbf7d0; border-radius:9px; padding:9px 11px; line-height:1.5;}
-.start-ng{ font-size:13.5px; font-weight:700; color:var(--sub); background:#f1f5f9; border:1px solid var(--line); border-radius:9px; padding:9px 11px; line-height:1.5;}
+.close-zone .cz-t{ font-size:13px; font-weight:700; color:var(--danger); margin-bottom:6px;}
+.start-box{ margin-top:12px; border:1px solid #c7d2fe; background:#f8faff; border-radius:10px; padding:12px;}
+.start-box .sb-t{ font-size:14.5px; font-weight:700; margin-bottom:4px;}
+.start-box .sb-line{ font-size:14px; line-height:1.6;}
+.start-warn{ font-size:15px; font-weight:700; color:var(--danger); background:var(--danger-bg); border:1px solid #fecaca; border-radius:9px; padding:9px 11px; margin-bottom:8px; line-height:1.5;}
+.start-ok{ font-size:15px; font-weight:700; color:var(--ok); background:var(--ok-bg); border:1px solid #bbf7d0; border-radius:9px; padding:9px 11px; line-height:1.5;}
+.start-ng{ font-size:15px; font-weight:700; color:var(--sub); background:#f1f5f9; border:1px solid var(--line); border-radius:9px; padding:9px 11px; line-height:1.5;}
 .start-box input[type="date"]{ width:100%; font-size:16px; padding:10px; border:1px solid var(--line); border-radius:9px; background:#fff; margin-top:6px;}
 .start-btns{ display:flex; gap:7px; margin-top:9px; flex-wrap:wrap;}
 .start-btns button{ flex:1; min-width:96px;}
-button.sb-save{ font-size:14px; font-weight:700; padding:12px; min-height:48px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
-.card{ background:var(--card); border:1px solid var(--line); border-left:5px solid var(--line); border-radius:12px; padding:11px 12px; margin-bottom:10px;}
+button.sb-save{ font-size:15px; font-weight:700; padding:12px; min-height:52px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
+.card{ background:var(--card); border:1px solid var(--line); border-left:5px solid var(--line); border-radius:12px; padding:13px 14px; margin-bottom:10px;}
 .card.overdue{ border-left-color:var(--danger); background:#fff8f8;}
 .card.dueToday{ border-left-color:var(--amber); background:#fffdf5;}
 .card.pending{ border-style:dashed; opacity:.82;}
 .card.ph1{ border-left-color:#2563eb;} .card.ph2{ border-left-color:#d97706;} .card.ph3{ border-left-color:#ea580c;} .card.ph4{ border-left-color:#7c3aed;} .card.ph5{ border-left-color:#0e7a3d;}
 .card.overdue.ph1,.card.overdue.ph2,.card.overdue.ph3,.card.overdue.ph4,.card.overdue.ph5{ border-left-color:var(--danger);}
 .row1{ display:flex; align-items:flex-start; gap:8px;}
-.title{ font-size:15px; font-weight:700; line-height:1.45; flex:1;}
-.chip{ flex:0 0 auto; font-size:11px; font-weight:700; color:#fff; border-radius:999px; padding:2px 8px; margin-top:2px;}
+.title{ font-size:16.5px; font-weight:700; line-height:1.45; flex:1;}
+.chip{ flex:0 0 auto; font-size:12px; font-weight:700; color:#fff; border-radius:999px; padding:3px 10px; margin-top:2px;}
 .chip.mail{ background:#0369a1;} .chip.slack{ background:#611f69;} .chip.calendar{ background:#0e7a3d;}
 .chip.tour{ background:#7c3aed;} .chip.onboarding{ background:#0f766e;} .chip.member{ background:#b45309;}
 .flags{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
-.flag{ font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px;}
+.flag{ font-size:12px; font-weight:700; border-radius:999px; padding:3px 9px;}
 .flag.red{ background:var(--danger-bg); color:var(--danger); border:1px solid #fecaca;}
 .flag.amber{ background:var(--pend-bg); color:var(--pend); border:1px solid #fde68a;}
 .flag.fail{ background:var(--danger); color:#fff;}
 .flag.opt{ background:#eef2ff; color:var(--accent); border:1px dashed var(--accent);}
-.line{ font-size:13px; margin-top:5px; color:var(--sub); line-height:1.55;}
+.line{ font-size:14.5px; margin-top:6px; color:var(--sub); line-height:1.65;}
 .line .deadline{ color:var(--danger); font-weight:700;}
-.fail-note{ font-size:12px; color:var(--danger); margin-top:5px; line-height:1.55;}
-.actions{ margin-top:9px; display:flex; gap:8px; align-items:center;}
-button.done-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:50px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
+.fail-note{ font-size:13px; color:var(--danger); margin-top:5px; line-height:1.55;}
+.actions{ margin-top:11px; display:flex; gap:8px; align-items:center;}
+button.done-btn{ flex:1; font-size:16.5px; font-weight:700; padding:13px; min-height:56px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
 button.done-btn:disabled{ opacity:.5;}
-button.del-btn{ flex:0 0 auto; font-size:13px; font-weight:700; padding:12px 13px; min-height:50px; border-radius:10px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
-.del-q{ flex:1; font-size:12.5px; color:var(--danger); line-height:1.55;}
-button.del-confirm{ flex:0 0 auto; font-size:14px; font-weight:700; padding:12px 16px; min-height:50px; border:0; border-radius:10px; background:var(--danger); color:#fff; cursor:pointer;}
-button.del-cancel{ flex:0 0 auto; font-size:14px; font-weight:700; padding:12px 16px; min-height:50px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
-button.reopen-btn{ margin-top:8px; font-size:13px; font-weight:700; padding:10px 16px; min-height:44px; border-radius:9px; border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer;}
-.hist-pend{ display:inline-block; margin-top:8px; font-size:12px; font-weight:700; color:var(--pend); border:1px dashed var(--pend); border-radius:9px; padding:8px 10px;}
-.pend-chip{ flex:1; text-align:center; font-size:13px; font-weight:700; color:var(--pend); border:1px dashed var(--pend); border-radius:10px; padding:11px 6px; line-height:1.5;}
-a.slack-link{ font-size:13px; color:var(--accent); text-decoration:none; padding:10px 6px; white-space:nowrap;}
-.member-row{ display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 12px; margin-bottom:9px;}
+button.del-btn{ flex:0 0 auto; font-size:14px; font-weight:700; padding:13px 14px; min-height:56px; border-radius:10px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
+.del-q{ flex:1; font-size:13.5px; color:var(--danger); line-height:1.55;}
+button.del-confirm{ flex:0 0 auto; font-size:15px; font-weight:700; padding:12px 16px; min-height:56px; border:0; border-radius:10px; background:var(--danger); color:#fff; cursor:pointer;}
+button.del-cancel{ flex:0 0 auto; font-size:15px; font-weight:700; padding:12px 16px; min-height:56px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
+button.reopen-btn{ margin-top:8px; font-size:14px; font-weight:700; padding:12px 18px; min-height:48px; border-radius:9px; border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer;}
+.hist-pend{ display:inline-block; margin-top:8px; font-size:13px; font-weight:700; color:var(--pend); border:1px dashed var(--pend); border-radius:9px; padding:10px 12px;}
+.pend-chip{ flex:1; text-align:center; font-size:14px; font-weight:700; color:var(--pend); border:1px dashed var(--pend); border-radius:10px; padding:13px 8px; line-height:1.5;}
+a.slack-link{ font-size:14px; color:var(--accent); text-decoration:none; padding:12px 8px; white-space:nowrap;}
+.member-row{ display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:13px 14px; margin-bottom:9px;}
 .member-row .mi{ flex:1;}
-.member-row .mn{ font-size:15px; font-weight:700;}
-.member-row .mm{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.5;}
-button.off-btn{ flex:0 0 auto; font-size:13px; font-weight:700; padding:10px 13px; min-height:44px; border-radius:9px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
-.person-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px;}
+.member-row .mn{ font-size:16.5px; font-weight:700;}
+.member-row .mm{ font-size:13px; color:var(--sub); margin-top:2px; line-height:1.5;}
+button.off-btn{ flex:0 0 auto; font-size:14px; font-weight:700; padding:11px 14px; min-height:44px; border-radius:9px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
+.person-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:10px;}
 .person-card.stuck{ border-color:#fecaca; background:#fffafa;}
-.person-card .pn{ font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.person-card .pn{ font-size:17.5px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
 .person-card .stats{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;}
-.stat-chip{ font-size:12px; font-weight:700; border:1px solid var(--line); border-radius:999px; padding:3px 10px; background:#fff;}
-.stat-chip b{ font-size:14px;}
+.stat-chip{ font-size:13px; font-weight:700; border:1px solid var(--line); border-radius:999px; padding:5px 12px; background:#fff;}
+.stat-chip b{ font-size:15px;}
 .stat-chip.red{ color:var(--danger); border-color:#fecaca; background:var(--danger-bg);}
 .stat-chip.amber{ color:var(--pend); border-color:#fde68a; background:var(--pend-bg);}
-.person-card .bd{ font-size:12px; color:var(--sub); margin-top:7px; line-height:1.6;}
+.person-card .bd{ font-size:13px; color:var(--sub); margin-top:7px; line-height:1.6;}
 .person-card .pacts{ display:flex; gap:8px; margin-top:10px;}
-button.copy-btn{ flex:1; font-size:13.5px; font-weight:700; padding:11px 10px; min-height:48px; border-radius:10px; border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer;}
-button.send-btn{ flex:1; font-size:13.5px; font-weight:700; padding:11px 10px; min-height:48px; border-radius:10px; border:0; background:var(--accent); color:#fff; cursor:pointer;}
+button.copy-btn{ flex:1; font-size:14.5px; font-weight:700; padding:12px 10px; min-height:52px; border-radius:10px; border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer;}
+button.send-btn{ flex:1; font-size:14.5px; font-weight:700; padding:12px 10px; min-height:52px; border-radius:10px; border:0; background:var(--accent); color:#fff; cursor:pointer;}
 button.send-btn:disabled{ opacity:.55;}
-.sent-line{ font-size:11.5px; color:var(--sub); margin-top:6px;}
-.due-badge{ display:inline-block; font-size:13px; font-weight:700; color:var(--accent); background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; padding:3px 9px;}
+.sent-line{ font-size:12.5px; color:var(--sub); margin-top:6px;}
+.due-badge{ display:inline-block; font-size:14px; font-weight:700; color:var(--accent); background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; padding:3px 9px;}
 .card.overdue .due-badge{ color:var(--danger); background:var(--danger-bg); border-color:#fecaca;}
 .card.dueToday .due-badge{ color:var(--pend); background:var(--pend-bg); border-color:#fde68a;}
-.memo-line{ font-size:13px; margin-top:6px; background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:7px 9px; line-height:1.55; white-space:pre-wrap; word-break:break-word;}
+.memo-line{ font-size:14px; margin-top:6px; background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:9px 11px; line-height:1.6; white-space:pre-wrap; word-break:break-word;}
 .memo-line[data-memo-edit]{ cursor:pointer;}
-.stage-edit{ flex:0 0 auto; font-size:12px; font-weight:700; padding:7px 10px; min-height:36px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--accent); cursor:pointer;}
+.stage-edit{ flex:0 0 auto; font-size:13px; font-weight:700; padding:10px 12px; min-height:44px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--accent); cursor:pointer;}
 .person-tasks{ margin-top:10px; border-top:1px dashed var(--line); padding-top:10px;}
 .person-tasks .card{ margin-bottom:8px;}
-button.edit-btn{ flex:0 0 auto; font-size:13px; font-weight:700; padding:12px 13px; min-height:50px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
+button.edit-btn{ flex:0 0 auto; font-size:14px; font-weight:700; padding:13px 14px; min-height:56px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
 .meta-edit{ margin-top:9px; border-top:1px dashed var(--line); padding-top:4px;}
-.meta-edit label{ display:block; font-size:12px; color:var(--sub); margin:8px 0 4px;}
+.meta-edit label{ display:block; font-size:13px; color:var(--sub); margin:8px 0 4px;}
 .meta-edit input[type="date"]{ width:100%; font-size:16px; padding:10px; border:1px solid var(--line); border-radius:9px; background:#fff;}
 .meta-edit textarea{ width:100%; font-size:15px; padding:10px; border:1px solid var(--line); border-radius:9px; font-family:inherit; line-height:1.5;}
-button.meta-save{ flex:1; font-size:14px; font-weight:700; padding:12px; min-height:48px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
-button.meta-cancel{ flex:0 0 auto; font-size:14px; font-weight:700; padding:12px 16px; min-height:48px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
-#copyText{ width:100%; font-size:13px; padding:10px; border:1px solid var(--line); border-radius:10px; margin-top:8px; font-family:inherit; line-height:1.6;}
-.hist-row{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:9px;}
+button.meta-save{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
+button.meta-cancel{ flex:0 0 auto; font-size:15px; font-weight:700; padding:12px 16px; min-height:52px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
+#copyText{ width:100%; font-size:14px; padding:10px; border:1px solid var(--line); border-radius:10px; margin-top:8px; font-family:inherit; line-height:1.6;}
+.hist-row{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:9px;}
 .hist-row.opt{ border-style:dashed; border-color:var(--pend);}
-.hist-row .ht{ font-size:14px; font-weight:700; line-height:1.45;}
-.hist-row .hm{ font-size:12px; color:var(--sub); margin-top:3px;}
-.opt-strip{ font-size:12.5px; font-weight:700; color:var(--pend); background:var(--pend-bg); border:1px dashed var(--pend); border-radius:10px; padding:9px 11px; margin-bottom:8px; line-height:1.55;}
-#errBar{ display:none; background:#fef2f2; color:var(--danger); border:1px solid #fecaca; border-radius:9px; padding:9px 12px; font-size:13px; margin-bottom:10px; line-height:1.55;}
-#okBar{ display:none; background:#f0fdf4; color:var(--ok); border:1px solid #bbf7d0; border-radius:9px; padding:9px 12px; font-size:13px; margin-bottom:10px; line-height:1.55;}
-.empty{ text-align:center; color:var(--sub); padding:22px 0; font-size:14px;}
-footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; margin:0 auto; line-height:1.8;}
+.hist-row .ht{ font-size:15.5px; font-weight:700; line-height:1.45;}
+.hist-row .hm{ font-size:13px; color:var(--sub); margin-top:3px;}
+.opt-strip{ font-size:13.5px; font-weight:700; color:var(--pend); background:var(--pend-bg); border:1px dashed var(--pend); border-radius:10px; padding:9px 11px; margin-bottom:8px; line-height:1.55;}
+#errBar{ display:none; background:#fef2f2; color:var(--danger); border:1px solid #fecaca; border-radius:9px; padding:10px 13px; font-size:14px; margin-bottom:10px; line-height:1.55;}
+#okBar{ display:none; background:#f0fdf4; color:var(--ok); border:1px solid #bbf7d0; border-radius:9px; padding:10px 13px; font-size:14px; margin-bottom:10px; line-height:1.55;}
+.empty{ text-align:center; color:var(--sub); padding:24px 0; font-size:15px;}
+footer{ font-size:12px; color:var(--sub); padding:0 14px 26px; max-width:860px; margin:0 auto; line-height:1.8;}
+button.cancel-opt-btn{ flex:0 0 auto; font-size:13.5px; font-weight:700; padding:11px 14px; min-height:44px; border-radius:9px; border:1px solid var(--pend); background:#fff; color:var(--pend); cursor:pointer;}
+.hist-row button.cancel-opt-btn{ margin:8px 0 0 8px;}
+.opt-strip button.cancel-opt-btn{ margin-left:8px;}
+.meet-row .acts button.cancel-opt-btn{ min-height:40px; padding:9px 10px; font-size:12.5px;}
 .hidden{ display:none;}
 </style>
 </head>
@@ -212,7 +216,7 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 <div id="dash"></div>
 
 <details class="panel" id="addPanel">
-<summary style="font-size:14px; font-weight:700; cursor:pointer;">＋ タスクを追加</summary>
+<summary style="font-size:15.5px; font-weight:700; cursor:pointer;">＋ タスクを追加</summary>
 <label for="addTitle">タイトル（必須）</label>
 <input type="text" id="addTitle" placeholder="例：○○さんに電話する" maxlength="200">
 <label for="addAssignee">担当者</label>
@@ -233,7 +237,7 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 </details>
 
 <details class="panel" id="meetingPanel">
-<summary style="font-size:14px; font-weight:700; cursor:pointer;">＋ 面談を追加（後入れ）</summary>
+<summary style="font-size:15.5px; font-weight:700; cursor:pointer;">＋ 面談を追加（後入れ）</summary>
 <label for="mtgText">面談の内容をそのまま貼り付け（施設・相手・日時が読み取れる文面）</label>
 <textarea id="mtgText" rows="4" placeholder="例：&#x3010;面談&#x3011;セレーナ伊丹×伊集院様 12/25 14:00"></textarea>
 <label for="mtgAssignee">担当者</label>
@@ -268,7 +272,7 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 </main>
 <nav id="tabbar"></nav>
 <footer>
-・「完了」は元のSlackメッセージへの✅として反映されます（次の同期タイミング: 平日 8:45／12:00／15:00／17:30／19:30）。完了・削除・戻す・失注/終了は押した瞬間にボード表示へ反映され、裏側の実適用は次の同期です。<br>
+・「完了」は元のSlackメッセージへの✅として反映されます（次の同期タイミング: 平日 8:45／12:00／15:00／17:30／19:30）。完了・削除・戻す・失注/終了は押した瞬間にボード表示へ反映され、裏側の実適用は次の同期です。反映待ちの間は、各カードや完了済みタブの「取り消す」から操作を取り消して、タスクを操作できる状態に戻せます（同期で反映済みのものは取り消せません）。<br>
 ・面談の「完了」はその段階への✅です（内定確認への✅＝内定として進みます）。案件の「失注」「終了」は状態記録として残り、Slackのメッセージは消えません。<br>
 ・メンバータブの「完了」は共有メッセージへの✅＝確認済みとして扱われ、フォローアップ側で閉じられます。<br>
 ・「削除」は「完了」とは別です。メール/Slackは記録上閉じるだけ（メッセージ・下書き自体は消えません）、カレンダーは予定自体を削除、入社はそのステージだけを閉じ、面談は段階ごとの削除ルール（準備=離脱、内定確認=クローズ、書類回収以降=完了と同じ扱い）に従います。削除の前に確認画面が出ます。<br>
@@ -546,8 +550,8 @@ function refreshStartDom(c) {
   refreshChrome();
 }
 
-function histRowFromTask(t, how) {
-  return { closedAt: "たった今", type: t.type, typeLabel: t.typeLabel, title: t.title, howLabel: how, owner: t.owner || "", id: t.id, reopenable: false, pending: true, opt: true };
+function histRowFromTask(t, how, kind) {
+  return { closedAt: "たった今", type: t.type, typeLabel: t.typeLabel, title: t.title, howLabel: how, owner: t.owner || "", id: t.id, reopenable: false, pending: true, opt: true, optKind: kind || "" };
 }
 
 async function complete(id) {
@@ -555,7 +559,7 @@ async function complete(id) {
   const t = tasks.find((x) => x.id === id);
   if (!t || t.pending) return;
   sending[id] = true;
-  optTasks[id] = { kind: "complete", row: histRowFromTask(t, "✅で完了") };
+  optTasks[id] = { kind: "complete", task: t, row: histRowFromTask(t, "✅で完了", "complete") };
   tasks = tasks.filter((x) => x.id !== id);
   history = history.concat(optTasks[id].row);
   stableView(() => { removeTaskDom(id); refreshChrome(); refreshOpenPeople(); });
@@ -589,7 +593,7 @@ async function doDelete(id) {
   if (!t || t.pending) return;
   sending[id] = true;
   confirmDeleteId = null;
-  optTasks[id] = { kind: "delete", row: histRowFromTask(t, "削除") };
+  optTasks[id] = { kind: "delete", task: t, row: histRowFromTask(t, "削除", "delete") };
   tasks = tasks.filter((x) => x.id !== id);
   history = history.concat(optTasks[id].row);
   stableView(() => { removeTaskDom(id); refreshChrome(); refreshOpenPeople(); });
@@ -611,7 +615,7 @@ async function reopen(id) {
   const x = history.find((h) => h.id === id);
   if (!x || x.pending || !x.reopenable) return;
   sending[key] = true;
-  optHistory[id] = { task: taskFromHistory(x) };
+  optHistory[id] = { task: taskFromHistory(x), row: x };
   history = history.filter((h) => h.id !== id);
   tasks = tasks.concat(optHistory[id].task);
   stableView(() => {
@@ -663,7 +667,8 @@ async function caseClose(eventId, kind) {
   const nameNote = c ? "\n対象: " + c.facility + " " + c.person : "";
   if (!window.confirm("この案件を「" + label + "」にしますか？" + phaseNote + nameNote + "\nSlackのメッセージは消えません。ボード表示は即時、状態記録への反映は次の同期です。")) return;
   sending[key] = true;
-  if (c) optCases[eventId] = { kind: kind, case: c };
+  const removedTasks = tasks.filter((t) => t.groupKey === eventId);
+  if (c) optCases[eventId] = { kind: kind, case: c, tasks: removedTasks };
   cases = cases.filter((x) => x.eventId !== eventId);
   tasks = tasks.filter((t) => t.groupKey !== eventId);
   // 差分更新: ダッシュボードは件数・担当別内訳まで正しくなるよう作り直し、一覧側は該当グループだけを除去する
@@ -678,7 +683,9 @@ async function caseClose(eventId, kind) {
     if (activeTab === "all" || activeTab === "tour") {
       const strip = document.createElement("div");
       strip.className = "opt-strip";
-      strip.textContent = (c ? c.facility + " " + c.person : "案件") + " を「" + (kind === "lost" ? "失注" : "終了") + "」にしました（反映待ち・" + nextSyncLabel() + "）";
+      strip.innerHTML = esc((c ? c.facility + " " + c.person : "案件") + " を「" + (kind === "lost" ? "失注" : "終了") + "」にしました（反映待ち・" + nextSyncLabel() + "）") +
+        '<button class="cancel-opt-btn" data-cancel-case="' + esc(eventId) + '">取り消す</button>';
+      bindEvents(strip);
       $("list").insertBefore(strip, $("list").firstChild);
     }
     maybeEmptyList();
@@ -688,6 +695,105 @@ async function caseClose(eventId, kind) {
   const r = await postRaw({ action: "caseClose", eventId: eventId, kind: kind });
   if (!r.ok) { await optFail(optCases, eventId, "記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[key]; return; }
   delete sending[key];
+}
+
+// ---- 反映待ちの取り消し（cancelAction: 同期で適用される前なら操作を巻き戻せる） ----
+// 成功時は何もしない（呼び出し側が完了メッセージを出す）。no_pending_action は「既に同期で反映済みの可能性」として
+// 実状態を読み戻して帳尻を合わせる。その他の失敗は楽観記録を戻してから読み戻し、警告する。
+async function cancelSettled(r, restoreOpt, title) {
+  if (r.ok) return true;
+  if (r.error === "no_pending_action") {
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("既に反映済みの可能性があります" + (title ? "（「" + title + "」）" : "") + "。取り消せなかったため、最新の状態に更新しました。");
+    return false;
+  }
+  if (restoreOpt) restoreOpt();
+  try { await fetchState(); } catch (_) { render(); }
+  showErr("取り消しを記録できませんでした。通信を確認して、もう一度試してください。");
+  return false;
+}
+
+// 完了・削除の取り消し（完了済み側に出ている楽観行から）
+async function cancelOptTask(id) {
+  const key = "cancel:" + id;
+  if (sending[key]) return;
+  const o = optTasks[id];
+  if (!o || !o.task) return;
+  sending[key] = true;
+  delete optTasks[id];
+  history = history.filter((x) => !(x.id === id && x.opt));
+  tasks = tasks.filter((x) => x.id !== id).concat(o.task);
+  stableView(() => render());
+  const r = await postRaw({ action: "cancelAction", id: id });
+  delete sending[key];
+  const done = await cancelSettled(r, () => { optTasks[id] = o; }, o.row.title);
+  if (done) showOk((o.kind === "delete" ? "削除" : "完了") + "を取り消しました。タスクは未対応に戻っています。");
+}
+
+// 「未対応に戻す」の取り消し（未対応側に出ている楽観タスクから）
+async function cancelReopen(id) {
+  const key = "cancel:" + id;
+  if (sending[key]) return;
+  const o = optHistory[id];
+  if (!o) return;
+  sending[key] = true;
+  delete optHistory[id];
+  tasks = tasks.filter((x) => x.id !== id);
+  if (o.row) history = history.filter((x) => x.id !== id).concat(o.row);
+  stableView(() => render());
+  const r = await postRaw({ action: "cancelAction", id: id });
+  delete sending[key];
+  const done = await cancelSettled(r, () => { optHistory[id] = o; }, o.task.title);
+  if (done) showOk("「未対応に戻す」を取り消しました。");
+}
+
+// サーバ側で反映待ちになっているタスクカードの取り消し（再読み込み後など、楽観記録が手元に無い場合）
+async function cancelPending(id) {
+  const key = "cancel:" + id;
+  if (sending[key]) return;
+  const t = tasks.find((x) => x.id === id);
+  if (!t || !t.pending || t.optReopen) return;
+  sending[key] = true;
+  t.pending = false;
+  replaceCardDom(t);
+  refreshChrome();
+  refreshOpenPeople();
+  const r = await postRaw({ action: "cancelAction", id: id });
+  delete sending[key];
+  const done = await cancelSettled(r, null, t.title);
+  if (done) showOk("操作を取り消しました。タスクはそのまま操作できます。");
+}
+
+// 案件クローズ（失注/終了）の取り消し（楽観的に消した案件を戻す）
+async function cancelCaseClose(eventId) {
+  const key = "cancelcase:" + eventId;
+  if (sending[key]) return;
+  const o = optCases[eventId];
+  if (!o) return;
+  sending[key] = true;
+  delete optCases[eventId];
+  cases = cases.filter((x) => x.eventId !== eventId).concat(o.case);
+  if (o.tasks && o.tasks.length) tasks = tasks.concat(o.tasks.filter((t) => !tasks.some((x) => x.id === t.id)));
+  stableView(() => render());
+  const r = await postRaw({ action: "cancelAction", id: "case:" + eventId });
+  delete sending[key];
+  const done = await cancelSettled(r, () => { optCases[eventId] = o; }, o.case.facility + " " + o.case.person);
+  if (done) showOk("案件の「" + (o.kind === "lost" ? "失注" : "終了") + "」を取り消しました。");
+}
+
+// サーバ側で反映待ちになっている案件の取り消し（再読み込み後など）
+async function cancelCasePending(eventId) {
+  const key = "cancelcase:" + eventId;
+  if (sending[key]) return;
+  const c = cases.find((x) => x.eventId === eventId);
+  if (!c || !c.pending) return;
+  sending[key] = true;
+  c.pending = false;
+  stableView(() => render());
+  const r = await postRaw({ action: "cancelAction", id: "case:" + eventId });
+  delete sending[key];
+  const done = await cancelSettled(r, null, c.facility + " " + c.person);
+  if (done) showOk("案件の操作を取り消しました。");
 }
 
 async function setStartDate(eventId) {
@@ -1016,6 +1122,8 @@ function cardHtml(t) {
     h += '<div class="actions">';
     if (t.pending) {
       h += '<span class="pend-chip">反映待ち（' + esc(nextSyncLabel()) + "）</span>";
+      if (t.optReopen) h += '<button class="cancel-opt-btn" data-cancel-reopen="' + esc(t.id) + '">戻すを取り消す</button>';
+      else h += '<button class="cancel-opt-btn" data-cancel-pending="' + esc(t.id) + '">操作を取り消す</button>';
     } else {
       h += '<button class="done-btn" data-done="' + esc(t.id) + '">完了</button>';
       h += '<button class="edit-btn" data-edit="' + esc(t.id) + '">メモ・期日</button>';
@@ -1120,7 +1228,8 @@ function caseDetailHtml(c) {
   if (f) h += '<div class="fail-note">案件アクションの反映に失敗しました: ' + esc(f.note || "理由不明") + "</div>";
   h += startBoxHtml(c);
   if (c.pending) {
-    h += '<div class="actions"><span class="pend-chip">案件アクション反映待ち（' + esc(nextSyncLabel()) + "）</span></div>";
+    h += '<div class="actions"><span class="pend-chip">案件アクション反映待ち（' + esc(nextSyncLabel()) + "）</span>" +
+         '<button class="cancel-opt-btn" data-cancel-casepend="' + esc(c.eventId) + '">取り消す</button></div>';
   } else {
     h += '<div class="close-zone"><div class="cz-t">案件を閉じる（状態記録のみ・Slackのメッセージは消えません）</div>' +
          '<div class="case-actions" style="margin-top:0;"><button class="warn-btn" data-lost="' + esc(c.eventId) + '">失注にする</button>' +
@@ -1272,7 +1381,7 @@ function personPactsHtml(p, s) {
   if (s.list.length) h += '<button class="copy-btn" data-copy="' + esc(p) + '">まとめをコピー</button>';
   if (pend) h += '<button class="send-btn" disabled>送信待ち（' + esc(nextSyncLabel()) + "）</button>";
   else if (s.list.length) h += '<button class="send-btn" data-send="' + esc(p) + '">Slackで送る</button>';
-  if (!s.list.length) h += '<span style="font-size:12.5px; color:var(--sub); font-weight:700;">未対応なし</span>';
+  if (!s.list.length) h += '<span style="font-size:13.5px; color:var(--sub); font-weight:700;">未対応なし</span>';
   return h;
 }
 
@@ -1394,7 +1503,8 @@ function meetRowHtml(c) {
   let h = '<div class="meet-row"><div class="mi2" data-gocase="' + esc(c.eventId) + '"><div class="mt">' + esc(c.facility) + " × " + esc(c.person) + ' <span style="color:var(--sub);">›</span></div>' +
           '<div class="mm2">' + (time ? esc(time) + " ｜ " : "") + "担当: " + esc(c.owner || "自分") + " ｜ " + badge + "<br>準備: " + prepTxt + "</div></div>";
   if (c.pending) {
-    h += '<div class="acts"><span class="hist-pend">反映待ち</span></div>';
+    h += '<div class="acts"><span class="hist-pend">反映待ち</span>' +
+         '<button class="cancel-opt-btn" data-cancel-casepend="' + esc(c.eventId) + '">取り消す</button></div>';
   } else {
     h += '<div class="acts"><button class="mini-warn" data-lost="' + esc(c.eventId) + '">失注</button>' +
          '<button class="mini-ghost" data-close="' + esc(c.eventId) + '">終了</button></div>';
@@ -1409,8 +1519,8 @@ function startRowHtml(c) {
     '<span class="days-badge' + (d < 0 ? " red" : d <= 3 ? " amber" : "") + '">' +
     (d < 0 ? Math.abs(d) + "日経過" : d === 0 ? "今日が入社日" : "あと" + d + "日") + "</span>";
   const cls = d !== null && d !== undefined && d < 0 ? " past" : (d !== null && d !== undefined && d <= 3 ? " soon" : "");
-  let h = '<div class="start-row' + cls + '"><div class="mi2"><div style="font-size:14px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + "</div>" +
-          '<div style="font-size:12px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(c.startDate)) + " ｜ 担当: " + esc(c.owner || "自分") + "</div>" +
+  let h = '<div class="start-row' + cls + '"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + "</div>" +
+          '<div style="font-size:13px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(c.startDate)) + " ｜ 担当: " + esc(c.owner || "自分") + "</div>" +
           '<div style="margin-top:4px;">' + badge + "</div>";
   if (reschedOpen[c.eventId]) {
     h += '<input type="date" id="reschedDate-' + esc(c.eventId) + '" style="width:100%; font-size:16px; padding:9px; border:1px solid var(--line); border-radius:8px; margin-top:7px;">' +
@@ -1430,8 +1540,8 @@ function pendingStartRowHtml(o) {
   const badge = d === null ? "" :
     '<span class="days-badge' + (d < 0 ? " red" : d <= 3 ? " amber" : "") + '">' +
     (d < 0 ? Math.abs(d) + "日経過" : d === 0 ? "今日が入社日" : "あと" + d + "日") + "</span>";
-  return '<div class="start-row"><div class="mi2"><div style="font-size:14px; font-weight:700;">' + esc(o.text) + '</div>' +
-         '<div style="font-size:12px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(o.date)) + "</div>" +
+  return '<div class="start-row"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(o.text) + '</div>' +
+         '<div style="font-size:13px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(o.date)) + "</div>" +
          (badge ? '<div style="margin-top:4px;">' + badge + "</div>" : "") + "</div>" +
          '<div class="acts"><span class="hist-pend">反映待ち（' + esc(nextSyncLabel()) + "）</span></div></div>";
 }
@@ -1482,8 +1592,8 @@ function renderDash() {
     h += '<div class="dash-sub">現在、入社待ちの案件はありません</div>';
   }
   for (const c of needDate) {
-    h += '<div class="start-row past"><div class="mi2"><div style="font-size:14px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + '</div>' +
-         '<div style="font-size:12px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div></div>' +
+    h += '<div class="start-row past"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + '</div>' +
+         '<div style="font-size:13px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div></div>' +
          '<div class="acts"><button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
   }
   for (const c of waiting) h += startRowHtml(c);
@@ -1511,14 +1621,16 @@ function render() {
   renderMeetingPending();
   renderDash();
   let h = "";
-  const strips = Object.values(optCases).map((o) =>
-    '<div class="opt-strip">' + esc(o.case.facility) + " " + esc(o.case.person) + " を「" + (o.kind === "lost" ? "失注" : "終了") + "」にしました（反映待ち・" + esc(nextSyncLabel()) + "）</div>").join("");
+  const strips = Object.entries(optCases).map(([eid, o]) =>
+    '<div class="opt-strip">' + esc(o.case.facility) + " " + esc(o.case.person) + " を「" + (o.kind === "lost" ? "失注" : "終了") + "」にしました（反映待ち・" + esc(nextSyncLabel()) + "）" +
+    '<button class="cancel-opt-btn" data-cancel-case="' + esc(eid) + '">取り消す</button></div>').join("");
   if (activeTab === "history") {
     h = history.length ? history.map((x) => {
       let row = '<div class="hist-row' + (x.opt ? " opt" : "") + '"' + (x.id ? ' data-hist-id="' + esc(x.id) + '"' : "") + '><div class="ht">' + esc(x.title) + '</div><div class="hm">' +
         esc(x.closedAt) + " ｜ " + esc(x.howLabel) + (x.owner ? " ｜ 担当: " + esc(x.owner) : "") + "</div>";
       if (x.opt) {
         row += '<span class="hist-pend">反映待ち（' + esc(nextSyncLabel()) + "）</span>";
+        row += '<button class="cancel-opt-btn" data-cancel-opt="' + esc(x.id) + '">' + (x.optKind === "delete" ? "削除を取り消す" : "完了を取り消す") + "</button>";
       } else {
         if (x.id && failures[x.id]) row += '<div class="fail-note">前回の反映に失敗しました: ' + esc(failures[x.id].note || "理由不明") + "（もう一度操作できます）</div>";
         if (x.id && x.reopenable) {
@@ -1564,6 +1676,11 @@ function bindEvents(root) {
   root.querySelectorAll("[data-del-confirm]").forEach((b) => b.addEventListener("click", () => doDelete(b.getAttribute("data-del-confirm"))));
   root.querySelectorAll("[data-del-cancel]").forEach((b) => b.addEventListener("click", () => cancelDelete()));
   root.querySelectorAll("[data-reopen]").forEach((b) => b.addEventListener("click", () => reopen(b.getAttribute("data-reopen"))));
+  root.querySelectorAll("[data-cancel-opt]").forEach((b) => b.addEventListener("click", () => cancelOptTask(b.getAttribute("data-cancel-opt"))));
+  root.querySelectorAll("[data-cancel-pending]").forEach((b) => b.addEventListener("click", () => cancelPending(b.getAttribute("data-cancel-pending"))));
+  root.querySelectorAll("[data-cancel-reopen]").forEach((b) => b.addEventListener("click", () => cancelReopen(b.getAttribute("data-cancel-reopen"))));
+  root.querySelectorAll("[data-cancel-case]").forEach((b) => b.addEventListener("click", () => cancelCaseClose(b.getAttribute("data-cancel-case"))));
+  root.querySelectorAll("[data-cancel-casepend]").forEach((b) => b.addEventListener("click", () => cancelCasePending(b.getAttribute("data-cancel-casepend"))));
   root.querySelectorAll("[data-group]").forEach((b) => b.addEventListener("click", () => {
     const k = b.getAttribute("data-group");
     openCases[k] = !openCases[k];
