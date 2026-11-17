@@ -15,23 +15,25 @@
 :root{ --bg:#f4f6fa; --card:#fff; --line:#dde1e7; --txt:#1c2330; --sub:#5b6577; --accent:#2563eb; --accent-d:#1e3a8a; --danger:#b91c1c; --danger-bg:#fef2f2; --pend:#b45309; --pend-bg:#fffbeb; --amber:#d97706; --ok:#0e7a3d; --ok-bg:#f0fdf4;}
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 body{ margin:0; font-size:15.5px; line-height:1.6; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; background:var(--bg); color:var(--txt);}
-header{ position:sticky; top:0; z-index:20; background:linear-gradient(180deg,#1e3a8a,#2563eb); color:#fff; padding:10px 14px 10px; box-shadow:0 2px 10px rgba(30,58,138,.25);}
-h1{ font-size:19px; margin:0; letter-spacing:.02em;}
+header{ position:sticky; top:0; z-index:20; background:linear-gradient(180deg,#1e3a8a,#2563eb); color:#fff; padding:8px 12px 8px; box-shadow:0 2px 10px rgba(30,58,138,.25);}
+h1{ font-size:17px; margin:0; letter-spacing:.02em;}
 h1 .tag{ font-size:11px; font-weight:700; background:#fbbf24; color:#78350f; border-radius:999px; padding:2px 8px; margin-left:8px; vertical-align:2px;}
-.summary{ display:flex; gap:6px; flex-wrap:wrap; margin-top:9px;}
-.sum-chip{ font-size:13px; font-weight:700; border-radius:999px; padding:6px 12px; background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.25);}
-.sum-chip b{ font-size:17px;}
+.summary{ display:flex; gap:6px; flex-wrap:nowrap; overflow-x:auto; margin-top:7px; padding-bottom:2px; -webkit-overflow-scrolling:touch; scrollbar-width:none;}
+.summary::-webkit-scrollbar{ display:none;}
+.sum-chip{ flex:0 0 auto; display:inline-flex; align-items:center; font-size:13px; font-weight:700; border-radius:999px; padding:5px 10px; min-height:36px; background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.25);}
+.sum-chip b{ font-size:15px; margin-left:3px;}
 .sum-chip.red{ background:var(--danger); border-color:#fca5a5;}
 .sum-chip.amber{ background:#92400e; border-color:#fbbf24;}
 .sum-chip.ok{ background:#065f46; border-color:#34d399;}
 button.sum-chip{ font-family:inherit; cursor:pointer;}
-.next-meet{ font-size:13px; color:#dbeafe; margin-top:7px; line-height:1.5;}
-#syncNote{ font-size:12px; color:#bfdbfe; margin-top:2px;}
-.controls{ margin-top:9px;}
-.controls input[type="search"]{ width:100%; font-size:16px; padding:11px 12px; border:0; border-radius:10px; background:#fff; color:var(--txt);}
-.chips{ display:flex; gap:6px; overflow-x:auto; padding:8px 0 1px; -webkit-overflow-scrolling:touch;}
+.head-meta{ display:flex; gap:10px; align-items:baseline; margin-top:4px; white-space:nowrap; overflow:hidden;}
+.next-meet{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; font-size:11.5px; color:#dbeafe; line-height:1.4;}
+#syncNote{ flex:0 0 auto; font-size:11.5px; color:#bfdbfe; line-height:1.4;}
+.controls{ margin-top:7px;}
+.controls input[type="search"]{ width:100%; font-size:16px; padding:8px 12px; border:0; border-radius:10px; background:#fff; color:var(--txt);}
+.chips{ display:flex; gap:6px; overflow-x:auto; padding:5px 0 0; -webkit-overflow-scrolling:touch;}
 .chips .cap{ flex:0 0 auto; font-size:12px; color:#bfdbfe; align-self:center; font-weight:700;}
-.fchip{ flex:0 0 auto; font-size:14px; padding:10px 14px; min-height:44px; border:1px solid rgba(255,255,255,.35); border-radius:999px; background:rgba(255,255,255,.12); cursor:pointer; color:#fff;}
+.fchip{ flex:0 0 auto; font-size:14px; padding:7px 12px; min-height:38px; border:1px solid rgba(255,255,255,.35); border-radius:999px; background:rgba(255,255,255,.12); cursor:pointer; color:#fff;}
 .fchip.active{ background:#fff; border-color:#fff; color:var(--accent-d); font-weight:700;}
 .fchip.red.active{ background:var(--danger); border-color:var(--danger); color:#fff;}
 #tabbar{ position:fixed; left:0; right:0; bottom:0; z-index:30; display:flex; background:#fff; border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); box-shadow:0 -2px 12px rgba(15,23,42,.08);}
@@ -102,6 +104,20 @@ button.res-btn.red{ border-color:#fecaca; background:#fff; color:var(--danger);}
 .stage-row .st{ flex:0 0 auto; font-size:12px; font-weight:700; border-radius:999px; padding:2px 8px;}
 .st.done{ background:#dcfce7; color:var(--ok);} .st.open{ background:#dbeafe; color:var(--accent);} .st.yet{ background:#eef0f3; color:var(--sub);}
 .stage-row .sl{ flex:1;}
+.collect-box{ margin-top:12px; border:1px solid #bbf7d0; background:#f7fef9; border-radius:10px; padding:11px 12px;}
+.collect-head{ font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px;}
+.collect-prog{ font-size:12.5px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:2px 9px;}
+.collect-prog.ok{ background:#dcfce7; color:var(--ok);}
+.collect-row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid #e7f6ec; min-height:44px; cursor:pointer;}
+.collect-row input[type="checkbox"]{ flex:0 0 auto; width:24px; height:24px; accent-color:var(--accent); margin:0; cursor:pointer;}
+.collect-row input[type="checkbox"]:disabled{ cursor:default;}
+.collect-row .cl-name{ flex:1; font-size:15px; font-weight:700;}
+.collect-row.done{ cursor:default;}
+.collect-row.done .cl-name{ color:var(--sub); font-weight:400; text-decoration:line-through;}
+.collect-row .cl-tag{ flex:0 0 auto; font-size:12px; font-weight:700; color:var(--pend); border:1px dashed var(--pend); border-radius:999px; padding:2px 8px;}
+.collect-row .cl-tag.done{ color:var(--ok); border:1px solid #bbf7d0; background:var(--ok-bg);}
+.collect-note{ font-size:12.5px; color:var(--sub); margin-top:7px; line-height:1.55;}
+.collect-chip{ flex:0 0 auto; font-size:12px; font-weight:700; background:#dcfce7; color:var(--ok); border-radius:999px; padding:2px 8px;}
 .case-actions{ display:flex; gap:8px; margin-top:10px;}
 button.warn-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px solid #fecaca; background:var(--danger-bg); color:var(--danger); cursor:pointer;}
 button.ghost-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
@@ -203,8 +219,7 @@ button.cancel-opt-btn{ flex:0 0 auto; font-size:13.5px; font-weight:700; padding
 <header>
 <h1>📋 タスクボード<span class="tag">最強の管理アプリ</span></h1>
 <div class="summary" id="summary"></div>
-<div class="next-meet" id="nextMeet"></div>
-<div id="syncNote">読み込み中…</div>
+<div class="head-meta"><span class="next-meet" id="nextMeet"></span><span id="syncNote">読み込み中…</span></div>
 <div class="controls">
 <input type="search" id="searchBox" placeholder="名前・施設・タイトルで検索" aria-label="検索">
 <div class="chips" id="filterChips"></div>
@@ -450,7 +465,7 @@ async function fetchState() {
   summarySent = data.summarySent || {};
   sheetUpdatedAt = data.sheetUpdatedAt || "";
   $("syncNote").textContent = "最終更新: " + (sheetUpdatedAt ? fmtIsoMdHm(sheetUpdatedAt) : "—") +
-    "／取得: " + new Date().toLocaleTimeString("ja-JP") + "／" + nextSyncLabel();
+    "／" + nextSyncLabel();
   render();
 }
 
@@ -795,6 +810,81 @@ async function cancelCasePending(eventId) {
   delete sending[key];
   const done = await cancelSettled(r, null, c.facility + " " + c.person);
   if (done) showOk("案件の操作を取り消しました。");
+}
+
+// ---- 内定後の回収チェックリスト（案件詳細内）の操作 ----
+// チェック＝既存の完了ハンドラ complete() と同経路。反映待ちの間の解除は、楽観分は cancelOptTask、
+// サーバ側で反映待ちになっている分は cancelPending と同経路（どちらも cancelAction）。
+function setCollectRowState(row, state) {
+  row.setAttribute("data-cstate", state);
+  let tag = row.querySelector(".cl-tag");
+  if (state === "pending" || state === "pendingOpt") {
+    if (!tag) {
+      tag = document.createElement("span");
+      row.appendChild(tag);
+    }
+    tag.className = "cl-tag";
+    tag.textContent = "反映待ち";
+  } else if (tag) {
+    tag.remove();
+  }
+}
+
+// セクション見出しの進捗と、一覧の案件カード（グループ見出し）の「回収 n/m」チップを、行の状態から合わせ直す
+function syncCollectDom(ev) {
+  const box = document.querySelector(".collect-box[data-collect-ev=" + attrQ(ev) + "]");
+  let done = 0, total = 0;
+  if (box) {
+    box.querySelectorAll(".collect-row").forEach((r) => {
+      total++;
+      const st = r.getAttribute("data-cstate");
+      if (st === "done" || st === "pending" || st === "pendingOpt") done++;
+    });
+    const prog = box.querySelector("[data-collect-prog]");
+    if (prog && total) {
+      prog.textContent = done === total ? "全て回収済み" : done + "/" + total;
+      prog.classList.toggle("ok", done === total);
+    }
+  }
+  const chip = document.querySelector("[data-collect-chip=" + attrQ(ev) + "]");
+  if (chip && total) chip.textContent = "回収 " + done + "/" + total;
+}
+
+function refreshCaseDetail(ev) {
+  const c = cases.find((x) => x.eventId === ev);
+  if (!c) return;
+  const det = document.getElementById("case-" + ev);
+  if (det) {
+    const node = htmlToNode(caseDetailHtml(c));
+    det.replaceWith(node);
+    bindEvents(node);
+  }
+  const chip = document.querySelector("[data-collect-chip=" + attrQ(ev) + "]");
+  if (chip) {
+    const items = collectItems(c);
+    if (items.length) chip.textContent = "回収 " + collectProgress(items).done + "/" + items.length;
+  }
+}
+
+async function onCollectToggle(input) {
+  const taskId = input.getAttribute("data-collect-check");
+  const ev = input.getAttribute("data-collect-ev");
+  if (!taskId || !ev) return;
+  const row = input.closest(".collect-row");
+  const state = row ? row.getAttribute("data-cstate") : "";
+  if (input.checked && state === "open") {
+    await complete(taskId);
+    // complete() の楽観表示で詳細ごと消えた場合（その案件の最後のタスクだった場合）は何もしない
+    if (optTasks[taskId] && row && row.isConnected) {
+      setCollectRowState(row, "pendingOpt");
+      syncCollectDom(ev);
+    }
+  } else if (!input.checked && state === "pendingOpt") {
+    await cancelOptTask(taskId);
+  } else if (!input.checked && state === "pending") {
+    await cancelPending(taskId);
+    refreshCaseDetail(ev);
+  }
 }
 
 async function setStartDate(eventId) {
@@ -1163,6 +1253,89 @@ function caseDecided(c) {
          stageStateOf(c, "④入力・申請") !== "yet" || stageStateOf(c, "⑤入職フォロー") !== "yet";
 }
 
+// ---- 内定後の回収チェックリスト ----
+// 対象は実在する段階タスク（③書類回収＋④の全タスク＋⑤入職フォロー。未送信=notyet は含まない）。
+// 新しい状態は持たず、cases[].stages と tasks（＋楽観完了の optTasks）から毎回組み立てる。
+const COLLECT_PHASES = ["③書類回収", "④入力・申請", "⑤入職フォロー"];
+
+function collectName(s) {
+  const label = s.label || s.phase;
+  if (label.indexOf("／") >= 0) return label.split("／").pop();
+  return label.replace(/^[①②③④⑤]/, "");
+}
+
+function tsKey(id) {
+  const m = String(id || "").match(/:(\d+)\.(\d+)$/);
+  return m ? Number(m[1]) * 1000000 + Number(m[2]) : null;
+}
+
+// 段階↔タスクの対応付け: 案件詳細の段階行と同じ「フェーズ内で順序に対応付ける」考え方。
+// 実データでは段階とタスクの slackUrl が一致するので、それがあれば確定的に優先する。
+// 楽観完了で tasks から外れたタスク（optTasks）も候補に含めるため、1件チェックした直後でも
+// 残りの項目の対応付けが壊れない。状態: done（反映済み）/ open / pending（サーバ側で反映待ち）/
+// pendingOpt（楽観完了で反映待ち）/ nolink（対応タスクが特定できない）
+function collectItems(c) {
+  const items = [];
+  for (const s of c.stages) {
+    if (COLLECT_PHASES.indexOf(s.phase) < 0 || s.status === "notyet") continue;
+    items.push({ stage: s, name: collectName(s), state: s.status === "done" ? "done" : "nolink", taskId: "" });
+  }
+  for (const ph of COLLECT_PHASES) {
+    const openItems = items.filter((it) => it.stage.phase === ph && it.stage.status === "open");
+    if (!openItems.length) continue;
+    const live = tasks.filter((t) => t.groupKey === c.eventId && t.phase === ph);
+    const opt = Object.values(optTasks).map((o) => o.task).filter((t) => t && t.groupKey === c.eventId && t.phase === ph);
+    const pool = live.concat(opt);
+    const used = {};
+    const assign = (it, t) => {
+      used[t.id] = true;
+      it.taskId = t.id;
+      it.state = opt.indexOf(t) >= 0 ? "pendingOpt" : (t.pending ? "pending" : "open");
+    };
+    for (const it of openItems) {
+      if (!it.stage.slackUrl) continue;
+      const t = pool.find((x) => x.slackUrl && x.slackUrl === it.stage.slackUrl && !used[x.id]);
+      if (t) assign(it, t);
+    }
+    const rest = pool.filter((x) => !used[x.id]).sort((a, b) => {
+      const ka = tsKey(a.id), kb = tsKey(b.id);
+      if (ka !== null && kb !== null) return ka - kb;
+      return 0;
+    });
+    openItems.filter((it) => !it.taskId).forEach((it, i) => { if (rest[i]) assign(it, rest[i]); });
+  }
+  return items;
+}
+
+function collectProgress(items) {
+  return { done: items.filter((i) => i.state === "done" || i.state === "pending" || i.state === "pendingOpt").length, total: items.length };
+}
+
+function collectBoxHtml(c) {
+  const items = collectItems(c);
+  if (!items.length) return "";
+  const p = collectProgress(items);
+  let h = '<div class="collect-box" data-collect-ev="' + esc(c.eventId) + '">';
+  h += '<div class="collect-head">📦 内定後の回収 <span class="collect-prog' + (p.done === p.total ? " ok" : "") + '" data-collect-prog>' +
+       (p.done === p.total ? "全て回収済み" : p.done + "/" + p.total) + "</span></div>";
+  for (const it of items) {
+    const checked = it.state === "done" || it.state === "pending" || it.state === "pendingOpt";
+    const disabled = it.state === "done" || it.state === "nolink";
+    h += '<label class="collect-row' + (it.state === "done" ? " done" : "") + '" data-cstate="' + it.state + '">' +
+         '<input type="checkbox" data-collect-check="' + esc(it.taskId) + '" data-collect-ev="' + esc(c.eventId) + '"' +
+         (checked ? " checked" : "") + (disabled ? " disabled" : "") + ">" +
+         '<span class="cl-name">' + esc(it.name) + "</span>" +
+         (it.state === "done" ? '<span class="cl-tag done">回収済み</span>'
+           : (it.state === "pending" || it.state === "pendingOpt") ? '<span class="cl-tag">反映待ち</span>' : "") +
+         "</label>";
+  }
+  if (items.some((i) => i.state === "done")) {
+    h += '<div class="collect-note">※ 反映済みの項目を戻す場合は「完了済み」タブから戻してください。</div>';
+  }
+  h += "</div>";
+  return h;
+}
+
 function startBoxHtml(c) {
   if (!caseDecided(c)) return "";
   let h = '<div class="start-box"><div class="sb-t">🏢 入社日・結果</div>';
@@ -1229,6 +1402,7 @@ function caseDetailHtml(c) {
   }
   const f = failures["case:" + c.eventId];
   if (f) h += '<div class="fail-note">案件アクションの反映に失敗しました: ' + esc(f.note || "理由不明") + "</div>";
+  h += collectBoxHtml(c);
   h += startBoxHtml(c);
   if (c.pending) {
     h += '<div class="actions"><span class="pend-chip">案件アクション反映待ち（' + esc(nextSyncLabel()) + "）</span>" +
@@ -1251,7 +1425,13 @@ function groupHtml(visible, groupTitleOf) {
   }
   let h = "";
   for (const g of groups.values()) {
-    h += '<button class="group-head" data-group="' + esc(g.key) + '"><span class="gt">' + esc(g.title) + '</span><span class="gn">' + g.items.length + '件</span><span class="chev">' + (openCases[g.key] ? "▲" : "▼") + "</span></button>";
+    let chipHtml = "";
+    const cc = cases.find((x) => x.eventId === g.key);
+    if (cc) {
+      const cItems = collectItems(cc);
+      if (cItems.length) chipHtml = '<span class="collect-chip" data-collect-chip="' + esc(g.key) + '">回収 ' + collectProgress(cItems).done + "/" + cItems.length + "</span>";
+    }
+    h += '<button class="group-head" data-group="' + esc(g.key) + '"><span class="gt">' + esc(g.title) + "</span>" + chipHtml + '<span class="gn">' + g.items.length + '件</span><span class="chev">' + (openCases[g.key] ? "▲" : "▼") + "</span></button>";
     if (activeTab === "tour" && openCases[g.key]) {
       const c = cases.find((x) => x.eventId === g.key);
       if (c) h += caseDetailHtml(c);
@@ -1680,6 +1860,7 @@ function bindEvents(root) {
   root.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => openMetaEdit(b.getAttribute("data-edit"))));
   root.querySelectorAll("[data-memo-edit]").forEach((b) => b.addEventListener("click", () => openMetaEdit(b.getAttribute("data-memo-edit"))));
   root.querySelectorAll("[data-stage-edit]").forEach((b) => b.addEventListener("click", () => openMetaEdit(b.getAttribute("data-stage-edit"))));
+  root.querySelectorAll("[data-collect-check]").forEach((inp) => inp.addEventListener("change", () => onCollectToggle(inp)));
   root.querySelectorAll("[data-meta-save]").forEach((b) => b.addEventListener("click", () => saveMeta(b.getAttribute("data-meta-save"))));
   root.querySelectorAll("[data-meta-cancel]").forEach((b) => b.addEventListener("click", () => cancelMetaEdit()));
   root.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => askDelete(b.getAttribute("data-del"))));
