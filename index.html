@@ -86,6 +86,12 @@ button.ghost-btn{ flex:1; font-size:14px; font-weight:700; padding:12px; min-hei
 .actions{ margin-top:9px; display:flex; gap:8px; align-items:center;}
 button.done-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:50px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
 button.done-btn:disabled{ opacity:.5;}
+button.del-btn{ flex:0 0 auto; font-size:13px; font-weight:700; padding:12px 13px; min-height:50px; border-radius:10px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
+.del-q{ flex:1; font-size:12.5px; color:var(--danger); line-height:1.55;}
+button.del-confirm{ flex:0 0 auto; font-size:14px; font-weight:700; padding:12px 16px; min-height:50px; border:0; border-radius:10px; background:var(--danger); color:#fff; cursor:pointer;}
+button.del-cancel{ flex:0 0 auto; font-size:14px; font-weight:700; padding:12px 16px; min-height:50px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
+button.reopen-btn{ margin-top:8px; font-size:13px; font-weight:700; padding:10px 16px; min-height:44px; border-radius:9px; border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer;}
+.hist-pend{ display:inline-block; margin-top:8px; font-size:12px; font-weight:700; color:var(--pend); border:1px dashed var(--pend); border-radius:9px; padding:8px 10px;}
 .pend-chip{ flex:1; text-align:center; font-size:13px; font-weight:700; color:var(--pend); border:1px dashed var(--pend); border-radius:10px; padding:11px 6px; line-height:1.5;}
 a.slack-link{ font-size:13px; color:var(--accent); text-decoration:none; padding:10px 6px; white-space:nowrap;}
 .member-row{ display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 12px; margin-bottom:9px;}
@@ -93,6 +99,12 @@ a.slack-link{ font-size:13px; color:var(--accent); text-decoration:none; padding
 .member-row .mn{ font-size:15px; font-weight:700;}
 .member-row .mm{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.5;}
 button.off-btn{ flex:0 0 auto; font-size:13px; font-weight:700; padding:10px 13px; min-height:44px; border-radius:9px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
+.copy-row{ display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 12px; margin-bottom:9px;}
+.copy-row .mi{ flex:1;}
+.copy-row .mn{ font-size:15px; font-weight:700;}
+.copy-row .mm{ font-size:12px; color:var(--sub); margin-top:2px;}
+button.copy-btn{ flex:0 0 auto; font-size:13px; font-weight:700; padding:10px 13px; min-height:44px; border-radius:9px; border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer;}
+#copyText{ width:100%; font-size:13px; padding:10px; border:1px solid var(--line); border-radius:10px; margin-top:8px; font-family:inherit; line-height:1.6;}
 .hist-row{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:9px;}
 .hist-row .ht{ font-size:14px; font-weight:700; line-height:1.45;}
 .hist-row .hm{ font-size:12px; color:var(--sub); margin-top:3px;}
@@ -142,6 +154,12 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 
 <div id="memberPanel" class="hidden">
 <div class="panel">
+<h2>人ごとの残タスクまとめ</h2>
+<div id="copyList"></div>
+<textarea id="copyText" class="hidden" readonly rows="8" aria-label="コピー用テキスト"></textarea>
+<div class="note">「まとめをコピー」で、その人の未対応タスク（面談の担当分・メンション共有・依頼共有・割当タスク）を期限つきのテキストにまとめます。そのままSlack等に貼って送れます（自動送信はしません）。</div>
+</div>
+<div class="panel">
 <h2>メンバー管理</h2>
 <div id="memberList"></div>
 <label for="memName">メンバー追加：名前</label>
@@ -159,6 +177,8 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 ・「完了」は元のSlackメッセージへの✅として反映されます（次の同期タイミング: 平日 8:45／12:00／15:00／17:30／19:30）。押し間違えたら元のSlackの✅を外してください。<br>
 ・面談の「完了」はその段階への✅です（内定確認への✅＝内定として進みます）。案件の「失注」「終了」は状態記録として残り、Slackのメッセージは消えません。<br>
 ・メンバータブの「完了」は共有メッセージへの✅＝確認済みとして扱われ、フォローアップ側で閉じられます。<br>
+・「削除」は「完了」とは別です。メール/Slackは記録上閉じるだけ（メッセージ・下書き自体は消えません）、カレンダーは予定自体を削除、入社はそのステージだけを閉じ、面談は段階ごとの削除ルール（準備=離脱、内定確認=クローズ、書類回収以降=完了と同じ扱い）に従います。削除の前に確認画面が出ます。<br>
+・完了済みタブの「未対応に戻す」は、次回同期で元のメッセージの✅を取り消して未対応に戻します（面談は次の段階のタスクが送信済みだと戻せません）。<br>
 ・このボードのURLは共有しないでください（あなた専用です）。
 </footer>
 <script>
@@ -181,6 +201,7 @@ let tasks = [], adds = [], memberAdds = [], cases = [], history = [], members = 
 let failures = {}; // taskId -> failure
 let activeTab = "all";
 let sending = {};
+let confirmDeleteId = null;
 let openCases = {};
 let query = "", ownerFilter = "all", phaseFilter = "all", overdueOnly = false;
 let addPreset = "auto";
@@ -238,8 +259,9 @@ async function postAction(payload, confirmFn, failMsg) {
     if (confirmFn && !confirmFn()) throw new Error("not_landed");
     return true;
   } catch (e) {
+    // 先に state を読み戻して表示を実態に合わせ、その後にエラーを出す（読み戻しの成功でエラーが消えないように）
+    try { await fetchState(); } catch (_) {}
     showErr(failMsg);
-    fetchState().catch(() => {});
     return false;
   }
 }
@@ -256,6 +278,55 @@ async function complete(id) {
     "記録できませんでした。通信を確認して、もう一度試してください。");
   if (!ok) { t.pending = false; render(); }
   delete sending[id];
+}
+
+function deleteNote(t) {
+  if (t.type === "tour") {
+    if (t.phase === "①準備") return "準備段階の削除＝案件全体が「離脱」として終了します。Slackのメッセージ自体は消えません。";
+    if (t.phase === "②内定確認") return "内定確認の削除＝案件が「クローズ」として終了します。Slackのメッセージ自体は消えません。";
+    if (t.phase === "⑤入職フォロー") return "削除＝完了と同じ扱いになり、案件は全完了として終了します。Slackのメッセージ自体は消えません。";
+    return "削除＝その段階・タスクが完了したものとして記録されます。Slackのメッセージ自体は消えません。";
+  }
+  if (t.type === "calendar") return "Googleカレンダーの【タスク】予定自体を削除します（元に戻せません）。";
+  if (t.type === "onboarding") return "この入社ステージだけを閉じます。他のステージには影響しません。";
+  if (t.type === "member") {
+    if (t.shareKind === "割当タスク") return "この割当を取り消します。メンバーへのリマインドは止まります（送信済みのDMは残ります）。";
+    return "この共有をユーザー確認済みとして閉じます。元のメッセージは消えません。";
+  }
+  return "このタスクを削除として閉じます。SlackのメッセージやGmailの下書き自体は消えません（リマインドは止まります）。";
+}
+
+function askDelete(id) { confirmDeleteId = id; render(); }
+function cancelDelete() { confirmDeleteId = null; render(); }
+
+async function doDelete(id) {
+  if (sending[id]) return;
+  const t = tasks.find((x) => x.id === id);
+  if (!t || t.pending) return;
+  sending[id] = true;
+  confirmDeleteId = null;
+  t.pending = true;
+  render();
+  const ok = await postAction({ action: "delete", id: id },
+    () => { const n = tasks.find((x) => x.id === id); return n && n.pending; },
+    "削除を記録できませんでした。通信を確認して、もう一度試してください。");
+  if (!ok) { t.pending = false; render(); }
+  delete sending[id];
+}
+
+async function reopen(id) {
+  const key = "reopen:" + id;
+  if (sending[key]) return;
+  const x = history.find((h) => h.id === id);
+  if (!x || x.pending || !x.reopenable) return;
+  sending[key] = true;
+  x.pending = true;
+  render();
+  const ok = await postAction({ action: "reopen", id: id },
+    () => { const n = history.find((h) => h.id === id); return n && n.pending; },
+    "戻しを記録できませんでした。通信を確認して、もう一度試してください。");
+  if (!ok) { x.pending = false; render(); }
+  delete sending[key];
 }
 
 async function caseClose(eventId, kind) {
@@ -361,15 +432,23 @@ function cardHtml(t) {
   if (t.deadlineLabel) meta += ' ｜ <span class="deadline">締切: ' + esc(t.deadlineLabel) + "</span>";
   if (t.type === "member" && t.shareKind) meta += " ｜ " + esc(t.shareKind);
   h += '<div class="line">' + meta + "</div>";
-  if (failures[t.id]) h += '<div class="fail-note">前回の反映に失敗しました: ' + esc(failures[t.id].note || "理由不明") + "（もう一度「完了」を押せます）</div>";
-  h += '<div class="actions">';
-  if (t.pending) {
-    h += '<span class="pend-chip">反映待ち（' + esc(nextSyncLabel()) + "）</span>";
+  if (failures[t.id]) h += '<div class="fail-note">前回の反映に失敗しました: ' + esc(failures[t.id].note || "理由不明") + "（もう一度操作できます）</div>";
+  if (confirmDeleteId === t.id && !t.pending) {
+    h += '<div class="actions"><span class="del-q">このタスクを削除しますか？<br>' + esc(deleteNote(t)) + "</span></div>";
+    h += '<div class="actions"><button class="del-confirm" data-del-confirm="' + esc(t.id) + '">削除する</button>' +
+         '<button class="del-cancel" data-del-cancel="1">やめる</button></div>';
   } else {
-    h += '<button class="done-btn" data-done="' + esc(t.id) + '">完了</button>';
+    h += '<div class="actions">';
+    if (t.pending) {
+      h += '<span class="pend-chip">反映待ち（' + esc(nextSyncLabel()) + "）</span>";
+    } else {
+      h += '<button class="done-btn" data-done="' + esc(t.id) + '">完了</button>';
+      h += '<button class="del-btn" data-del="' + esc(t.id) + '">削除</button>';
+    }
+    if (t.slackUrl) h += '<a class="slack-link" href="' + esc(t.slackUrl) + '" target="_blank" rel="noopener">Slackで開く</a>';
+    h += "</div>";
   }
-  if (t.slackUrl) h += '<a class="slack-link" href="' + esc(t.slackUrl) + '" target="_blank" rel="noopener">Slackで開く</a>';
-  h += "</div></div>";
+  h += "</div>";
   return h;
 }
 
@@ -501,10 +580,100 @@ function groupHtml(visible, groupTitleOf) {
   return h;
 }
 
+// ---- 人ごとの残タスクまとめ（コピー用テキスト生成） ----
+function deadlineSortKey(t) {
+  if (!t.deadlineLabel) return null;
+  const m = t.deadlineLabel.match(/(\d{1,2})\/(\d{1,2})/);
+  if (!m) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let d = new Date(now.getFullYear(), Number(m[1]) - 1, Number(m[2]));
+  const diffDays = Math.round((d - today) / 86400000);
+  if (diffDays < -180) d = new Date(now.getFullYear() + 1, Number(m[1]) - 1, Number(m[2]));
+  else if (diffDays > 180) d = new Date(now.getFullYear() - 1, Number(m[1]) - 1, Number(m[2]));
+  let mins = 0;
+  const hm = t.deadlineLabel.match(/(\d{1,2})時/) || t.deadlineLabel.match(/(\d{1,2}):(\d{2})/);
+  if (hm) mins = Number(hm[1]) * 60 + (hm[2] ? Number(hm[2]) : 0);
+  return d.getTime() + mins * 60000;
+}
+
+function sortSummaryTasks(list) {
+  return list.slice().sort((a, b) => {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    const ka = deadlineSortKey(a), kb = deadlineSortKey(b);
+    if (ka !== null && kb !== null && ka !== kb) return ka - kb;
+    if (ka !== null && kb === null) return -1;
+    if (ka === null && kb !== null) return 1;
+    return (b.elapsedDays || 0) - (a.elapsedDays || 0);
+  });
+}
+
+function personOpenTasks(person) {
+  const list = tasks.filter((t) => {
+    if (t.type === "tour") return (t.owner || "自分") === person;
+    if (t.type === "member") return (t.member || t.groupTitle || "") === person;
+    return false;
+  });
+  return sortSummaryTasks(list);
+}
+
+function buildSummaryText(person, list) {
+  const now = new Date();
+  const md = (now.getMonth() + 1) + "/" + now.getDate();
+  const lines = [person === "自分"
+    ? "【自分の分】未対応 " + list.length + "件（" + md + "時点）"
+    : "【" + person + "さん】未対応 " + list.length + "件（" + md + "時点）"];
+  for (const t of list) {
+    let line = t.overdue ? "⚠️期限超過 ・" : "・";
+    line += t.title;
+    line += t.deadlineLabel ? "｜締切: " + t.deadlineLabel : "｜" + (t.elapsedDays || 0) + "日経過";
+    lines.push(line);
+  }
+  if (person !== "自分") lines.push("対応したら元のメッセージに✅をお願いします");
+  return lines.join("\n");
+}
+
+async function copySummary(person) {
+  const list = personOpenTasks(person);
+  if (!list.length) return;
+  const text = buildSummaryText(person, list);
+  let ok = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); ok = true; }
+  } catch (e) { ok = false; }
+  if (ok) {
+    $("copyText").classList.add("hidden");
+    showOk("コピーしました");
+    return;
+  }
+  const ta = $("copyText");
+  ta.value = text;
+  ta.classList.remove("hidden");
+  ta.focus();
+  ta.select();
+  showOk("自動コピーできませんでした。下のテキストを選択してコピーしてください。");
+}
+
+function renderCopyPanel() {
+  const people = ["自分"].concat(members.filter((m) => m.status === "有効").map((m) => m.label));
+  let h = "";
+  for (const p of people) {
+    const list = personOpenTasks(p);
+    h += '<div class="copy-row"><div class="mi"><div class="mn">' + esc(p === "自分" ? "自分の分" : p + "さん") + '</div>' +
+         '<div class="mm">未対応 ' + list.length + "件</div></div>";
+    if (list.length) h += '<button class="copy-btn" data-copy="' + esc(p) + '">まとめをコピー</button>';
+    else h += '<span style="flex:0 0 auto; font-size:12px; color:var(--sub); font-weight:700;">未対応なし</span>';
+    h += "</div>";
+  }
+  $("copyList").innerHTML = h;
+  document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => copySummary(b.getAttribute("data-copy"))));
+}
+
 function renderMemberPanel() {
   const show = activeTab === "member";
   $("memberPanel").classList.toggle("hidden", !show);
   if (!show) return;
+  renderCopyPanel();
   let h = "";
   const sorted = members.slice().sort((a, b) => (a.status === "有効" ? 0 : 1) - (b.status === "有効" ? 0 : 1));
   for (const m of sorted) {
@@ -545,9 +714,18 @@ function render() {
   renderMemberPanel();
   let h = "";
   if (activeTab === "history") {
-    h = history.length ? history.map((x) =>
-      '<div class="hist-row"><div class="ht">' + esc(x.title) + '</div><div class="hm">' +
-      esc(x.closedAt) + " ｜ " + esc(x.howLabel) + (x.owner ? " ｜ 担当: " + esc(x.owner) : "") + "</div></div>").join("")
+    h = history.length ? history.map((x) => {
+      let row = '<div class="hist-row"><div class="ht">' + esc(x.title) + '</div><div class="hm">' +
+        esc(x.closedAt) + " ｜ " + esc(x.howLabel) + (x.owner ? " ｜ 担当: " + esc(x.owner) : "") + "</div>";
+      if (x.id && failures[x.id]) row += '<div class="fail-note">前回の反映に失敗しました: ' + esc(failures[x.id].note || "理由不明") + "（もう一度操作できます）</div>";
+      if (x.id && x.reopenable) {
+        row += x.pending
+          ? '<span class="hist-pend">戻し 反映待ち（' + esc(nextSyncLabel()) + "）</span>"
+          : '<button class="reopen-btn" data-reopen="' + esc(x.id) + '">未対応に戻す</button>';
+      }
+      row += "</div>";
+      return row;
+    }).join("")
       : '<div class="empty">完了済みの項目はまだありません。</div>';
   } else {
     let visible = tasks.filter((t) => activeTab === "all" || t.type === activeTab).filter(matchesFilters);
@@ -566,6 +744,10 @@ function render() {
   }
   $("list").innerHTML = h;
   document.querySelectorAll("[data-done]").forEach((b) => b.addEventListener("click", () => complete(b.getAttribute("data-done"))));
+  document.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => askDelete(b.getAttribute("data-del"))));
+  document.querySelectorAll("[data-del-confirm]").forEach((b) => b.addEventListener("click", () => doDelete(b.getAttribute("data-del-confirm"))));
+  document.querySelectorAll("[data-del-cancel]").forEach((b) => b.addEventListener("click", () => cancelDelete()));
+  document.querySelectorAll("[data-reopen]").forEach((b) => b.addEventListener("click", () => reopen(b.getAttribute("data-reopen"))));
   document.querySelectorAll("[data-group]").forEach((b) => b.addEventListener("click", () => {
     const k = b.getAttribute("data-group");
     openCases[k] = !openCases[k];
