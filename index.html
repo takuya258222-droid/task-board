@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>タスクボード</title>
-<meta name="theme-color" content="#2563eb">
+<title>タスクボード｜最強の管理アプリ</title>
+<meta name="theme-color" content="#1e3a8a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="タスクボード">
@@ -12,42 +12,75 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <style>
-:root{ --bg:#f6f7f9; --card:#fff; --line:#dde1e7; --txt:#1c2330; --sub:#5b6577; --accent:#2563eb; --danger:#b91c1c; --danger-bg:#fef2f2; --pend:#b45309; --pend-bg:#fffbeb; --amber:#d97706; --ok:#0e7a3d;}
+:root{ --bg:#f4f6fa; --card:#fff; --line:#dde1e7; --txt:#1c2330; --sub:#5b6577; --accent:#2563eb; --accent-d:#1e3a8a; --danger:#b91c1c; --danger-bg:#fef2f2; --pend:#b45309; --pend-bg:#fffbeb; --amber:#d97706; --ok:#0e7a3d; --ok-bg:#f0fdf4;}
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; background:var(--bg); color:var(--txt);}
-header{ position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid var(--line); padding:10px 14px 0;}
-h1{ font-size:17px; margin:0;}
-.summary{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;}
-.sum-chip{ font-size:12px; font-weight:700; border:1px solid var(--line); border-radius:999px; padding:4px 10px; background:#fff;}
+header{ position:sticky; top:0; z-index:20; background:linear-gradient(180deg,#1e3a8a,#2563eb); color:#fff; padding:10px 14px 10px; box-shadow:0 2px 10px rgba(30,58,138,.25);}
+h1{ font-size:17px; margin:0; letter-spacing:.02em;}
+h1 .tag{ font-size:10px; font-weight:700; background:#fbbf24; color:#78350f; border-radius:999px; padding:2px 8px; margin-left:8px; vertical-align:2px;}
+.summary{ display:flex; gap:6px; flex-wrap:wrap; margin-top:9px;}
+.sum-chip{ font-size:11.5px; font-weight:700; border-radius:999px; padding:4px 10px; background:rgba(255,255,255,.16); color:#fff; border:1px solid rgba(255,255,255,.25);}
 .sum-chip b{ font-size:15px;}
-.sum-chip.red{ color:var(--danger); border-color:#fecaca; background:var(--danger-bg);}
-.sum-chip.amber{ color:var(--pend); border-color:#fde68a; background:var(--pend-bg);}
-.next-meet{ font-size:12px; color:var(--sub); margin-top:6px;}
-#syncNote{ font-size:11px; color:var(--sub); margin-top:2px;}
-.controls{ margin-top:8px;}
-.controls input[type="search"]{ width:100%; font-size:16px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:#fff;}
-.chips{ display:flex; gap:6px; overflow-x:auto; padding:8px 0 2px; -webkit-overflow-scrolling:touch;}
-.chips .cap{ flex:0 0 auto; font-size:11px; color:var(--sub); align-self:center; font-weight:700;}
-.fchip{ flex:0 0 auto; font-size:13px; padding:8px 12px; min-height:38px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer; color:var(--txt);}
-.fchip.active{ background:#334155; border-color:#334155; color:#fff; font-weight:700;}
-.fchip.red.active{ background:var(--danger); border-color:var(--danger);}
-.tabs{ display:flex; gap:6px; overflow-x:auto; padding:10px 0 9px; -webkit-overflow-scrolling:touch;}
-.tab{ flex:0 0 auto; display:inline-flex; align-items:center; gap:6px; font-size:14px; padding:9px 13px; min-height:44px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer; color:var(--txt);}
-.tab.active{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700;}
-.tab .bdg{ font-size:11px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:1px 7px;}
-.tab.active .bdg{ background:#fff; color:var(--accent);}
-.tab .bdg.red{ background:var(--danger); color:#fff;}
-main{ padding:10px 12px 40px; max-width:860px; margin:0 auto;}
+.sum-chip.red{ background:var(--danger); border-color:#fca5a5;}
+.sum-chip.amber{ background:#92400e; border-color:#fbbf24;}
+.sum-chip.ok{ background:#065f46; border-color:#34d399;}
+.next-meet{ font-size:12px; color:#dbeafe; margin-top:7px; line-height:1.5;}
+#syncNote{ font-size:11px; color:#bfdbfe; margin-top:2px;}
+.controls{ margin-top:9px;}
+.controls input[type="search"]{ width:100%; font-size:16px; padding:11px 12px; border:0; border-radius:10px; background:#fff; color:var(--txt);}
+.chips{ display:flex; gap:6px; overflow-x:auto; padding:8px 0 1px; -webkit-overflow-scrolling:touch;}
+.chips .cap{ flex:0 0 auto; font-size:11px; color:#bfdbfe; align-self:center; font-weight:700;}
+.fchip{ flex:0 0 auto; font-size:13px; padding:8px 12px; min-height:38px; border:1px solid rgba(255,255,255,.35); border-radius:999px; background:rgba(255,255,255,.12); cursor:pointer; color:#fff;}
+.fchip.active{ background:#fff; border-color:#fff; color:var(--accent-d); font-weight:700;}
+.fchip.red.active{ background:var(--danger); border-color:var(--danger); color:#fff;}
+#tabbar{ position:fixed; left:0; right:0; bottom:0; z-index:30; display:flex; background:#fff; border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); box-shadow:0 -2px 12px rgba(15,23,42,.08);}
+#tabbar .tab{ flex:1; display:flex; flex-direction:column; align-items:center; gap:1px; font-size:10px; padding:7px 2px 6px; min-height:56px; border:0; background:#fff; cursor:pointer; color:var(--sub); position:relative;}
+#tabbar .tab .ic{ font-size:19px; line-height:1.15;}
+#tabbar .tab.active{ color:var(--accent); font-weight:700;}
+#tabbar .tab .bdg{ position:absolute; top:3px; right:calc(50% - 21px); font-size:10px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:0 6px; min-width:19px; text-align:center;}
+#tabbar .tab .bdg.red{ background:var(--danger); color:#fff;}
+main{ padding:10px 12px 96px; max-width:860px; margin:0 auto;}
 .panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;}
 .panel h2{ font-size:14px; margin:0 0 8px;}
 .panel label{ display:block; font-size:12px; color:var(--sub); margin:8px 0 4px;}
 .panel input{ width:100%; font-size:16px; padding:11px 12px; border:1px solid var(--line); border-radius:10px;}
+.panel textarea{ width:100%; font-size:15px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font-family:inherit; line-height:1.6;}
+.panel select{ width:100%; font-size:16px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:#fff;}
 .preset-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
 .preset{ font-size:13px; padding:8px 11px; min-height:38px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer;}
 .preset.active{ background:#334155; border-color:#334155; color:#fff; font-weight:700;}
 button.primary{ width:100%; margin-top:12px; font-size:15px; font-weight:700; padding:13px; min-height:50px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
 button.primary:disabled{ opacity:.5;}
 .note{ font-size:11px; color:var(--sub); margin-top:8px; line-height:1.6;}
+.dash-panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;}
+.dash-panel h2{ font-size:14px; margin:0 0 4px; display:flex; align-items:center; gap:8px;}
+.dash-panel h2 .cnt{ font-size:11px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:1px 8px;}
+.dash-panel h2 .cnt.red{ background:var(--danger); color:#fff;}
+.dash-sub{ font-size:12px; color:var(--sub); margin:2px 0 8px; line-height:1.6;}
+.alert-row{ display:flex; gap:8px; align-items:flex-start; border-top:1px solid #f1f3f6; padding:8px 0;}
+.alert-row .ak{ flex:0 0 auto; font-size:11px; font-weight:700; color:#fff; background:var(--danger); border-radius:999px; padding:2px 8px; margin-top:1px;}
+.alert-row .ak.amber{ background:var(--amber);}
+.alert-row .al{ flex:1; font-size:13.5px; font-weight:700; line-height:1.45;}
+.alert-row .ad{ font-size:12px; color:var(--sub); line-height:1.5;}
+.meet-date{ font-size:12px; font-weight:700; color:var(--accent-d); background:#eef2ff; border-radius:8px; padding:5px 9px; margin:10px 0 6px;}
+.meet-row{ display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:7px; background:#fff;}
+.meet-row .mi2{ flex:1; min-width:0;}
+.meet-row .mt{ font-size:14px; font-weight:700; line-height:1.45;}
+.meet-row .mm2{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.55;}
+.meet-row .acts{ flex:0 0 auto; display:flex; flex-direction:column; gap:6px;}
+button.mini-warn{ font-size:12px; font-weight:700; padding:9px 11px; min-height:40px; border-radius:8px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
+button.mini-ghost{ font-size:12px; font-weight:700; padding:9px 11px; min-height:40px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
+.start-row{ display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:7px;}
+.start-row.soon{ border-color:#fde68a; background:#fffdf5;}
+.start-row.past{ border-color:#fecaca; background:#fff8f8;}
+.start-row .mi2{ flex:1; min-width:0;}
+.start-row .acts{ flex:0 0 auto; display:flex; flex-direction:column; gap:6px;}
+button.res-btn{ font-size:12px; font-weight:700; padding:9px 11px; min-height:40px; border-radius:8px; border:1px solid #bbf7d0; background:var(--ok-bg); color:var(--ok); cursor:pointer;}
+button.res-btn.gray{ border-color:var(--line); background:#fff; color:var(--txt);}
+button.res-btn.red{ border-color:#fecaca; background:#fff; color:var(--danger);}
+.days-badge{ display:inline-block; font-size:12px; font-weight:700; border-radius:8px; padding:2px 8px; background:#eef2ff; color:var(--accent); border:1px solid #c7d2fe;}
+.days-badge.red{ background:var(--danger-bg); color:var(--danger); border-color:#fecaca;}
+.days-badge.amber{ background:var(--pend-bg); color:var(--pend); border-color:#fde68a;}
 .group-head{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:#eef2ff; border:1px solid #c7d2fe; border-radius:12px; padding:12px; margin:14px 0 8px; cursor:pointer; min-height:48px;}
 .group-head .gt{ font-size:14px; font-weight:700; flex:1; line-height:1.4;}
 .group-head .gn{ font-size:12px; color:var(--sub); font-weight:700;}
@@ -62,12 +95,24 @@ button.primary:disabled{ opacity:.5;}
 .st.done{ background:#dcfce7; color:var(--ok);} .st.open{ background:#dbeafe; color:var(--accent);} .st.yet{ background:#eef0f3; color:var(--sub);}
 .stage-row .sl{ flex:1;}
 .case-actions{ display:flex; gap:8px; margin-top:10px;}
-button.warn-btn{ flex:1; font-size:14px; font-weight:700; padding:12px; min-height:48px; border-radius:10px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
+button.warn-btn{ flex:1; font-size:14px; font-weight:700; padding:12px; min-height:48px; border-radius:10px; border:1px solid #fecaca; background:var(--danger-bg); color:var(--danger); cursor:pointer;}
 button.ghost-btn{ flex:1; font-size:14px; font-weight:700; padding:12px; min-height:48px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
+.close-zone{ margin-top:12px; border-top:1px dashed #fecaca; padding-top:9px;}
+.close-zone .cz-t{ font-size:12px; font-weight:700; color:var(--danger); margin-bottom:6px;}
+.start-box{ margin-top:12px; border:1px solid #c7d2fe; background:#f8faff; border-radius:10px; padding:10px;}
+.start-box .sb-t{ font-size:13px; font-weight:700; margin-bottom:4px;}
+.start-box .sb-line{ font-size:13px; line-height:1.6;}
+.start-warn{ font-size:14px; font-weight:700; color:var(--danger); background:var(--danger-bg); border:1px solid #fecaca; border-radius:9px; padding:9px 11px; margin-bottom:8px; line-height:1.5;}
+.start-ok{ font-size:13.5px; font-weight:700; color:var(--ok); background:var(--ok-bg); border:1px solid #bbf7d0; border-radius:9px; padding:9px 11px; line-height:1.5;}
+.start-ng{ font-size:13.5px; font-weight:700; color:var(--sub); background:#f1f5f9; border:1px solid var(--line); border-radius:9px; padding:9px 11px; line-height:1.5;}
+.start-box input[type="date"]{ width:100%; font-size:16px; padding:10px; border:1px solid var(--line); border-radius:9px; background:#fff; margin-top:6px;}
+.start-btns{ display:flex; gap:7px; margin-top:9px; flex-wrap:wrap;}
+.start-btns button{ flex:1; min-width:96px;}
+button.sb-save{ font-size:14px; font-weight:700; padding:12px; min-height:48px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
 .card{ background:var(--card); border:1px solid var(--line); border-left:5px solid var(--line); border-radius:12px; padding:11px 12px; margin-bottom:10px;}
 .card.overdue{ border-left-color:var(--danger); background:#fff8f8;}
 .card.dueToday{ border-left-color:var(--amber); background:#fffdf5;}
-.card.pending{ border-style:dashed; opacity:.78;}
+.card.pending{ border-style:dashed; opacity:.82;}
 .card.ph1{ border-left-color:#2563eb;} .card.ph2{ border-left-color:#d97706;} .card.ph3{ border-left-color:#ea580c;} .card.ph4{ border-left-color:#7c3aed;} .card.ph5{ border-left-color:#0e7a3d;}
 .card.overdue.ph1,.card.overdue.ph2,.card.overdue.ph3,.card.overdue.ph4,.card.overdue.ph5{ border-left-color:var(--danger);}
 .row1{ display:flex; align-items:flex-start; gap:8px;}
@@ -80,9 +125,10 @@ button.ghost-btn{ flex:1; font-size:14px; font-weight:700; padding:12px; min-hei
 .flag.red{ background:var(--danger-bg); color:var(--danger); border:1px solid #fecaca;}
 .flag.amber{ background:var(--pend-bg); color:var(--pend); border:1px solid #fde68a;}
 .flag.fail{ background:var(--danger); color:#fff;}
+.flag.opt{ background:#eef2ff; color:var(--accent); border:1px dashed var(--accent);}
 .line{ font-size:13px; margin-top:5px; color:var(--sub); line-height:1.55;}
 .line .deadline{ color:var(--danger); font-weight:700;}
-.fail-note{ font-size:12px; color:var(--danger); margin-top:5px;}
+.fail-note{ font-size:12px; color:var(--danger); margin-top:5px; line-height:1.55;}
 .actions{ margin-top:9px; display:flex; gap:8px; align-items:center;}
 button.done-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:50px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
 button.done-btn:disabled{ opacity:.5;}
@@ -99,11 +145,20 @@ a.slack-link{ font-size:13px; color:var(--accent); text-decoration:none; padding
 .member-row .mn{ font-size:15px; font-weight:700;}
 .member-row .mm{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.5;}
 button.off-btn{ flex:0 0 auto; font-size:13px; font-weight:700; padding:10px 13px; min-height:44px; border-radius:9px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
-.copy-row{ display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 12px; margin-bottom:9px;}
-.copy-row .mi{ flex:1;}
-.copy-row .mn{ font-size:15px; font-weight:700;}
-.copy-row .mm{ font-size:12px; color:var(--sub); margin-top:2px;}
-button.copy-btn{ flex:0 0 auto; font-size:13px; font-weight:700; padding:10px 13px; min-height:44px; border-radius:9px; border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer;}
+.person-card{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:10px;}
+.person-card.stuck{ border-color:#fecaca; background:#fffafa;}
+.person-card .pn{ font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+.person-card .stats{ display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;}
+.stat-chip{ font-size:12px; font-weight:700; border:1px solid var(--line); border-radius:999px; padding:3px 10px; background:#fff;}
+.stat-chip b{ font-size:14px;}
+.stat-chip.red{ color:var(--danger); border-color:#fecaca; background:var(--danger-bg);}
+.stat-chip.amber{ color:var(--pend); border-color:#fde68a; background:var(--pend-bg);}
+.person-card .bd{ font-size:12px; color:var(--sub); margin-top:7px; line-height:1.6;}
+.person-card .pacts{ display:flex; gap:8px; margin-top:10px;}
+button.copy-btn{ flex:1; font-size:13.5px; font-weight:700; padding:11px 10px; min-height:48px; border-radius:10px; border:1px solid var(--accent); background:#fff; color:var(--accent); cursor:pointer;}
+button.send-btn{ flex:1; font-size:13.5px; font-weight:700; padding:11px 10px; min-height:48px; border-radius:10px; border:0; background:var(--accent); color:#fff; cursor:pointer;}
+button.send-btn:disabled{ opacity:.55;}
+.sent-line{ font-size:11.5px; color:var(--sub); margin-top:6px;}
 .due-badge{ display:inline-block; font-size:13px; font-weight:700; color:var(--accent); background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; padding:3px 9px;}
 .card.overdue .due-badge{ color:var(--danger); background:var(--danger-bg); border-color:#fecaca;}
 .card.dueToday .due-badge{ color:var(--pend); background:var(--pend-bg); border-color:#fde68a;}
@@ -117,18 +172,20 @@ button.meta-save{ flex:1; font-size:14px; font-weight:700; padding:12px; min-hei
 button.meta-cancel{ flex:0 0 auto; font-size:14px; font-weight:700; padding:12px 16px; min-height:48px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
 #copyText{ width:100%; font-size:13px; padding:10px; border:1px solid var(--line); border-radius:10px; margin-top:8px; font-family:inherit; line-height:1.6;}
 .hist-row{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:9px;}
+.hist-row.opt{ border-style:dashed; border-color:var(--pend);}
 .hist-row .ht{ font-size:14px; font-weight:700; line-height:1.45;}
 .hist-row .hm{ font-size:12px; color:var(--sub); margin-top:3px;}
-#errBar{ display:none; background:#fef2f2; color:var(--danger); border:1px solid #fecaca; border-radius:9px; padding:9px 12px; font-size:13px; margin-bottom:10px;}
-#okBar{ display:none; background:#f0fdf4; color:var(--ok); border:1px solid #bbf7d0; border-radius:9px; padding:9px 12px; font-size:13px; margin-bottom:10px;}
-.empty{ text-align:center; color:var(--sub); padding:26px 0; font-size:14px;}
+.opt-strip{ font-size:12.5px; font-weight:700; color:var(--pend); background:var(--pend-bg); border:1px dashed var(--pend); border-radius:10px; padding:9px 11px; margin-bottom:8px; line-height:1.55;}
+#errBar{ display:none; background:#fef2f2; color:var(--danger); border:1px solid #fecaca; border-radius:9px; padding:9px 12px; font-size:13px; margin-bottom:10px; line-height:1.55;}
+#okBar{ display:none; background:#f0fdf4; color:var(--ok); border:1px solid #bbf7d0; border-radius:9px; padding:9px 12px; font-size:13px; margin-bottom:10px; line-height:1.55;}
+.empty{ text-align:center; color:var(--sub); padding:22px 0; font-size:14px;}
 footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; margin:0 auto; line-height:1.8;}
 .hidden{ display:none;}
 </style>
 </head>
 <body>
 <header>
-<h1>📋 タスクボード</h1>
+<h1>📋 タスクボード<span class="tag">最強の管理アプリ</span></h1>
 <div class="summary" id="summary"></div>
 <div class="next-meet" id="nextMeet"></div>
 <div id="syncNote">読み込み中…</div>
@@ -136,7 +193,6 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 <input type="search" id="searchBox" placeholder="名前・施設・タイトルで検索" aria-label="検索">
 <div class="chips" id="filterChips"></div>
 </div>
-<nav class="tabs" id="tabs"></nav>
 </header>
 <main>
 <div id="errBar"></div>
@@ -147,7 +203,7 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 <label for="addTitle">タイトル（必須）</label>
 <input type="text" id="addTitle" placeholder="例：○○さんに電話する" maxlength="200">
 <label for="addAssignee">担当者</label>
-<select id="addAssignee" style="width:100%; font-size:16px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:#fff;">
+<select id="addAssignee">
 <option value="自分">自分</option>
 </select>
 <label>日時</label>
@@ -159,16 +215,29 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 <button type="button" class="preset" data-preset="custom">日時を指定</button>
 </div>
 <input type="datetime-local" id="addWhen" class="hidden" style="margin-top:8px;">
-<div class="note" id="addHint">おまかせ＝今日17:00（過ぎていれば明日9:00）にカレンダー登録されます。登録後、カレンダーのとして通常どおり通知されます。</div>
+<div class="note" id="addHint">おまかせ＝今日17:00（過ぎていれば明日9:00）にカレンダー登録されます。登録後、カレンダーの&#x3010;タスク&#x3011;として通常どおり通知されます。</div>
 <button class="primary" id="addSubmit">追加する</button>
+</details>
+
+<details class="panel" id="meetingPanel">
+<summary style="font-size:14px; font-weight:700; cursor:pointer;">＋ 面談を追加（後入れ）</summary>
+<label for="mtgText">面談の内容をそのまま貼り付け（施設・相手・日時が読み取れる文面）</label>
+<textarea id="mtgText" rows="4" placeholder="例：&#x3010;面談&#x3011;セレーナ伊丹×伊集院様 12/25 14:00"></textarea>
+<label for="mtgAssignee">担当者</label>
+<select id="mtgAssignee">
+<option value="自分">自分</option>
+</select>
+<button class="primary" id="mtgSubmit">面談を追加する</button>
+<div class="note">次の同期でテキストから施設・相手・日時を読み取り、カレンダーに&#x3010;面談&#x3011;予定（1時間）を作成します。読み取れない場合は推測せず、失敗として「要確認」に理由が出ます。担当がメンバーの場合は例外指定として記録され、帰属が最初から正しくなります。</div>
+<div id="mtgPending"></div>
 </details>
 
 <div id="memberPanel" class="hidden">
 <div class="panel">
-<h2>人ごとの残タスクまとめ</h2>
+<h2>人ビュー（未対応の負荷）</h2>
 <div id="copyList"></div>
 <textarea id="copyText" class="hidden" readonly rows="8" aria-label="コピー用テキスト"></textarea>
-<div class="note">「まとめをコピー」で、その人の未対応タスク（面談の担当分・メンション共有・依頼共有・割当タスク）を期限つきのテキストにまとめます。そのままSlack等に貼って送れます（自動送信はしません）。</div>
+<div class="note">「Slackで送る」は次の同期で、その人の未対応（面談の担当分・メンション共有・依頼共有・割当タスク）を整形して本人のDMへ送ります（同日2回は送りません）。平日8:45の同期では、期限超過・本日期限があるメンバーへ自動でも送ります。「まとめをコピー」は従来どおり手動貼り付け用です。</div>
 </div>
 <div class="panel">
 <h2>メンバー管理</h2>
@@ -182,14 +251,17 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 </div>
 </div>
 
+<div id="dash"></div>
 <div id="list"><div class="empty" id="loadingBox">読み込み中…</div></div>
 </main>
+<nav id="tabbar"></nav>
 <footer>
-・「完了」は元のSlackメッセージへの✅として反映されます（次の同期タイミング: 平日 8:45／12:00／15:00／17:30／19:30）。押し間違えたら元のSlackの✅を外してください。<br>
+・「完了」は元のSlackメッセージへの✅として反映されます（次の同期タイミング: 平日 8:45／12:00／15:00／17:30／19:30）。完了・削除・戻す・失注/終了は押した瞬間にボード表示へ反映され、裏側の実適用は次の同期です。<br>
 ・面談の「完了」はその段階への✅です（内定確認への✅＝内定として進みます）。案件の「失注」「終了」は状態記録として残り、Slackのメッセージは消えません。<br>
 ・メンバータブの「完了」は共有メッセージへの✅＝確認済みとして扱われ、フォローアップ側で閉じられます。<br>
 ・「削除」は「完了」とは別です。メール/Slackは記録上閉じるだけ（メッセージ・下書き自体は消えません）、カレンダーは予定自体を削除、入社はそのステージだけを閉じ、面談は段階ごとの削除ルール（準備=離脱、内定確認=クローズ、書類回収以降=完了と同じ扱い）に従います。削除の前に確認画面が出ます。<br>
-・完了済みタブの「未対応に戻す」は、次回同期で元のメッセージの✅を取り消して未対応に戻します（面談は次の段階のタスクが送信済みだと戻せません）。<br>
+・完了済みタブの「未対応に戻す」は、次回同期で台帳（状態ファイル）に再開を記録して未対応に戻します。元のメッセージの✅は残りますが、再開記録が優先され、リマインドも再開日から再開します（面談は次の段階のタスクが送信済みだと戻せません）。<br>
+・入社日を登録すると次の同期でカレンダーに&#x3010;入社&#x3011;予定が作られ、入社準備タスクが流れます。結果（入社済み/キャンセル）は当月末まで表示されます。<br>
 ・このボードのURLは共有しないでください（あなた専用です）。
 </footer>
 <script>
@@ -197,30 +269,41 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 // ↓ Apps Script ウェブアプリのURL（デプロイ後に差し替える）
 const API_URL = "https://script.google.com/macros/s/AKfycbxCr37M4trNJZ5zPBaN1q4yAcbwB-160Y3M1Rzk0NYe-sURskm2NYjn2Bj_3YWO0pJHdg/exec";
 const TABS = [
-  { key: "all", label: "すべて" },
-  { key: "mail", label: "メール" },
-  { key: "slack", label: "Slack" },
-  { key: "calendar", label: "カレンダー" },
-  { key: "tour", label: "面談" },
-  { key: "onboarding", label: "入社" },
-  { key: "member", label: "メンバー" },
-  { key: "history", label: "完了済み" }
+  { key: "all", label: "すべて", icon: "📋" },
+  { key: "mail", label: "メール", icon: "✉️" },
+  { key: "slack", label: "Slack", icon: "💬" },
+  { key: "calendar", label: "カレンダー", icon: "📅" },
+  { key: "tour", label: "面談", icon: "🤝" },
+  { key: "onboarding", label: "入社", icon: "🏢" },
+  { key: "member", label: "メンバー", icon: "👥" },
+  { key: "history", label: "完了済み", icon: "✅" }
 ];
 const PHASES = ["①準備", "②内定確認", "③書類回収", "④入力・申請", "⑤入職フォロー"];
 const SYNC_SLOTS = [[8,45],[12,0],[15,0],[17,30],[19,30]];
-let tasks = [], adds = [], memberAdds = [], cases = [], history = [], members = [];
+let tasks = [], adds = [], memberAdds = [], meetingAdds = [], cases = [], history = [], members = [], alerts = [];
+let summaryPending = [], summarySent = {};
+let sheetUpdatedAt = "";
 let failures = {}; // taskId -> failure
 let activeTab = "all";
 let sending = {};
 let confirmDeleteId = null;
 let editingMetaId = null;
 let openCases = {};
+let reschedOpen = {};
 let query = "", ownerFilter = "all", phaseFilter = "all", overdueOnly = false;
 let addPreset = "auto";
+// 楽観的UI: 押した瞬間に表示だけ先行させる操作の記録（実適用は次回同期）
+let optTasks = {};   // taskId -> { kind: "complete"|"delete", row: 完了済み側に出す仮の行 }
+let optHistory = {}; // taskId -> { task: 未対応側に出す仮のタスク }
+let optCases = {};   // eventId -> { kind: "lost"|"close", case: 仮に消した案件 }
+let summaryPendingLocal = {}; // person -> true（送信予約の即時表示）
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const configured = () => API_URL.indexOf("http") === 0;
+const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+const fmtMD = (ymd) => { const m = String(ymd || "").match(/^\d{4}-(\d{1,2})-(\d{1,2})/); return m ? Number(m[1]) + "/" + Number(m[2]) : ""; };
+const fmtIsoMdHm = (iso) => { const d = new Date(iso || ""); if (isNaN(d.getTime())) return ""; return (d.getMonth() + 1) + "/" + d.getDate() + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
 
 function nextSyncLabel() {
   const now = new Date();
@@ -241,21 +324,83 @@ function nextSyncLabel() {
   return "次の同期で反映";
 }
 
+function pruneOpts(rawTasks, rawHistory, rawCases) {
+  // 消失検出: POST が ok でも「未適用（pending）」にも「適用結果」にも現れない操作は、黙って成功扱いにしない。
+  // 痕跡なしが3回の state 取得続いたら消失とみなし、表示を元に戻して警告する（ユーザーはそのまま再操作できる）。
+  for (const id of Object.keys(optTasks)) {
+    const o = optTasks[id];
+    const st = rawTasks.find((t) => t.id === id);
+    const sh = rawHistory.find((x) => x.id === id);
+    if (st && st.pending) {
+      o.misses = 0; // キューに着地している
+    } else if (st && !st.pending) {
+      delete optTasks[id];
+      if (failures[id]) showErr("反映に失敗しました: " + (failures[id].note || "理由不明"));
+      else showErr("⚠️ 操作の消失を検出しました: 「" + (o.row.title || id) + "」の操作が記録に見当たりません。もう一度操作してください。");
+    } else if (!st && sh) {
+      delete optTasks[id]; // 適用済み（実物の履歴行が出た）
+    } else {
+      o.misses = (o.misses || 0) + 1;
+      if (o.misses >= 3) {
+        delete optTasks[id];
+        showErr("⚠️ 操作の消失を検出しました: 「" + (o.row.title || id) + "」の操作が記録に見当たりません。もう一度操作してください。");
+      }
+    }
+  }
+  for (const id of Object.keys(optHistory)) {
+    const o = optHistory[id];
+    const st = rawTasks.find((t) => t.id === id);
+    const sh = rawHistory.find((x) => x.id === id);
+    if (st) {
+      delete optHistory[id]; // 実物が未対応に戻った
+    } else if (sh && sh.pending) {
+      o.misses = 0; // キューに着地している
+    } else if (sh && !sh.pending) {
+      delete optHistory[id];
+      showErr("未対応に戻せませんでした: " + ((failures[id] && failures[id].note) || "次の段階のタスクが送信済みの可能性があります"));
+    } else {
+      o.misses = (o.misses || 0) + 1;
+      if (o.misses >= 3) {
+        delete optHistory[id];
+        showErr("⚠️ 戻し操作の消失を検出しました: 「" + (o.task.title || id) + "」の操作が記録に見当たりません。もう一度操作してください。");
+      }
+    }
+  }
+  for (const eid of Object.keys(optCases)) {
+    const sc = rawCases.find((c) => c.eventId === eid);
+    if (!sc) delete optCases[eid]; // 適用済み（案件一覧から消えた）
+    else if (!sc.pending) {
+      delete optCases[eid];
+      if (failures["case:" + eid]) showErr("案件アクションの反映に失敗しました: " + (failures["case:" + eid].note || "理由不明"));
+    }
+  }
+}
+
 async function fetchState() {
   if (!configured()) { showErr("APIのURLが未設定です（デプロイ後に設定されます）。"); render(); return; }
   const res = await fetch(API_URL + "?action=state", { cache: "no-store" });
   const data = await res.json();
   if (!data || data.ok !== true || !Array.isArray(data.tasks)) throw new Error("bad_state");
-  tasks = data.tasks || [];
-  adds = data.adds || [];
-  memberAdds = data.memberAdds || [];
-  cases = data.cases || [];
-  history = data.history || [];
-  members = data.members || [];
+  const rawTasks = data.tasks || [], rawHistory = data.history || [], rawCases = data.cases || [];
   failures = {};
   (data.failures || []).forEach((f) => { failures[f.taskId] = f; });
-  $("syncNote").textContent = "最終同期: " + new Date().toLocaleTimeString("ja-JP") + "／" + nextSyncLabel();
   hideErr();
+  pruneOpts(rawTasks, rawHistory, rawCases);
+  tasks = rawTasks.filter((t) => !optTasks[t.id] && !(t.groupKey && optCases[t.groupKey]))
+    .concat(Object.values(optHistory).map((o) => o.task));
+  history = rawHistory.filter((x) => !optHistory[x.id])
+    .concat(Object.values(optTasks).map((o) => o.row));
+  cases = rawCases.filter((c) => !optCases[c.eventId]);
+  adds = data.adds || [];
+  memberAdds = data.memberAdds || [];
+  meetingAdds = data.meetingAdds || [];
+  members = data.members || [];
+  alerts = data.alerts || [];
+  summaryPending = data.summaryPending || [];
+  summarySent = data.summarySent || {};
+  sheetUpdatedAt = data.sheetUpdatedAt || "";
+  $("syncNote").textContent = "最終更新: " + (sheetUpdatedAt ? fmtIsoMdHm(sheetUpdatedAt) : "—") +
+    "／取得: " + new Date().toLocaleTimeString("ja-JP") + "／" + nextSyncLabel();
   render();
 }
 
@@ -263,19 +408,43 @@ function showErr(msg) { const b = $("errBar"); b.textContent = msg; b.style.disp
 function hideErr() { $("errBar").style.display = "none"; }
 function showOk(msg) { const b = $("okBar"); b.textContent = msg; b.style.display = "block"; setTimeout(() => { b.style.display = "none"; }, 6000); }
 
+async function postRaw(payload) {
+  let res;
+  try {
+    res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
+  } catch (e) {
+    return { ok: false, error: "network" };
+  }
+  try {
+    const j = await res.json();
+    if (j && j.ok === false) return { ok: false, error: j.error || "error" };
+  } catch (_) { /* 応答が読めない場合は記録できたものとして扱い、state読み戻しで確認する */ }
+  return { ok: true };
+}
+
+async function optFail(optObj, key, msg) {
+  // 楽観表示を取り消し、実状態を読み戻してから警告を出す（読み戻しで警告が消えない順序）
+  delete optObj[key];
+  try { await fetchState(); } catch (_) { render(); }
+  showErr(msg);
+}
+
 async function postAction(payload, confirmFn, failMsg) {
   try {
-    await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
-    // POST応答はリダイレクトで読めないことがあるため、stateを読み戻して着地確認する
+    const r = await postRaw(payload);
+    if (!r.ok) throw new Error(r.error || "ng");
     await fetchState();
     if (confirmFn && !confirmFn()) throw new Error("not_landed");
     return true;
   } catch (e) {
-    // 先に state を読み戻して表示を実態に合わせ、その後にエラーを出す（読み戻しの成功でエラーが消えないように）
     try { await fetchState(); } catch (_) {}
     showErr(failMsg);
     return false;
   }
+}
+
+function histRowFromTask(t, how) {
+  return { closedAt: "たった今", type: t.type, typeLabel: t.typeLabel, title: t.title, howLabel: how, owner: t.owner || "", id: t.id, reopenable: false, pending: true, opt: true };
 }
 
 async function complete(id) {
@@ -283,12 +452,12 @@ async function complete(id) {
   const t = tasks.find((x) => x.id === id);
   if (!t || t.pending) return;
   sending[id] = true;
-  t.pending = true;
+  optTasks[id] = { kind: "complete", row: histRowFromTask(t, "✅で完了") };
+  tasks = tasks.filter((x) => x.id !== id);
   render();
-  const ok = await postAction({ action: "complete", id: id },
-    () => { const n = tasks.find((x) => x.id === id); return n && n.pending; },
-    "記録できませんでした。通信を確認して、もう一度試してください。");
-  if (!ok) { t.pending = false; render(); }
+  const r = await postRaw({ action: "complete", id: id });
+  if (!r.ok) { await optFail(optTasks, id, "記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[id]; return; }
+  try { await fetchState(); } catch (_) { render(); }
   delete sending[id];
 }
 
@@ -299,7 +468,7 @@ function deleteNote(t) {
     if (t.phase === "⑤入職フォロー") return "削除＝完了と同じ扱いになり、案件は全完了として終了します。Slackのメッセージ自体は消えません。";
     return "削除＝その段階・タスクが完了したものとして記録されます。Slackのメッセージ自体は消えません。";
   }
-  if (t.type === "calendar") return "Googleカレンダーの【タスク】予定自体を削除します（元に戻せません）。";
+  if (t.type === "calendar") return "Googleカレンダーの\u3010タスク\u3011予定自体を削除します（元に戻せません）。";
   if (t.type === "onboarding") return "この入社ステージだけを閉じます。他のステージには影響しません。";
   if (t.type === "member") {
     if (t.shareKind === "割当タスク") return "この割当を取り消します。メンバーへのリマインドは止まります（送信済みのDMは残ります）。";
@@ -317,13 +486,20 @@ async function doDelete(id) {
   if (!t || t.pending) return;
   sending[id] = true;
   confirmDeleteId = null;
-  t.pending = true;
+  optTasks[id] = { kind: "delete", row: histRowFromTask(t, "削除") };
+  tasks = tasks.filter((x) => x.id !== id);
   render();
-  const ok = await postAction({ action: "delete", id: id },
-    () => { const n = tasks.find((x) => x.id === id); return n && n.pending; },
-    "削除を記録できませんでした。通信を確認して、もう一度試してください。");
-  if (!ok) { t.pending = false; render(); }
+  const r = await postRaw({ action: "delete", id: id });
+  if (!r.ok) { await optFail(optTasks, id, "削除を記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[id]; return; }
+  try { await fetchState(); } catch (_) { render(); }
   delete sending[id];
+}
+
+function taskFromHistory(x) {
+  const m = String(x.title || "").match(/^(①準備|②内定確認|③書類回収|④入力・申請|⑤入職フォロー)/);
+  return { id: x.id, type: x.type, typeLabel: x.typeLabel, title: x.title, datetimeLabel: "", elapsedDays: 0,
+    deadlineLabel: "", slackUrl: "", groupKey: "", groupTitle: "", member: "", shareKind: "", overdue: false,
+    phase: m ? m[1] : "", owner: x.owner || "自分", dueToday: false, eventIso: "", pending: true, metaDue: "", memo: "", optReopen: true };
 }
 
 async function reopen(id) {
@@ -332,18 +508,15 @@ async function reopen(id) {
   const x = history.find((h) => h.id === id);
   if (!x || x.pending || !x.reopenable) return;
   sending[key] = true;
-  x.pending = true;
+  optHistory[id] = { task: taskFromHistory(x) };
+  history = history.filter((h) => h.id !== id);
   render();
-  const ok = await postAction({ action: "reopen", id: id },
-    () => { const n = history.find((h) => h.id === id); return n && n.pending; },
-    "戻しを記録できませんでした。通信を確認して、もう一度試してください。");
-  if (!ok) { x.pending = false; render(); }
+  const r = await postRaw({ action: "reopen", id: id });
+  if (!r.ok) { await optFail(optHistory, id, "戻しを記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[key]; return; }
+  try { await fetchState(); } catch (_) { render(); }
   delete sending[key];
 }
 
-const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
-const fmtMD = (ymd) => { const m = String(ymd || "").match(/^\d{4}-(\d{1,2})-(\d{1,2})/); return m ? Number(m[1]) + "/" + Number(m[2]) : ""; };
-// 期日（メタ）があれば色付け判定に優先して使う（同期が state 側へ織り込むまでの間も表示がずれないように）
 function effOverdue(t) { return Boolean(t.overdue) || Boolean(t.metaDue && t.metaDue < todayStr()); }
 function effDueToday(t) { return Boolean(t.dueToday) || t.metaDue === todayStr(); }
 
@@ -374,14 +547,68 @@ async function caseClose(eventId, kind) {
   const label = kind === "lost" ? "失注" : "終了";
   const phaseNote = c && c.currentPhase.indexOf("①") === 0 ? "（準備段階の終了＝離脱として記録されます）"
     : c && c.currentPhase.indexOf("②") === 0 ? "（内定確認の終了＝クローズとして記録されます）" : "";
-  if (!window.confirm("この案件を「" + label + "」にしますか？" + phaseNote + "\nSlackのメッセージは消えません。次の同期で状態記録に反映されます。")) return;
+  const nameNote = c ? "\n対象: " + c.facility + " " + c.person : "";
+  if (!window.confirm("この案件を「" + label + "」にしますか？" + phaseNote + nameNote + "\nSlackのメッセージは消えません。ボード表示は即時、状態記録への反映は次の同期です。")) return;
   sending[key] = true;
-  if (c) c.pending = true;
+  if (c) optCases[eventId] = { kind: kind, case: c };
+  cases = cases.filter((x) => x.eventId !== eventId);
+  tasks = tasks.filter((t) => t.groupKey !== eventId);
   render();
-  await postAction({ action: "caseClose", eventId: eventId, kind: kind },
-    () => { const n = cases.find((x) => x.eventId === eventId); return n && n.pending; },
-    "記録できませんでした。通信を確認して、もう一度試してください。");
+  const r = await postRaw({ action: "caseClose", eventId: eventId, kind: kind });
+  if (!r.ok) { await optFail(optCases, eventId, "記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[key]; return; }
+  try { await fetchState(); } catch (_) { render(); }
   delete sending[key];
+}
+
+async function setStartDate(eventId) {
+  const el = $("startDate-" + eventId);
+  if (!el || !el.value) { showErr("入社日を選んでください。"); return; }
+  const date = el.value;
+  const ok = await postAction({ action: "setStartDate", eventId: eventId, date: date },
+    () => { const n = cases.find((x) => x.eventId === eventId); return n && n.startDate === date; },
+    "入社日を保存できませんでした。通信を確認して、もう一度試してください。");
+  if (ok) showOk("入社日を " + fmtMD(date) + " に登録しました。次の同期で\u3010入社\u3011予定が作られます。");
+}
+
+async function setStartResult(eventId, result) {
+  const c = cases.find((x) => x.eventId === eventId);
+  const name = c ? c.facility + " " + c.person : "この案件";
+  let payload = { action: "setStartResult", eventId: eventId, result: result };
+  let confirmMsg = "";
+  let doneMsg = "";
+  if (result === "started") {
+    confirmMsg = name + " を「入社済み」にしますか？入職フォローが開いていれば次の同期で完了扱いになります。";
+    doneMsg = "「入社済み」を登録しました。当月末まで表示されます。";
+  } else if (result === "cancelled") {
+    confirmMsg = name + " の入社を「キャンセル」にしますか？\u3010入社\u3011予定は次の同期で削除され、入社準備タスクも閉じられます。";
+    doneMsg = "「入社キャンセル」を登録しました。当月末まで表示されます。";
+  } else if (result === "reschedule") {
+    const el = $("reschedDate-" + eventId);
+    if (!el || !el.value) { showErr("リスケ先の日付を選んでください。"); return; }
+    payload.newDate = el.value;
+    confirmMsg = name + " の入社日を " + fmtMD(el.value) + " にリスケしますか？\u3010入社\u3011予定は次の同期で新しい日付へ移ります。";
+    doneMsg = "入社日を " + fmtMD(el.value) + " にリスケしました。";
+  }
+  if (!window.confirm(confirmMsg)) return;
+  const ok = await postAction(payload,
+    () => { const n = cases.find((x) => x.eventId === eventId); return n && (result === "reschedule" ? n.startDate === payload.newDate : n.startResult === result); },
+    "結果を保存できませんでした。通信を確認して、もう一度試してください。");
+  if (ok) { reschedOpen[eventId] = false; showOk(doneMsg); }
+}
+
+async function sendSummary(person) {
+  const list = personOpenTasks(person);
+  if (!list.length) return;
+  const label = person === "自分" ? "自分" : person + "さん";
+  if (!window.confirm(label + "の未対応 " + list.length + "件を、Slack DMで送ります（次の同期で送信。同日にボタン/自動で送信済みなら送りません）。よろしいですか？")) return;
+  summaryPendingLocal[person] = true;
+  render();
+  const ok = await postAction({ action: "sendSummary", member: person },
+    () => (summaryPending || []).indexOf(person) >= 0,
+    "送信予約を記録できませんでした。通信を確認して、もう一度試してください。");
+  if (!ok) delete summaryPendingLocal[person];
+  else showOk(label + "への送信を受け付けました。次の同期で送ります。");
+  render();
 }
 
 function presetDatetime() {
@@ -405,6 +632,18 @@ async function submitAdd() {
     "追加を記録できませんでした。通信を確認して、もう一度試してください。");
   btn.disabled = false;
   if (ok) { $("addTitle").value = ""; $("addWhen").value = ""; showOk("タスクの追加を受け付けました。次の同期でカレンダーに登録されます。"); }
+}
+
+async function submitMeeting() {
+  const text = $("mtgText").value.trim();
+  if (!text) { showErr("面談の内容を貼り付けてください。"); return; }
+  const btn = $("mtgSubmit");
+  btn.disabled = true;
+  const ok = await postAction({ action: "addMeeting", text: text, assignee: $("mtgAssignee").value },
+    () => meetingAdds.some((a) => a.text === text),
+    "面談の追加を記録できませんでした。通信を確認して、もう一度試してください。");
+  btn.disabled = false;
+  if (ok) { $("mtgText").value = ""; showOk("面談の追加を受け付けました。次の同期でカレンダーに登録されます。"); }
 }
 
 async function submitMember() {
@@ -431,11 +670,88 @@ async function disableMember(label) {
     "無効化を記録できませんでした。通信を確認して、もう一度試してください。");
   delete sending[key];
 }
+</script>
+<script>
+"use strict";
+function ownersList() {
+  // 担当フィルタの候補は「自分＋有効なメンバー」だけ（無効化済みメンバーは候補に出さない。過去データの表示・検索には影響しない）
+  const list = ["自分"];
+  for (const m of members) {
+    if (m.status === "有効" && list.indexOf(m.label) < 0) list.push(m.label);
+  }
+  return list;
+}
+
+function renderSummary() {
+  const open = tasks.filter((t) => !t.pending);
+  const over = tasks.filter((t) => effOverdue(t)).length;
+  const dueT = tasks.filter((t) => effDueToday(t) && !effOverdue(t)).length;
+  const pend = tasks.filter((t) => t.pending).length + adds.length + memberAdds.length + meetingAdds.length + Object.keys(optCases).length;
+  const today = todayStr();
+  const meetsToday = cases.filter((c) => (c.meetingIso || "").slice(0, 10) === today).length;
+  const startsToday = cases.filter((c) => c.startDate === today && c.startResult !== "started" && c.startResult !== "cancelled").length;
+  const waiting = cases.filter((c) => c.startDate && c.startResult !== "started" && c.startResult !== "cancelled").length;
+  let h = '<span class="sum-chip">未対応 <b>' + open.length + "</b></span>";
+  h += '<span class="sum-chip' + (over ? " red" : "") + '">期限超過 <b>' + over + "</b></span>";
+  h += '<span class="sum-chip' + (dueT ? " amber" : "") + '">本日期限 <b>' + dueT + "</b></span>";
+  h += '<span class="sum-chip">今日の面談 <b>' + meetsToday + "</b></span>";
+  h += '<span class="sum-chip' + (startsToday ? " amber" : "") + '">今日の入社 <b>' + startsToday + "</b></span>";
+  if (waiting) h += '<span class="sum-chip">入社待ち <b>' + waiting + "</b></span>";
+  if (alerts.length) h += '<span class="sum-chip red">要確認 <b>' + alerts.length + "</b></span>";
+  if (pend) h += '<span class="sum-chip amber">反映待ち <b>' + pend + "</b></span>";
+  $("summary").innerHTML = h;
+  const now = Date.now();
+  const fut = cases.filter((c) => c.meetingIso && new Date(c.meetingIso).getTime() >= now - 3 * 3600 * 1000)
+                   .sort((a, b) => new Date(a.meetingIso) - new Date(b.meetingIso));
+  $("nextMeet").textContent = fut.length
+    ? "次の面談: " + fut[0].meetingLabel + " ｜ " + fut[0].facility + " " + fut[0].person + "（担当: " + (fut[0].owner || "自分") + "）"
+    : "";
+}
+
+function renderChips() {
+  let h = '<span class="cap">担当</span>';
+  h += '<button class="fchip' + (ownerFilter === "all" ? " active" : "") + '" data-owner="all">すべて</button>';
+  for (const o of ownersList()) {
+    h += '<button class="fchip' + (ownerFilter === o ? " active" : "") + '" data-owner="' + esc(o) + '">' + esc(o) + "</button>";
+  }
+  if (tasks.some((t) => t.type === "tour")) {
+    h += '<span class="cap">フェーズ</span>';
+    h += '<button class="fchip' + (phaseFilter === "all" ? " active" : "") + '" data-phase="all">すべて</button>';
+    for (const ph of PHASES) {
+      h += '<button class="fchip' + (phaseFilter === ph ? " active" : "") + '" data-phase="' + esc(ph) + '">' + esc(ph) + "</button>";
+    }
+  }
+  h += '<button class="fchip red' + (overdueOnly ? " active" : "") + '" data-overdue="1">期限超過のみ</button>';
+  $("filterChips").innerHTML = h;
+  document.querySelectorAll("[data-owner]").forEach((b) => b.addEventListener("click", () => { ownerFilter = b.getAttribute("data-owner"); render(); }));
+  document.querySelectorAll("[data-phase]").forEach((b) => b.addEventListener("click", () => { phaseFilter = b.getAttribute("data-phase"); render(); }));
+  document.querySelectorAll("[data-overdue]").forEach((b) => b.addEventListener("click", () => { overdueOnly = !overdueOnly; render(); }));
+}
+
+function tabCount(key) {
+  if (key === "all") return tasks.length + adds.length;
+  if (key === "history") return history.length;
+  if (key === "calendar") return tasks.filter((t) => t.type === "calendar").length + adds.length;
+  return tasks.filter((t) => t.type === key).length;
+}
+
+function renderTabs() {
+  let h = "";
+  for (const tab of TABS) {
+    const n = tabCount(tab.key);
+    const red = tab.key !== "history" && tasks.some((t) => (tab.key === "all" || t.type === tab.key) && effOverdue(t));
+    h += '<button class="tab' + (activeTab === tab.key ? " active" : "") + '" data-tab="' + tab.key + '">' +
+         '<span class="ic">' + tab.icon + '</span><span>' + esc(tab.label) + '</span>' +
+         '<span class="bdg' + (red ? " red" : "") + '">' + n + "</span></button>";
+  }
+  $("tabbar").innerHTML = h;
+  document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { activeTab = b.getAttribute("data-tab"); render(); }));
+}
 
 function matchesFilters(t) {
   if (ownerFilter !== "all" && (t.owner || "自分") !== ownerFilter) return false;
   if (phaseFilter !== "all" && t.phase !== phaseFilter) return false;
-  if (overdueOnly && !t.overdue) return false;
+  if (overdueOnly && !effOverdue(t)) return false;
   if (query) {
     const hay = [t.title, t.groupTitle, t.member, t.owner, t.typeLabel, t.phase].join(" ");
     if (!hay.includes(query)) return false;
@@ -447,6 +763,7 @@ function flagsHtml(t) {
   let h = "";
   if (effOverdue(t)) h += '<span class="flag red">期限超過</span>';
   else if (effDueToday(t)) h += '<span class="flag amber">今日が期限</span>';
+  if (t.optReopen) h += '<span class="flag opt">戻し 反映待ち</span>';
   if (failures[t.id]) h += '<span class="flag fail">反映失敗</span>';
   return h ? '<div class="flags">' + h + "</div>" : "";
 }
@@ -509,19 +826,61 @@ function addCardHtml(a) {
   return h;
 }
 
+function stageStateOf(c, ph) {
+  const sts = c.stages.filter((s) => s.phase === ph);
+  if (!sts.length) return "yet";
+  if (sts.some((s) => s.status === "open")) return "open";
+  if (sts.every((s) => s.status === "notyet")) return "yet";
+  return "done";
+}
+
+function caseDecided(c) {
+  return stageStateOf(c, "②内定確認") === "done" || stageStateOf(c, "③書類回収") !== "yet" ||
+         stageStateOf(c, "④入力・申請") !== "yet" || stageStateOf(c, "⑤入職フォロー") !== "yet";
+}
+
+function startBoxHtml(c) {
+  if (!caseDecided(c)) return "";
+  let h = '<div class="start-box"><div class="sb-t">🏢 入社日・結果</div>';
+  if (c.startResult === "started") {
+    h += '<div class="start-ok">✅ 入社済み（' + esc(fmtMD(c.startResultDate)) + "登録）｜ 入社日: " + esc(fmtMD(c.startDate)) + "</div></div>";
+    return h;
+  }
+  if (c.startResult === "cancelled") {
+    h += '<div class="start-ng">入社キャンセル（' + esc(fmtMD(c.startResultDate)) + "登録）</div></div>";
+    return h;
+  }
+  if (!c.startDate) {
+    h += '<div class="start-warn">⚠️ 入社日を入れてください（内定済み・入社日未登録）</div>';
+    h += '<input type="date" id="startDate-' + esc(c.eventId) + '">';
+    h += '<div class="start-btns"><button class="sb-save" data-start-save="' + esc(c.eventId) + '">入社日を登録</button></div>';
+  } else {
+    const d = c.daysToStart;
+    const badge = (d === null || d === undefined) ? "" :
+      ' <span class="days-badge' + (d < 0 ? " red" : d <= 3 ? " amber" : "") + '">' +
+      (d < 0 ? Math.abs(d) + "日経過" : d === 0 ? "今日が入社日" : "あと" + d + "日") + "</span>";
+    h += '<div class="sb-line">入社日: <b>' + esc(fmtMD(c.startDate)) + "</b>" + badge + "</div>";
+    h += '<input type="date" id="startDate-' + esc(c.eventId) + '" value="' + esc(c.startDate) + '">';
+    h += '<div class="start-btns"><button class="sb-save" data-start-save="' + esc(c.eventId) + '">入社日を変更</button></div>';
+    h += '<div class="start-btns">' +
+         '<button class="res-btn" data-result="started" data-ev="' + esc(c.eventId) + '">✅ 入社済み</button>' +
+         '<button class="res-btn gray" data-resched="' + esc(c.eventId) + '">📅 リスケ</button>' +
+         '<button class="res-btn red" data-result="cancelled" data-ev="' + esc(c.eventId) + '">入社キャンセル</button></div>';
+    if (reschedOpen[c.eventId]) {
+      h += '<input type="date" id="reschedDate-' + esc(c.eventId) + '">';
+      h += '<div class="start-btns"><button class="sb-save" data-result="reschedule" data-ev="' + esc(c.eventId) + '">この日付でリスケ</button></div>';
+    }
+  }
+  h += "</div>";
+  return h;
+}
+
 function caseDetailHtml(c) {
-  const stageState = (ph) => {
-    const sts = c.stages.filter((s) => s.phase === ph);
-    if (!sts.length) return "yet";
-    if (sts.some((s) => s.status === "open")) return "open";
-    if (sts.every((s) => s.status === "notyet")) return "yet";
-    return "done";
-  };
   let h = '<div class="case-detail" id="case-' + esc(c.eventId) + '">';
   h += '<div class="line" style="margin-top:0;">面談: <b>' + esc(c.meetingLabel) + "</b> ｜ 担当: " + esc(c.owner || "自分") + " ｜ 現在: " + esc(c.currentPhase) + "</div>";
   h += '<div class="progress">';
   for (const ph of PHASES) {
-    const st = stageState(ph);
+    const st = stageStateOf(c, ph);
     h += '<div class="seg ' + (st === "done" ? "done" : st === "open" ? "now" : "") + '">' + esc(ph) + "<br>" + (st === "done" ? "完了" : st === "open" ? "対応中" : "未送信") + "</div>";
   }
   h += "</div>";
@@ -533,78 +892,16 @@ function caseDetailHtml(c) {
   }
   const f = failures["case:" + c.eventId];
   if (f) h += '<div class="fail-note">案件アクションの反映に失敗しました: ' + esc(f.note || "理由不明") + "</div>";
+  h += startBoxHtml(c);
   if (c.pending) {
     h += '<div class="actions"><span class="pend-chip">案件アクション反映待ち（' + esc(nextSyncLabel()) + "）</span></div>";
   } else {
-    h += '<div class="case-actions"><button class="warn-btn" data-lost="' + esc(c.eventId) + '">失注にする</button>' +
-         '<button class="ghost-btn" data-close="' + esc(c.eventId) + '">案件を終了</button></div>';
+    h += '<div class="close-zone"><div class="cz-t">案件を閉じる（状態記録のみ・Slackのメッセージは消えません）</div>' +
+         '<div class="case-actions" style="margin-top:0;"><button class="warn-btn" data-lost="' + esc(c.eventId) + '">失注にする</button>' +
+         '<button class="ghost-btn" data-close="' + esc(c.eventId) + '">案件を終了</button></div></div>';
   }
   h += "</div>";
   return h;
-}
-</script>
-<script>
-"use strict";
-function ownersList() {
-  const set = new Set();
-  tasks.forEach((t) => set.add(t.owner || "自分"));
-  cases.forEach((c) => set.add(c.owner || "自分"));
-  return Array.from(set);
-}
-
-function renderSummary() {
-  const open = tasks.filter((t) => !t.pending);
-  const over = tasks.filter((t) => t.overdue).length;
-  const pend = tasks.filter((t) => t.pending).length + adds.length + memberAdds.length;
-  let h = '<span class="sum-chip">未対応 <b>' + open.length + "</b> 件</span>";
-  h += '<span class="sum-chip' + (over ? " red" : "") + '">期限超過 <b>' + over + "</b> 件</span>";
-  if (pend) h += '<span class="sum-chip amber">反映待ち <b>' + pend + "</b> 件</span>";
-  $("summary").innerHTML = h;
-  const now = Date.now();
-  const fut = cases.filter((c) => c.meetingIso && new Date(c.meetingIso).getTime() >= now - 3 * 3600 * 1000)
-                   .sort((a, b) => new Date(a.meetingIso) - new Date(b.meetingIso));
-  $("nextMeet").textContent = fut.length
-    ? "次の面談: " + fut[0].meetingLabel + " ｜ " + fut[0].facility + " " + fut[0].person + "（担当: " + (fut[0].owner || "自分") + "）"
-    : "";
-}
-
-function renderChips() {
-  let h = '<span class="cap">担当</span>';
-  h += '<button class="fchip' + (ownerFilter === "all" ? " active" : "") + '" data-owner="all">すべて</button>';
-  for (const o of ownersList()) {
-    h += '<button class="fchip' + (ownerFilter === o ? " active" : "") + '" data-owner="' + esc(o) + '">' + esc(o) + "</button>";
-  }
-  if (tasks.some((t) => t.type === "tour")) {
-    h += '<span class="cap">フェーズ</span>';
-    h += '<button class="fchip' + (phaseFilter === "all" ? " active" : "") + '" data-phase="all">すべて</button>';
-    for (const ph of PHASES) {
-      h += '<button class="fchip' + (phaseFilter === ph ? " active" : "") + '" data-phase="' + esc(ph) + '">' + esc(ph) + "</button>";
-    }
-  }
-  h += '<button class="fchip red' + (overdueOnly ? " active" : "") + '" data-overdue="1">期限超過のみ</button>';
-  $("filterChips").innerHTML = h;
-  document.querySelectorAll("[data-owner]").forEach((b) => b.addEventListener("click", () => { ownerFilter = b.getAttribute("data-owner"); render(); }));
-  document.querySelectorAll("[data-phase]").forEach((b) => b.addEventListener("click", () => { phaseFilter = b.getAttribute("data-phase"); render(); }));
-  document.querySelectorAll("[data-overdue]").forEach((b) => b.addEventListener("click", () => { overdueOnly = !overdueOnly; render(); }));
-}
-
-function tabCount(key) {
-  if (key === "all") return tasks.length + adds.length;
-  if (key === "history") return history.length;
-  if (key === "calendar") return tasks.filter((t) => t.type === "calendar").length + adds.length;
-  return tasks.filter((t) => t.type === key).length;
-}
-
-function renderTabs() {
-  let h = "";
-  for (const tab of TABS) {
-    const n = tabCount(tab.key);
-    const red = tab.key !== "history" && tasks.some((t) => (tab.key === "all" || t.type === tab.key) && t.overdue);
-    h += '<button class="tab' + (activeTab === tab.key ? " active" : "") + '" data-tab="' + tab.key + '">' +
-         esc(tab.label) + '<span class="bdg' + (red ? " red" : "") + '">' + n + "</span></button>";
-  }
-  $("tabs").innerHTML = h;
-  document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { activeTab = b.getAttribute("data-tab"); render(); }));
 }
 
 function groupHtml(visible, groupTitleOf) {
@@ -672,8 +969,8 @@ function buildSummaryText(person, list) {
   const now = new Date();
   const md = (now.getMonth() + 1) + "/" + now.getDate();
   const lines = [person === "自分"
-    ? "【自分の分】未対応 " + list.length + "件（" + md + "時点）"
-    : "【" + person + "さん】未対応 " + list.length + "件（" + md + "時点）"];
+    ? "\u3010自分の分\u3011未対応 " + list.length + "件（" + md + "時点）"
+    : "\u3010" + person + "さん\u3011未対応 " + list.length + "件（" + md + "時点）"];
   for (const t of list) {
     let line = effOverdue(t) ? "⚠️期限超過 ・" : "・";
     line += t.title;
@@ -706,26 +1003,54 @@ async function copySummary(person) {
   showOk("自動コピーできませんでした。下のテキストを選択してコピーしてください。");
 }
 
-function renderCopyPanel() {
+function personStats(person) {
+  const list = personOpenTasks(person);
+  const over = list.filter((t) => effOverdue(t)).length;
+  const oldest = list.reduce((m, t) => Math.max(m, t.elapsedDays || 0), 0);
+  const bd = { tour: 0, req: 0, mention: 0, assign: 0, other: 0 };
+  for (const t of list) {
+    if (t.type === "tour") bd.tour++;
+    else if (t.shareKind === "依頼共有") bd.req++;
+    else if (t.shareKind === "メンション共有") bd.mention++;
+    else if (t.shareKind === "割当タスク") bd.assign++;
+    else bd.other++;
+  }
+  const stuck = list.filter((t) => (t.elapsedDays || 0) >= 5).length;
+  return { list: list, over: over, oldest: oldest, bd: bd, stuck: stuck };
+}
+
+function renderPeople() {
   const people = ["自分"].concat(members.filter((m) => m.status === "有効").map((m) => m.label));
   let h = "";
   for (const p of people) {
-    const list = personOpenTasks(p);
-    h += '<div class="copy-row"><div class="mi"><div class="mn">' + esc(p === "自分" ? "自分の分" : p + "さん") + '</div>' +
-         '<div class="mm">未対応 ' + list.length + "件</div></div>";
-    if (list.length) h += '<button class="copy-btn" data-copy="' + esc(p) + '">まとめをコピー</button>';
-    else h += '<span style="flex:0 0 auto; font-size:12px; color:var(--sub); font-weight:700;">未対応なし</span>';
+    const s = personStats(p);
+    const pend = (summaryPending || []).indexOf(p) >= 0 || summaryPendingLocal[p];
+    const sentAt = summarySent[p];
+    h += '<div class="person-card' + (s.stuck ? " stuck" : "") + '"><div class="pn">' + esc(p === "自分" ? "自分の分" : p + "さん") +
+         (s.stuck ? '<span class="flag red">停滞 ' + s.stuck + "件（5日以上）</span>" : "") + "</div>";
+    h += '<div class="stats"><span class="stat-chip">未対応 <b>' + s.list.length + "</b>件</span>" +
+         (s.over ? '<span class="stat-chip red">期限超過 <b>' + s.over + "</b>件</span>" : '<span class="stat-chip">期限超過 0件</span>') +
+         '<span class="stat-chip' + (s.oldest >= 5 ? " amber" : "") + '">最古 <b>' + s.oldest + "</b>日</span></div>";
+    h += '<div class="bd">内訳: 面談 ' + s.bd.tour + "件 ｜ 依頼 " + s.bd.req + "件 ｜ メンション " + s.bd.mention + "件 ｜ 割当 " + s.bd.assign + "件" + (s.bd.other ? " ｜ その他 " + s.bd.other + "件" : "") + "</div>";
+    h += '<div class="pacts">';
+    if (s.list.length) h += '<button class="copy-btn" data-copy="' + esc(p) + '">まとめをコピー</button>';
+    if (pend) h += '<button class="send-btn" disabled>送信待ち（' + esc(nextSyncLabel()) + "）</button>";
+    else if (s.list.length) h += '<button class="send-btn" data-send="' + esc(p) + '">Slackで送る</button>';
+    if (!s.list.length) h += '<span style="font-size:12.5px; color:var(--sub); font-weight:700;">未対応なし</span>';
+    h += "</div>";
+    if (sentAt) h += '<div class="sent-line">最終送信: ' + esc(fmtIsoMdHm(sentAt)) + "</div>";
     h += "</div>";
   }
   $("copyList").innerHTML = h;
   document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => copySummary(b.getAttribute("data-copy"))));
+  document.querySelectorAll("[data-send]").forEach((b) => b.addEventListener("click", () => sendSummary(b.getAttribute("data-send"))));
 }
 
 function renderMemberPanel() {
   const show = activeTab === "member";
   $("memberPanel").classList.toggle("hidden", !show);
   if (!show) return;
-  renderCopyPanel();
+  renderPeople();
   let h = "";
   const sorted = members.slice().sort((a, b) => (a.status === "有効" ? 0 : 1) - (b.status === "有効" ? 0 : 1));
   for (const m of sorted) {
@@ -748,14 +1073,121 @@ function renderMemberPanel() {
 }
 
 function renderAssignees() {
-  const sel = $("addAssignee");
-  const cur = sel.value || "自分";
-  let opts = '<option value="自分">自分</option>';
-  for (const m of members) {
-    if (m.status === "有効") opts += '<option value="' + esc(m.label) + '">' + esc(m.label) + "（メンバー）</option>";
+  const opts = ['<option value="自分">自分</option>']
+    .concat(members.filter((m) => m.status === "有効").map((m) => '<option value="' + esc(m.label) + '">' + esc(m.label) + "（メンバー）</option>"))
+    .join("");
+  for (const id of ["addAssignee", "mtgAssignee"]) {
+    const sel = $(id);
+    if (!sel) continue;
+    const cur = sel.value || "自分";
+    sel.innerHTML = opts;
+    sel.value = Array.from(sel.options).some((o) => o.value === cur) ? cur : "自分";
   }
-  sel.innerHTML = opts;
-  sel.value = Array.from(sel.options).some((o) => o.value === cur) ? cur : "自分";
+}
+
+function renderMeetingPending() {
+  const box = $("mtgPending");
+  if (!box) return;
+  box.innerHTML = meetingAdds.map((a) =>
+    '<div class="opt-strip">面談の追加 反映待ち（' + esc(nextSyncLabel()) + "）: " + esc(String(a.text || "").slice(0, 60)) + "（担当: " + esc(a.assignee || "自分") + "）</div>").join("");
+}
+
+// ---- ダッシュボード（すべてタブ上部） ----
+const ALERT_KINDS = { "naitei-overdue": "内定確認", "docs-overdue": "書類回収", "start-overdue": "入社結果", "action-failure": "反映失敗", "share-stale": "共有停滞" };
+
+function upcomingMeetings() {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  return cases.filter((c) => c.meetingIso && new Date(c.meetingIso).getTime() >= start.getTime())
+              .sort((a, b) => new Date(a.meetingIso) - new Date(b.meetingIso));
+}
+
+function meetRowHtml(c) {
+  const prep = c.stages.filter((s) => s.phase === "①準備");
+  const prepTxt = prep.length
+    ? prep.map((s) => esc(s.label.replace("①準備", "").replace(/^・/, "")) + (s.status === "done" ? "済" : s.status === "open" ? "対応中" : "未")).join(" / ")
+    : "準備タスク未送信";
+  const time = c.meetingIso ? String(new Date(c.meetingIso).getHours()) + ":" + String(new Date(c.meetingIso).getMinutes()).padStart(2, "0") : "";
+  let h = '<div class="meet-row"><div class="mi2"><div class="mt">' + esc(c.facility) + " × " + esc(c.person) + "</div>" +
+          '<div class="mm2">' + (time ? esc(time) + " ｜ " : "") + "担当: " + esc(c.owner || "自分") + " ｜ 現在: " + esc(c.currentPhase) + "<br>準備: " + prepTxt + "</div></div>";
+  if (c.pending) {
+    h += '<div class="acts"><span class="hist-pend">反映待ち</span></div>';
+  } else {
+    h += '<div class="acts"><button class="mini-warn" data-lost="' + esc(c.eventId) + '">失注</button>' +
+         '<button class="mini-ghost" data-close="' + esc(c.eventId) + '">終了</button></div>';
+  }
+  h += "</div>";
+  return h;
+}
+
+function startRowHtml(c) {
+  const d = c.daysToStart;
+  const badge = (d === null || d === undefined) ? "" :
+    '<span class="days-badge' + (d < 0 ? " red" : d <= 3 ? " amber" : "") + '">' +
+    (d < 0 ? Math.abs(d) + "日経過" : d === 0 ? "今日が入社日" : "あと" + d + "日") + "</span>";
+  const cls = d !== null && d !== undefined && d < 0 ? " past" : (d !== null && d !== undefined && d <= 3 ? " soon" : "");
+  let h = '<div class="start-row' + cls + '"><div class="mi2"><div style="font-size:14px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + "</div>" +
+          '<div style="font-size:12px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(c.startDate)) + " ｜ 担当: " + esc(c.owner || "自分") + "</div>" +
+          '<div style="margin-top:4px;">' + badge + "</div>";
+  if (reschedOpen[c.eventId]) {
+    h += '<input type="date" id="reschedDate-' + esc(c.eventId) + '" style="width:100%; font-size:16px; padding:9px; border:1px solid var(--line); border-radius:8px; margin-top:7px;">' +
+         '<button class="sb-save" style="width:100%; margin-top:6px;" data-result="reschedule" data-ev="' + esc(c.eventId) + '">この日付でリスケ</button>';
+  }
+  h += '</div><div class="acts">' +
+       '<button class="res-btn" data-result="started" data-ev="' + esc(c.eventId) + '">✅ 入社済み</button>' +
+       '<button class="res-btn gray" data-resched="' + esc(c.eventId) + '">📅 リスケ</button>' +
+       '<button class="res-btn red" data-result="cancelled" data-ev="' + esc(c.eventId) + '">キャンセル</button></div></div>';
+  return h;
+}
+
+function renderDash() {
+  const box = $("dash");
+  if (activeTab !== "all") { box.innerHTML = ""; return; }
+  let h = "";
+  if (alerts.length) {
+    h += '<div class="dash-panel"><h2>⚠️ 要確認 <span class="cnt red">' + alerts.length + '件</span></h2>';
+    for (const a of alerts) {
+      h += '<div class="alert-row"><span class="ak' + (a.kind === "action-failure" ? "" : " amber") + '">' + esc(ALERT_KINDS[a.kind] || a.kind) + '</span>' +
+           '<div style="flex:1;"><div class="al">' + esc(a.label) + "</div>" + (a.detail ? '<div class="ad">' + esc(a.detail) + "</div>" : "") + "</div>" +
+           (a.days ? '<span class="days-badge red">' + a.days + "日</span>" : "") + "</div>";
+    }
+    h += "</div>";
+  }
+  const meets = upcomingMeetings();
+  const byOwner = {};
+  meets.forEach((c) => { const o = c.owner || "自分"; byOwner[o] = (byOwner[o] || 0) + 1; });
+  h += '<div class="dash-panel"><h2>🤝 面談実施待ち <span class="cnt">' + meets.length + '件</span></h2>';
+  h += '<div class="dash-sub">' + (meets.length
+    ? Object.keys(byOwner).map((o) => esc(o === "自分" ? "自分" : o + "さん") + " " + byOwner[o] + "件").join(" ｜ ")
+    : "実施待ちの面談はありません") + "</div>";
+  let lastDate = "";
+  for (const c of meets) {
+    const d = (c.meetingIso || "").slice(0, 10);
+    if (d !== lastDate) {
+      lastDate = d;
+      h += '<div class="meet-date">' + esc(fmtMD(d)) + "（" + ["日","月","火","水","木","金","土"][new Date(c.meetingIso).getDay()] + "）</div>";
+    }
+    h += meetRowHtml(c);
+  }
+  h += "</div>";
+  const waiting = cases.filter((c) => c.startDate && c.startResult !== "started" && c.startResult !== "cancelled")
+                        .sort((a, b) => (a.startDate < b.startDate ? -1 : 1));
+  const needDate = cases.filter((c) => caseDecided(c) && !c.startDate && !c.startResult);
+  const ym = todayStr().slice(0, 7);
+  const startedM = cases.filter((c) => c.startResult === "started" && (c.startDate || "").slice(0, 7) === ym).length;
+  const schedM = cases.filter((c) => !c.startResult && (c.startDate || "").slice(0, 7) === ym).length;
+  const cancM = cases.filter((c) => c.startResult === "cancelled" && (c.startResultDate || "").slice(0, 7) === ym).length;
+  if (waiting.length || needDate.length || startedM || cancM) {
+    h += '<div class="dash-panel"><h2>🏢 入社待ち <span class="cnt">' + waiting.length + '件</span></h2>';
+    h += '<div class="dash-sub">今月: 入社済み ' + startedM + "件 ｜ 予定 " + schedM + "件 ｜ キャンセル " + cancM + "件</div>";
+    for (const c of needDate) {
+      h += '<div class="start-row past"><div class="mi2"><div style="font-size:14px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + '</div>' +
+           '<div style="font-size:12px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div></div>' +
+           '<div class="acts"><button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
+    }
+    for (const c of waiting) h += startRowHtml(c);
+    h += "</div>";
+  }
+  box.innerHTML = h;
 }
 
 function render() {
@@ -764,22 +1196,31 @@ function render() {
   renderChips();
   renderTabs();
   renderMemberPanel();
+  renderMeetingPending();
+  renderDash();
   let h = "";
+  const strips = Object.values(optCases).map((o) =>
+    '<div class="opt-strip">' + esc(o.case.facility) + " " + esc(o.case.person) + " を「" + (o.kind === "lost" ? "失注" : "終了") + "」にしました（反映待ち・" + esc(nextSyncLabel()) + "）</div>").join("");
   if (activeTab === "history") {
     h = history.length ? history.map((x) => {
-      let row = '<div class="hist-row"><div class="ht">' + esc(x.title) + '</div><div class="hm">' +
+      let row = '<div class="hist-row' + (x.opt ? " opt" : "") + '"><div class="ht">' + esc(x.title) + '</div><div class="hm">' +
         esc(x.closedAt) + " ｜ " + esc(x.howLabel) + (x.owner ? " ｜ 担当: " + esc(x.owner) : "") + "</div>";
-      if (x.id && failures[x.id]) row += '<div class="fail-note">前回の反映に失敗しました: ' + esc(failures[x.id].note || "理由不明") + "（もう一度操作できます）</div>";
-      if (x.id && x.reopenable) {
-        row += x.pending
-          ? '<span class="hist-pend">戻し 反映待ち（' + esc(nextSyncLabel()) + "）</span>"
-          : '<button class="reopen-btn" data-reopen="' + esc(x.id) + '">未対応に戻す</button>';
+      if (x.opt) {
+        row += '<span class="hist-pend">反映待ち（' + esc(nextSyncLabel()) + "）</span>";
+      } else {
+        if (x.id && failures[x.id]) row += '<div class="fail-note">前回の反映に失敗しました: ' + esc(failures[x.id].note || "理由不明") + "（もう一度操作できます）</div>";
+        if (x.id && x.reopenable) {
+          row += x.pending
+            ? '<span class="hist-pend">戻し 反映待ち（' + esc(nextSyncLabel()) + "）</span>"
+            : '<button class="reopen-btn" data-reopen="' + esc(x.id) + '">未対応に戻す</button>';
+        }
       }
       row += "</div>";
       return row;
     }).join("")
       : '<div class="empty">完了済みの項目はまだありません。</div>';
   } else {
+    if (activeTab === "all" || activeTab === "tour") h += strips;
     let visible = tasks.filter((t) => activeTab === "all" || t.type === activeTab).filter(matchesFilters);
     if (activeTab === "all" || activeTab === "calendar") {
       h += adds.map(addCardHtml).join("");
@@ -810,6 +1251,24 @@ function render() {
   }));
   document.querySelectorAll("[data-lost]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-lost"), "lost")));
   document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-close"), "close")));
+  document.querySelectorAll("[data-start-save]").forEach((b) => b.addEventListener("click", () => setStartDate(b.getAttribute("data-start-save"))));
+  document.querySelectorAll("[data-result]").forEach((b) => b.addEventListener("click", () => setStartResult(b.getAttribute("data-ev"), b.getAttribute("data-result"))));
+  document.querySelectorAll("[data-resched]").forEach((b) => b.addEventListener("click", () => {
+    const ev = b.getAttribute("data-resched");
+    reschedOpen[ev] = !reschedOpen[ev];
+    render();
+  }));
+  document.querySelectorAll("[data-gocase]").forEach((b) => b.addEventListener("click", () => {
+    const ev = b.getAttribute("data-gocase");
+    const c = cases.find((x) => x.eventId === ev);
+    activeTab = "tour";
+    if (c) { ownerFilter = "all"; phaseFilter = "all"; overdueOnly = false; query = ""; $("searchBox").value = ""; }
+    // 案件グループを開く: groupKey は eventId
+    openCases[ev] = true;
+    render();
+    const el = document.getElementById("case-" + ev);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }));
 }
 
 $("searchBox").addEventListener("input", () => { query = $("searchBox").value.trim(); render(); });
@@ -817,17 +1276,16 @@ document.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("cl
   addPreset = b.getAttribute("data-preset");
   document.querySelectorAll("[data-preset]").forEach((x) => x.classList.toggle("active", x === b));
   $("addWhen").classList.toggle("hidden", addPreset !== "custom");
-  $("addHint").textContent = addPreset === "auto"
-    ? "おまかせ＝今日17:00（過ぎていれば明日9:00）にカレンダー登録されます。登録後、カレンダーの【タスク】として通常どおり通知されます。"
-    : "選んだ日時にカレンダー登録されます。登録後、カレンダーの【タスク】として通常どおり通知されます。";
+  $("addHint").textContent = "選んだ日時にカレンダー登録されます。登録後、カレンダーの\u3010タスク\u3011として通常どおり通知されます。";
 }));
 $("addAssignee").addEventListener("change", () => {
   const v = $("addAssignee").value;
   $("addHint").textContent = v === "自分"
-    ? "おまかせ＝今日17:00（過ぎていれば明日9:00）にカレンダー登録されます。登録後、カレンダーの【タスク】として通常どおり通知されます。"
+    ? "おまかせ＝今日17:00（過ぎていれば明日9:00）にカレンダー登録されます。登録後、カレンダーの\u3010タスク\u3011として通常どおり通知されます。"
     : v + "さんには次回の同期でSlack DM（あなた名義）でタスクが送られます。日時は「締切」として扱われます（プリセット・指定なしなら締切なし）。✅が付けば対応済みとして回収されます。";
 });
 $("addSubmit").addEventListener("click", submitAdd);
+$("mtgSubmit").addEventListener("click", submitMeeting);
 $("memSubmit").addEventListener("click", submitMember);
 
 if ("serviceWorker" in navigator) {
