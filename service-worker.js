@@ -1,7 +1,7 @@
 // タスクボード Service Worker
 // 方針: ページ本体・静的アセットはネットワーク優先（古い画面を出さない）、失敗時のみキャッシュ。
 // API（script.google.com）へのリクエストは一切キャッシュしない。
-const CACHE_NAME = "task-board-v10";
+const CACHE_NAME = "task-board-v11";
 const STATIC_ASSETS = ["./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", (event) => {

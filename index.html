@@ -118,6 +118,9 @@ button.res-btn.red{ border-color:#fecaca; background:#fff; color:var(--danger);}
 .collect-row .cl-tag.done{ color:var(--ok); border:1px solid #bbf7d0; background:var(--ok-bg);}
 .collect-note{ font-size:12.5px; color:var(--sub); margin-top:7px; line-height:1.55;}
 .collect-chip{ flex:0 0 auto; font-size:12px; font-weight:700; background:#dcfce7; color:var(--ok); border-radius:999px; padding:2px 8px;}
+.start-collect{ margin-top:7px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+button.collect-toggle{ font-size:13px; font-weight:700; padding:9px 12px; min-height:40px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--accent); cursor:pointer;}
+.start-row .collect-box{ margin-top:9px;}
 .case-actions{ display:flex; gap:8px; margin-top:10px;}
 button.warn-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px solid #fecaca; background:var(--danger-bg); color:var(--danger); cursor:pointer;}
 button.ghost-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
@@ -321,6 +324,7 @@ let sending = {};
 let confirmDeleteId = null;
 let editingMetaId = null;
 let openCases = {};
+let openStarts = {};   // eventId -> true（入社待ち行の回収チェックリスト展開状態）
 let reschedOpen = {};
 let query = "", ownerFilter = "all", phaseFilter = "all", overdueOnly = false;
 let addPreset = "auto";
@@ -848,6 +852,14 @@ function syncCollectDom(ev) {
   }
   const chip = document.querySelector("[data-collect-chip=" + attrQ(ev) + "]");
   if (chip && total) chip.textContent = "回収 " + done + "/" + total;
+  const startChip = document.querySelector("[data-start-collect=" + attrQ(ev) + "]");
+  if (startChip && total) startChip.textContent = done === total ? "全て回収済み" : "回収 " + done + "/" + total;
+}
+
+// 入社タブの入社待ちパネルだけを作り直す（入社待ち行の回収チェックリストの帳尻合わせ用）
+function refreshStartPanel() {
+  if (activeTab !== "onboarding") return;
+  stableView(() => { renderDash(); bindEvents($("dash")); });
 }
 
 function refreshCaseDetail(ev) {
@@ -884,6 +896,7 @@ async function onCollectToggle(input) {
   } else if (!input.checked && state === "pending") {
     await cancelPending(taskId);
     refreshCaseDetail(ev);
+    refreshStartPanel();
   }
 }
 
@@ -1336,6 +1349,20 @@ function collectBoxHtml(c) {
   return h;
 }
 
+// 入社待ち行の回収UI: 常時「回収 n/m」（全完了なら「全て回収済み」）を見せ、展開すると
+// 案件詳細と同じチェックリスト（collectBoxHtml）がその場で開く。組み立て・操作経路は詳細側と共通。
+function startCollectHtml(c) {
+  const items = collectItems(c);
+  if (!items.length) return "";
+  const p = collectProgress(items);
+  let h = '<div class="start-collect"><span class="collect-chip" data-start-collect="' + esc(c.eventId) + '">' +
+    (p.done === p.total ? "全て回収済み" : "回収 " + p.done + "/" + p.total) + "</span>" +
+    '<button class="collect-toggle" data-collect-toggle="' + esc(c.eventId) + '">' +
+    (openStarts[c.eventId] ? "回収チェックリストを閉じる" : "回収を管理する") + "</button></div>";
+  if (openStarts[c.eventId]) h += collectBoxHtml(c);
+  return h;
+}
+
 function startBoxHtml(c) {
   if (!caseDecided(c)) return "";
   let h = '<div class="start-box"><div class="sb-t">🏢 入社日・結果</div>';
@@ -1709,6 +1736,7 @@ function startRowHtml(c) {
     h += '<input type="date" id="reschedDate-' + esc(c.eventId) + '" style="width:100%; font-size:16px; padding:9px; border:1px solid var(--line); border-radius:8px; margin-top:7px;">' +
          '<button class="sb-save" style="width:100%; margin-top:6px;" data-result="reschedule" data-ev="' + esc(c.eventId) + '">この日付でリスケ</button>';
   }
+  h += startCollectHtml(c);
   h += '</div><div class="acts">' +
        '<button class="res-btn" data-result="started" data-ev="' + esc(c.eventId) + '">✅ 入社済み</button>' +
        '<button class="res-btn gray" data-resched="' + esc(c.eventId) + '">📅 リスケ</button>' +
@@ -1783,7 +1811,8 @@ function startPanelHtml() {
   }
   for (const c of needDate) {
     h += '<div class="start-row past"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + '</div>' +
-         '<div style="font-size:13px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div></div>' +
+         '<div style="font-size:13px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div>' +
+         startCollectHtml(c) + '</div>' +
          '<div class="acts"><button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
   }
   for (const c of waiting) h += startRowHtml(c);
@@ -1861,6 +1890,11 @@ function bindEvents(root) {
   root.querySelectorAll("[data-memo-edit]").forEach((b) => b.addEventListener("click", () => openMetaEdit(b.getAttribute("data-memo-edit"))));
   root.querySelectorAll("[data-stage-edit]").forEach((b) => b.addEventListener("click", () => openMetaEdit(b.getAttribute("data-stage-edit"))));
   root.querySelectorAll("[data-collect-check]").forEach((inp) => inp.addEventListener("change", () => onCollectToggle(inp)));
+  root.querySelectorAll("[data-collect-toggle]").forEach((b) => b.addEventListener("click", () => {
+    const ev = b.getAttribute("data-collect-toggle");
+    openStarts[ev] = !openStarts[ev];
+    stableView(() => { renderDash(); bindEvents($("dash")); });
+  }));
   root.querySelectorAll("[data-meta-save]").forEach((b) => b.addEventListener("click", () => saveMeta(b.getAttribute("data-meta-save"))));
   root.querySelectorAll("[data-meta-cancel]").forEach((b) => b.addEventListener("click", () => cancelMetaEdit()));
   root.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => askDelete(b.getAttribute("data-del"))));
