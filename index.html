@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>タスクボード</title>
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="タスクボード">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{ --bg:#f6f7f9; --card:#fff; --line:#dde1e7; --txt:#1c2330; --sub:#5b6577; --accent:#2563eb; --danger:#b91c1c; --danger-bg:#fef2f2; --pend:#b45309; --pend-bg:#fffbeb; --amber:#d97706; --ok:#0e7a3d;}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+body{ margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; background:var(--bg); color:var(--txt);}
+header{ position:sticky; top:0; z-index:20; background:#fff; border-bottom:1px solid var(--line); padding:10px 14px 0;}
+h1{ font-size:17px; margin:0;}
+.summary{ display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;}
+.sum-chip{ font-size:12px; font-weight:700; border:1px solid var(--line); border-radius:999px; padding:4px 10px; background:#fff;}
+.sum-chip b{ font-size:15px;}
+.sum-chip.red{ color:var(--danger); border-color:#fecaca; background:var(--danger-bg);}
+.sum-chip.amber{ color:var(--pend); border-color:#fde68a; background:var(--pend-bg);}
+.next-meet{ font-size:12px; color:var(--sub); margin-top:6px;}
+#syncNote{ font-size:11px; color:var(--sub); margin-top:2px;}
+.controls{ margin-top:8px;}
+.controls input[type="search"]{ width:100%; font-size:16px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:#fff;}
+.chips{ display:flex; gap:6px; overflow-x:auto; padding:8px 0 2px; -webkit-overflow-scrolling:touch;}
+.chips .cap{ flex:0 0 auto; font-size:11px; color:var(--sub); align-self:center; font-weight:700;}
+.fchip{ flex:0 0 auto; font-size:13px; padding:8px 12px; min-height:38px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer; color:var(--txt);}
+.fchip.active{ background:#334155; border-color:#334155; color:#fff; font-weight:700;}
+.fchip.red.active{ background:var(--danger); border-color:var(--danger);}
+.tabs{ display:flex; gap:6px; overflow-x:auto; padding:10px 0 9px; -webkit-overflow-scrolling:touch;}
+.tab{ flex:0 0 auto; display:inline-flex; align-items:center; gap:6px; font-size:14px; padding:9px 13px; min-height:44px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer; color:var(--txt);}
+.tab.active{ background:var(--accent); border-color:var(--accent); color:#fff; font-weight:700;}
+.tab .bdg{ font-size:11px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:1px 7px;}
+.tab.active .bdg{ background:#fff; color:var(--accent);}
+.tab .bdg.red{ background:var(--danger); color:#fff;}
+main{ padding:10px 12px 40px; max-width:860px; margin:0 auto;}
+.panel{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;}
+.panel h2{ font-size:14px; margin:0 0 8px;}
+.panel label{ display:block; font-size:12px; color:var(--sub); margin:8px 0 4px;}
+.panel input{ width:100%; font-size:16px; padding:11px 12px; border:1px solid var(--line); border-radius:10px;}
+.preset-row{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
+.preset{ font-size:13px; padding:8px 11px; min-height:38px; border:1px solid var(--line); border-radius:999px; background:#fff; cursor:pointer;}
+.preset.active{ background:#334155; border-color:#334155; color:#fff; font-weight:700;}
+button.primary{ width:100%; margin-top:12px; font-size:15px; font-weight:700; padding:13px; min-height:50px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
+button.primary:disabled{ opacity:.5;}
+.note{ font-size:11px; color:var(--sub); margin-top:8px; line-height:1.6;}
+.group-head{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:#eef2ff; border:1px solid #c7d2fe; border-radius:12px; padding:12px; margin:14px 0 8px; cursor:pointer; min-height:48px;}
+.group-head .gt{ font-size:14px; font-weight:700; flex:1; line-height:1.4;}
+.group-head .gn{ font-size:12px; color:var(--sub); font-weight:700;}
+.group-head .chev{ color:var(--sub); font-size:13px;}
+.case-detail{ background:#fff; border:1px solid #c7d2fe; border-radius:12px; padding:12px; margin:-2px 0 10px;}
+.progress{ display:flex; gap:4px; margin:8px 0;}
+.progress .seg{ flex:1; text-align:center; font-size:10px; padding:6px 2px; border-radius:7px; background:#eef0f3; color:var(--sub); line-height:1.3;}
+.progress .seg.done{ background:#dcfce7; color:var(--ok); font-weight:700;}
+.progress .seg.now{ background:#dbeafe; color:var(--accent); font-weight:700; border:1px solid var(--accent);}
+.stage-row{ display:flex; align-items:center; gap:8px; font-size:13px; padding:7px 0; border-top:1px solid #f1f3f6;}
+.stage-row .st{ flex:0 0 auto; font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px;}
+.st.done{ background:#dcfce7; color:var(--ok);} .st.open{ background:#dbeafe; color:var(--accent);} .st.yet{ background:#eef0f3; color:var(--sub);}
+.stage-row .sl{ flex:1;}
+.case-actions{ display:flex; gap:8px; margin-top:10px;}
+button.warn-btn{ flex:1; font-size:14px; font-weight:700; padding:12px; min-height:48px; border-radius:10px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
+button.ghost-btn{ flex:1; font-size:14px; font-weight:700; padding:12px; min-height:48px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
+.card{ background:var(--card); border:1px solid var(--line); border-left:5px solid var(--line); border-radius:12px; padding:11px 12px; margin-bottom:10px;}
+.card.overdue{ border-left-color:var(--danger); background:#fff8f8;}
+.card.dueToday{ border-left-color:var(--amber); background:#fffdf5;}
+.card.pending{ border-style:dashed; opacity:.78;}
+.card.ph1{ border-left-color:#2563eb;} .card.ph2{ border-left-color:#d97706;} .card.ph3{ border-left-color:#ea580c;} .card.ph4{ border-left-color:#7c3aed;} .card.ph5{ border-left-color:#0e7a3d;}
+.card.overdue.ph1,.card.overdue.ph2,.card.overdue.ph3,.card.overdue.ph4,.card.overdue.ph5{ border-left-color:var(--danger);}
+.row1{ display:flex; align-items:flex-start; gap:8px;}
+.title{ font-size:15px; font-weight:700; line-height:1.45; flex:1;}
+.chip{ flex:0 0 auto; font-size:11px; font-weight:700; color:#fff; border-radius:999px; padding:2px 8px; margin-top:2px;}
+.chip.mail{ background:#0369a1;} .chip.slack{ background:#611f69;} .chip.calendar{ background:#0e7a3d;}
+.chip.tour{ background:#7c3aed;} .chip.onboarding{ background:#0f766e;} .chip.member{ background:#b45309;}
+.flags{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
+.flag{ font-size:11px; font-weight:700; border-radius:999px; padding:2px 8px;}
+.flag.red{ background:var(--danger-bg); color:var(--danger); border:1px solid #fecaca;}
+.flag.amber{ background:var(--pend-bg); color:var(--pend); border:1px solid #fde68a;}
+.flag.fail{ background:var(--danger); color:#fff;}
+.line{ font-size:13px; margin-top:5px; color:var(--sub); line-height:1.55;}
+.line .deadline{ color:var(--danger); font-weight:700;}
+.fail-note{ font-size:12px; color:var(--danger); margin-top:5px;}
+.actions{ margin-top:9px; display:flex; gap:8px; align-items:center;}
+button.done-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:50px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
+button.done-btn:disabled{ opacity:.5;}
+.pend-chip{ flex:1; text-align:center; font-size:13px; font-weight:700; color:var(--pend); border:1px dashed var(--pend); border-radius:10px; padding:11px 6px; line-height:1.5;}
+a.slack-link{ font-size:13px; color:var(--accent); text-decoration:none; padding:10px 6px; white-space:nowrap;}
+.member-row{ display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 12px; margin-bottom:9px;}
+.member-row .mi{ flex:1;}
+.member-row .mn{ font-size:15px; font-weight:700;}
+.member-row .mm{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.5;}
+button.off-btn{ flex:0 0 auto; font-size:13px; font-weight:700; padding:10px 13px; min-height:44px; border-radius:9px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
+.hist-row{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:9px;}
+.hist-row .ht{ font-size:14px; font-weight:700; line-height:1.45;}
+.hist-row .hm{ font-size:12px; color:var(--sub); margin-top:3px;}
+#errBar{ display:none; background:#fef2f2; color:var(--danger); border:1px solid #fecaca; border-radius:9px; padding:9px 12px; font-size:13px; margin-bottom:10px;}
+#okBar{ display:none; background:#f0fdf4; color:var(--ok); border:1px solid #bbf7d0; border-radius:9px; padding:9px 12px; font-size:13px; margin-bottom:10px;}
+.empty{ text-align:center; color:var(--sub); padding:26px 0; font-size:14px;}
+footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; margin:0 auto; line-height:1.8;}
+.hidden{ display:none;}
+</style>
+</head>
+<body>
+<header>
+<h1>📋 タスクボード</h1>
+<div class="summary" id="summary"></div>
+<div class="next-meet" id="nextMeet"></div>
+<div id="syncNote">読み込み中…</div>
+<div class="controls">
+<input type="search" id="searchBox" placeholder="名前・施設・タイトルで検索" aria-label="検索">
+<div class="chips" id="filterChips"></div>
+</div>
+<nav class="tabs" id="tabs"></nav>
+</header>
+<main>
+<div id="errBar"></div>
+<div id="okBar"></div>
+
+<details class="panel" id="addPanel">
+<summary style="font-size:14px; font-weight:700; cursor:pointer;">＋ タスクを追加</summary>
+<label for="addTitle">タイトル（必須）</label>
+<input type="text" id="addTitle" placeholder="例：○○さんに電話する" maxlength="200">
+<label for="addAssignee">担当者</label>
+<select id="addAssignee" style="width:100%; font-size:16px; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:#fff;">
+<option value="自分">自分</option>
+</select>
+<label>日時</label>
+<div class="preset-row" id="addPresets">
+<button type="button" class="preset active" data-preset="auto">おまかせ</button>
+<button type="button" class="preset" data-preset="today17">今日 17:00</button>
+<button type="button" class="preset" data-preset="tomorrow9">明日 9:00</button>
+<button type="button" class="preset" data-preset="tomorrow17">明日 17:00</button>
+<button type="button" class="preset" data-preset="custom">日時を指定</button>
+</div>
+<input type="datetime-local" id="addWhen" class="hidden" style="margin-top:8px;">
+<div class="note" id="addHint">おまかせ＝今日17:00（過ぎていれば明日9:00）にカレンダー登録されます。登録後、カレンダーのとして通常どおり通知されます。</div>
+<button class="primary" id="addSubmit">追加する</button>
+</details>
+
+<div id="memberPanel" class="hidden">
+<div class="panel">
+<h2>メンバー管理</h2>
+<div id="memberList"></div>
+<label for="memName">メンバー追加：名前</label>
+<input type="text" id="memName" placeholder="例：山田太郎" maxlength="50">
+<label for="memEmail">メールアドレス</label>
+<input type="email" id="memEmail" placeholder="例：t-yamada@kikari.co.jp" maxlength="100">
+<button class="primary" id="memSubmit">メンバーを追加する</button>
+<div class="note">追加すると次回の同期から監視対象（面談・メンション共有・依頼・予定）に入ります。無効化も次回の同期から反映されます。</div>
+</div>
+</div>
+
+<div id="list"><div class="empty" id="loadingBox">読み込み中…</div></div>
+</main>
+<footer>
+・「完了」は元のSlackメッセージへの✅として反映されます（次の同期タイミング: 平日 8:45／12:00／15:00／17:30／19:30）。押し間違えたら元のSlackの✅を外してください。<br>
+・面談の「完了」はその段階への✅です（内定確認への✅＝内定として進みます）。案件の「失注」「終了」は状態記録として残り、Slackのメッセージは消えません。<br>
+・メンバータブの「完了」は共有メッセージへの✅＝確認済みとして扱われ、フォローアップ側で閉じられます。<br>
+・このボードのURLは共有しないでください（あなた専用です）。
+</footer>
+<script>
+"use strict";
+// ↓ Apps Script ウェブアプリのURL（デプロイ後に差し替える）
+const API_URL = "https://script.google.com/macros/s/AKfycbxCr37M4trNJZ5zPBaN1q4yAcbwB-160Y3M1Rzk0NYe-sURskm2NYjn2Bj_3YWO0pJHdg/exec";
+const TABS = [
+  { key: "all", label: "すべて" },
+  { key: "mail", label: "メール" },
+  { key: "slack", label: "Slack" },
+  { key: "calendar", label: "カレンダー" },
+  { key: "tour", label: "面談" },
+  { key: "onboarding", label: "入社" },
+  { key: "member", label: "メンバー" },
+  { key: "history", label: "完了済み" }
+];
+const PHASES = ["①準備", "②内定確認", "③書類回収", "④入力・申請", "⑤入職フォロー"];
+const SYNC_SLOTS = [[8,45],[12,0],[15,0],[17,30],[19,30]];
+let tasks = [], adds = [], memberAdds = [], cases = [], history = [], members = [];
+let failures = {}; // taskId -> failure
+let activeTab = "all";
+let sending = {};
+let openCases = {};
+let query = "", ownerFilter = "all", phaseFilter = "all", overdueOnly = false;
+let addPreset = "auto";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const configured = () => API_URL.indexOf("http") === 0;
+
+function nextSyncLabel() {
+  const now = new Date();
+  for (let d = 0; d < 8; d++) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d);
+    const dow = day.getDay();
+    if (dow === 0 || dow === 6) continue;
+    for (const [h, m] of SYNC_SLOTS) {
+      const t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m);
+      if (t > now) {
+        const hm = h + ":" + String(m).padStart(2, "0");
+        if (d === 0) return "次回 " + hm + " ごろ反映";
+        if (d === 1) return "次回 明日" + hm + " ごろ反映";
+        return "次回 " + ["日","月","火","水","木","金","土"][dow] + "曜" + hm + " ごろ反映";
+      }
+    }
+  }
+  return "次の同期で反映";
+}
+
+async function fetchState() {
+  if (!configured()) { showErr("APIのURLが未設定です（デプロイ後に設定されます）。"); render(); return; }
+  const res = await fetch(API_URL + "?action=state", { cache: "no-store" });
+  const data = await res.json();
+  if (!data || data.ok !== true || !Array.isArray(data.tasks)) throw new Error("bad_state");
+  tasks = data.tasks || [];
+  adds = data.adds || [];
+  memberAdds = data.memberAdds || [];
+  cases = data.cases || [];
+  history = data.history || [];
+  members = data.members || [];
+  failures = {};
+  (data.failures || []).forEach((f) => { failures[f.taskId] = f; });
+  $("syncNote").textContent = "最終同期: " + new Date().toLocaleTimeString("ja-JP") + "／" + nextSyncLabel();
+  hideErr();
+  render();
+}
+
+function showErr(msg) { const b = $("errBar"); b.textContent = msg; b.style.display = "block"; }
+function hideErr() { $("errBar").style.display = "none"; }
+function showOk(msg) { const b = $("okBar"); b.textContent = msg; b.style.display = "block"; setTimeout(() => { b.style.display = "none"; }, 6000); }
+
+async function postAction(payload, confirmFn, failMsg) {
+  try {
+    await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
+    // POST応答はリダイレクトで読めないことがあるため、stateを読み戻して着地確認する
+    await fetchState();
+    if (confirmFn && !confirmFn()) throw new Error("not_landed");
+    return true;
+  } catch (e) {
+    showErr(failMsg);
+    fetchState().catch(() => {});
+    return false;
+  }
+}
+
+async function complete(id) {
+  if (sending[id]) return;
+  const t = tasks.find((x) => x.id === id);
+  if (!t || t.pending) return;
+  sending[id] = true;
+  t.pending = true;
+  render();
+  const ok = await postAction({ action: "complete", id: id },
+    () => { const n = tasks.find((x) => x.id === id); return n && n.pending; },
+    "記録できませんでした。通信を確認して、もう一度試してください。");
+  if (!ok) { t.pending = false; render(); }
+  delete sending[id];
+}
+
+async function caseClose(eventId, kind) {
+  const key = "case:" + eventId;
+  if (sending[key]) return;
+  const c = cases.find((x) => x.eventId === eventId);
+  const label = kind === "lost" ? "失注" : "終了";
+  const phaseNote = c && c.currentPhase.indexOf("①") === 0 ? "（準備段階の終了＝離脱として記録されます）"
+    : c && c.currentPhase.indexOf("②") === 0 ? "（内定確認の終了＝クローズとして記録されます）" : "";
+  if (!window.confirm("この案件を「" + label + "」にしますか？" + phaseNote + "\nSlackのメッセージは消えません。次の同期で状態記録に反映されます。")) return;
+  sending[key] = true;
+  if (c) c.pending = true;
+  render();
+  await postAction({ action: "caseClose", eventId: eventId, kind: kind },
+    () => { const n = cases.find((x) => x.eventId === eventId); return n && n.pending; },
+    "記録できませんでした。通信を確認して、もう一度試してください。");
+  delete sending[key];
+}
+
+function presetDatetime() {
+  const now = new Date();
+  const fmt = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") + "T" + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  if (addPreset === "auto") return "";
+  if (addPreset === "today17") { const d = new Date(now); d.setHours(17, 0, 0, 0); return fmt(d); }
+  if (addPreset === "tomorrow9") { const d = new Date(now); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return fmt(d); }
+  if (addPreset === "tomorrow17") { const d = new Date(now); d.setDate(d.getDate() + 1); d.setHours(17, 0, 0, 0); return fmt(d); }
+  if (addPreset === "custom") return $("addWhen").value || "";
+  return "";
+}
+
+async function submitAdd() {
+  const title = $("addTitle").value.trim();
+  if (!title) { showErr("タイトルを入力してください。"); return; }
+  const btn = $("addSubmit");
+  btn.disabled = true;
+  const ok = await postAction({ action: "addTask", title: title, datetime: presetDatetime(), assignee: $("addAssignee").value },
+    () => adds.some((a) => a.title === title),
+    "追加を記録できませんでした。通信を確認して、もう一度試してください。");
+  btn.disabled = false;
+  if (ok) { $("addTitle").value = ""; $("addWhen").value = ""; showOk("タスクの追加を受け付けました。次の同期でカレンダーに登録されます。"); }
+}
+
+async function submitMember() {
+  const name = $("memName").value.trim();
+  const email = $("memEmail").value.trim();
+  if (!name) { showErr("メンバーの名前を入力してください。"); return; }
+  if (!email || email.indexOf("@") < 0) { showErr("メールアドレスを正しく入力してください。"); return; }
+  const btn = $("memSubmit");
+  btn.disabled = true;
+  const ok = await postAction({ action: "addMember", name: name, email: email },
+    () => memberAdds.some((a) => a.email === email),
+    "メンバー追加を記録できませんでした。通信を確認して、もう一度試してください。");
+  btn.disabled = false;
+  if (ok) { $("memName").value = ""; $("memEmail").value = ""; showOk("メンバー追加を受け付けました。次の同期から監視対象に入ります。"); }
+}
+
+async function disableMember(label) {
+  if (!window.confirm(label + "さんを無効化しますか？次の同期から監視対象（面談・メンション共有・依頼・予定）から外れます。")) return;
+  const key = "member:" + label;
+  if (sending[key]) return;
+  sending[key] = true;
+  await postAction({ action: "disableMember", member: label },
+    () => { const m = members.find((x) => x.label === label); return m && m.pendingOff; },
+    "無効化を記録できませんでした。通信を確認して、もう一度試してください。");
+  delete sending[key];
+}
+
+function matchesFilters(t) {
+  if (ownerFilter !== "all" && (t.owner || "自分") !== ownerFilter) return false;
+  if (phaseFilter !== "all" && t.phase !== phaseFilter) return false;
+  if (overdueOnly && !t.overdue) return false;
+  if (query) {
+    const hay = [t.title, t.groupTitle, t.member, t.owner, t.typeLabel, t.phase].join(" ");
+    if (!hay.includes(query)) return false;
+  }
+  return true;
+}
+
+function flagsHtml(t) {
+  let h = "";
+  if (t.overdue) h += '<span class="flag red">期限超過</span>';
+  else if (t.dueToday) h += '<span class="flag amber">今日が期限</span>';
+  if (failures[t.id]) h += '<span class="flag fail">反映失敗</span>';
+  return h ? '<div class="flags">' + h + "</div>" : "";
+}
+
+function cardHtml(t) {
+  const cls = ["card"];
+  if (t.overdue) cls.push("overdue");
+  else if (t.dueToday) cls.push("dueToday");
+  if (t.pending) cls.push("pending");
+  const phIdx = PHASES.indexOf(t.phase);
+  if (t.type === "tour" && phIdx >= 0) cls.push("ph" + (phIdx + 1));
+  let h = '<div class="' + cls.join(" ") + '">';
+  h += '<div class="row1"><span class="chip ' + esc(t.type) + '">' + esc(t.typeLabel || "") + "</span>" +
+       '<span class="title">' + esc(t.title) + "</span></div>";
+  h += flagsHtml(t);
+  const bits = [];
+  if (t.datetimeLabel) bits.push(esc(t.datetimeLabel));
+  bits.push(esc(t.elapsedDays) + "日経過");
+  if (t.owner && t.owner !== "自分") bits.push("担当: " + esc(t.owner));
+  let meta = bits.join(" ｜ ");
+  if (t.deadlineLabel) meta += ' ｜ <span class="deadline">締切: ' + esc(t.deadlineLabel) + "</span>";
+  if (t.type === "member" && t.shareKind) meta += " ｜ " + esc(t.shareKind);
+  h += '<div class="line">' + meta + "</div>";
+  if (failures[t.id]) h += '<div class="fail-note">前回の反映に失敗しました: ' + esc(failures[t.id].note || "理由不明") + "（もう一度「完了」を押せます）</div>";
+  h += '<div class="actions">';
+  if (t.pending) {
+    h += '<span class="pend-chip">反映待ち（' + esc(nextSyncLabel()) + "）</span>";
+  } else {
+    h += '<button class="done-btn" data-done="' + esc(t.id) + '">完了</button>';
+  }
+  if (t.slackUrl) h += '<a class="slack-link" href="' + esc(t.slackUrl) + '" target="_blank" rel="noopener">Slackで開く</a>';
+  h += "</div></div>";
+  return h;
+}
+
+function addCardHtml(a) {
+  let h = '<div class="card pending">';
+  h += '<div class="row1"><span class="chip calendar">カレンダー</span><span class="title">' + esc(a.title) + "</span></div>";
+  const forMember = a.assignee && a.assignee !== "自分";
+  h += '<div class="line">' + (forMember
+    ? "担当: " + esc(a.assignee) + "（次回同期でSlack DMを送信" + (a.datetime ? "。締切: " + esc(a.datetime.replace("T", " ")) : "。締切なし") + "）"
+    : (a.datetime ? esc(a.datetime.replace("T", " ")) + " に登録予定" : "次の同期で登録（日時おまかせ）")) + "</div>";
+  h += '<div class="actions"><span class="pend-chip">' + (forMember ? "DM送信待ち" : "登録待ち") + "（" + esc(nextSyncLabel()) + "）</span></div></div>";
+  return h;
+}
+
+function caseDetailHtml(c) {
+  const stageState = (ph) => {
+    const sts = c.stages.filter((s) => s.phase === ph);
+    if (!sts.length) return "yet";
+    if (sts.some((s) => s.status === "open")) return "open";
+    if (sts.every((s) => s.status === "notyet")) return "yet";
+    return "done";
+  };
+  let h = '<div class="case-detail" id="case-' + esc(c.eventId) + '">';
+  h += '<div class="line" style="margin-top:0;">面談: <b>' + esc(c.meetingLabel) + "</b> ｜ 担当: " + esc(c.owner || "自分") + " ｜ 現在: " + esc(c.currentPhase) + "</div>";
+  h += '<div class="progress">';
+  for (const ph of PHASES) {
+    const st = stageState(ph);
+    h += '<div class="seg ' + (st === "done" ? "done" : st === "open" ? "now" : "") + '">' + esc(ph) + "<br>" + (st === "done" ? "完了" : st === "open" ? "対応中" : "未送信") + "</div>";
+  }
+  h += "</div>";
+  for (const s of c.stages) {
+    h += '<div class="stage-row"><span class="st ' + (s.status === "done" ? "done" : s.status === "open" ? "open" : "yet") + '">' +
+         (s.status === "done" ? "完了" : s.status === "open" ? "対応中" : "未送信") + "</span>" +
+         '<span class="sl">' + esc(s.label) + "</span>" +
+         (s.slackUrl ? '<a class="slack-link" href="' + esc(s.slackUrl) + '" target="_blank" rel="noopener">Slack</a>' : "") + "</div>";
+  }
+  const f = failures["case:" + c.eventId];
+  if (f) h += '<div class="fail-note">案件アクションの反映に失敗しました: ' + esc(f.note || "理由不明") + "</div>";
+  if (c.pending) {
+    h += '<div class="actions"><span class="pend-chip">案件アクション反映待ち（' + esc(nextSyncLabel()) + "）</span></div>";
+  } else {
+    h += '<div class="case-actions"><button class="warn-btn" data-lost="' + esc(c.eventId) + '">失注にする</button>' +
+         '<button class="ghost-btn" data-close="' + esc(c.eventId) + '">案件を終了</button></div>';
+  }
+  h += "</div>";
+  return h;
+}
+</script>
+<script>
+"use strict";
+function ownersList() {
+  const set = new Set();
+  tasks.forEach((t) => set.add(t.owner || "自分"));
+  cases.forEach((c) => set.add(c.owner || "自分"));
+  return Array.from(set);
+}
+
+function renderSummary() {
+  const open = tasks.filter((t) => !t.pending);
+  const over = tasks.filter((t) => t.overdue).length;
+  const pend = tasks.filter((t) => t.pending).length + adds.length + memberAdds.length;
+  let h = '<span class="sum-chip">未対応 <b>' + open.length + "</b> 件</span>";
+  h += '<span class="sum-chip' + (over ? " red" : "") + '">期限超過 <b>' + over + "</b> 件</span>";
+  if (pend) h += '<span class="sum-chip amber">反映待ち <b>' + pend + "</b> 件</span>";
+  $("summary").innerHTML = h;
+  const now = Date.now();
+  const fut = cases.filter((c) => c.meetingIso && new Date(c.meetingIso).getTime() >= now - 3 * 3600 * 1000)
+                   .sort((a, b) => new Date(a.meetingIso) - new Date(b.meetingIso));
+  $("nextMeet").textContent = fut.length
+    ? "次の面談: " + fut[0].meetingLabel + " ｜ " + fut[0].facility + " " + fut[0].person + "（担当: " + (fut[0].owner || "自分") + "）"
+    : "";
+}
+
+function renderChips() {
+  let h = '<span class="cap">担当</span>';
+  h += '<button class="fchip' + (ownerFilter === "all" ? " active" : "") + '" data-owner="all">すべて</button>';
+  for (const o of ownersList()) {
+    h += '<button class="fchip' + (ownerFilter === o ? " active" : "") + '" data-owner="' + esc(o) + '">' + esc(o) + "</button>";
+  }
+  if (tasks.some((t) => t.type === "tour")) {
+    h += '<span class="cap">フェーズ</span>';
+    h += '<button class="fchip' + (phaseFilter === "all" ? " active" : "") + '" data-phase="all">すべて</button>';
+    for (const ph of PHASES) {
+      h += '<button class="fchip' + (phaseFilter === ph ? " active" : "") + '" data-phase="' + esc(ph) + '">' + esc(ph) + "</button>";
+    }
+  }
+  h += '<button class="fchip red' + (overdueOnly ? " active" : "") + '" data-overdue="1">期限超過のみ</button>';
+  $("filterChips").innerHTML = h;
+  document.querySelectorAll("[data-owner]").forEach((b) => b.addEventListener("click", () => { ownerFilter = b.getAttribute("data-owner"); render(); }));
+  document.querySelectorAll("[data-phase]").forEach((b) => b.addEventListener("click", () => { phaseFilter = b.getAttribute("data-phase"); render(); }));
+  document.querySelectorAll("[data-overdue]").forEach((b) => b.addEventListener("click", () => { overdueOnly = !overdueOnly; render(); }));
+}
+
+function tabCount(key) {
+  if (key === "all") return tasks.length + adds.length;
+  if (key === "history") return history.length;
+  if (key === "calendar") return tasks.filter((t) => t.type === "calendar").length + adds.length;
+  return tasks.filter((t) => t.type === key).length;
+}
+
+function renderTabs() {
+  let h = "";
+  for (const tab of TABS) {
+    const n = tabCount(tab.key);
+    const red = tab.key !== "history" && tasks.some((t) => (tab.key === "all" || t.type === tab.key) && t.overdue);
+    h += '<button class="tab' + (activeTab === tab.key ? " active" : "") + '" data-tab="' + tab.key + '">' +
+         esc(tab.label) + '<span class="bdg' + (red ? " red" : "") + '">' + n + "</span></button>";
+  }
+  $("tabs").innerHTML = h;
+  document.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { activeTab = b.getAttribute("data-tab"); render(); }));
+}
+
+function groupHtml(visible, groupTitleOf) {
+  const groups = new Map();
+  for (const t of visible) {
+    const k = t.groupKey || t.groupTitle || "その他";
+    if (!groups.has(k)) groups.set(k, { key: k, title: groupTitleOf(t), items: [] });
+    groups.get(k).items.push(t);
+  }
+  let h = "";
+  for (const g of groups.values()) {
+    h += '<button class="group-head" data-group="' + esc(g.key) + '"><span class="gt">' + esc(g.title) + '</span><span class="gn">' + g.items.length + '件</span><span class="chev">' + (openCases[g.key] ? "▲" : "▼") + "</span></button>";
+    if (activeTab === "tour" && openCases[g.key]) {
+      const c = cases.find((x) => x.eventId === g.key);
+      if (c) h += caseDetailHtml(c);
+    }
+    h += g.items.map(cardHtml).join("");
+  }
+  return h;
+}
+
+function renderMemberPanel() {
+  const show = activeTab === "member";
+  $("memberPanel").classList.toggle("hidden", !show);
+  if (!show) return;
+  let h = "";
+  const sorted = members.slice().sort((a, b) => (a.status === "有効" ? 0 : 1) - (b.status === "有効" ? 0 : 1));
+  for (const m of sorted) {
+    h += '<div class="member-row"><div class="mi"><div class="mn">' + esc(m.name || m.label) + "（" + esc(m.label) + "）" +
+         (m.status !== "有効" ? ' <span class="flag amber">無効</span>' : "") + "</div>" +
+         '<div class="mm">' + esc(m.email) + (m.scope ? "<br>" + esc(m.scope) : "") + "</div></div>";
+    if (m.status === "有効") {
+      if (m.pendingOff) h += '<span class="pend-chip" style="flex:0 0 auto;">無効化 反映待ち</span>';
+      else h += '<button class="off-btn" data-off="' + esc(m.label) + '">無効化</button>';
+    }
+    h += "</div>";
+  }
+  for (const a of memberAdds) {
+    h += '<div class="member-row"><div class="mi"><div class="mn">' + esc(a.name) + ' <span class="flag amber">追加 反映待ち</span></div>' +
+         '<div class="mm">' + esc(a.email) + "</div></div></div>";
+  }
+  if (!sorted.length && !memberAdds.length) h = '<div class="empty">登録メンバーはいません。</div>';
+  $("memberList").innerHTML = h;
+  document.querySelectorAll("[data-off]").forEach((b) => b.addEventListener("click", () => disableMember(b.getAttribute("data-off"))));
+}
+
+function renderAssignees() {
+  const sel = $("addAssignee");
+  const cur = sel.value || "自分";
+  let opts = '<option value="自分">自分</option>';
+  for (const m of members) {
+    if (m.status === "有効") opts += '<option value="' + esc(m.label) + '">' + esc(m.label) + "（メンバー）</option>";
+  }
+  sel.innerHTML = opts;
+  sel.value = Array.from(sel.options).some((o) => o.value === cur) ? cur : "自分";
+}
+
+function render() {
+  renderAssignees();
+  renderSummary();
+  renderChips();
+  renderTabs();
+  renderMemberPanel();
+  let h = "";
+  if (activeTab === "history") {
+    h = history.length ? history.map((x) =>
+      '<div class="hist-row"><div class="ht">' + esc(x.title) + '</div><div class="hm">' +
+      esc(x.closedAt) + " ｜ " + esc(x.howLabel) + (x.owner ? " ｜ 担当: " + esc(x.owner) : "") + "</div></div>").join("")
+      : '<div class="empty">完了済みの項目はまだありません。</div>';
+  } else {
+    let visible = tasks.filter((t) => activeTab === "all" || t.type === activeTab).filter(matchesFilters);
+    if (activeTab === "all" || activeTab === "calendar") {
+      h += adds.map(addCardHtml).join("");
+    }
+    if (!visible.length && !h) {
+      h = '<div class="empty">このタブの未対応タスクはありません。</div>';
+    } else if (activeTab === "tour") {
+      h += groupHtml(visible, (t) => t.groupTitle || "その他");
+    } else if (activeTab === "member") {
+      h += groupHtml(visible, (t) => (t.member || t.groupTitle || "その他") + " さん");
+    } else {
+      h += visible.map(cardHtml).join("");
+    }
+  }
+  $("list").innerHTML = h;
+  document.querySelectorAll("[data-done]").forEach((b) => b.addEventListener("click", () => complete(b.getAttribute("data-done"))));
+  document.querySelectorAll("[data-group]").forEach((b) => b.addEventListener("click", () => {
+    const k = b.getAttribute("data-group");
+    openCases[k] = !openCases[k];
+    render();
+  }));
+  document.querySelectorAll("[data-lost]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-lost"), "lost")));
+  document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-close"), "close")));
+}
+
+$("searchBox").addEventListener("input", () => { query = $("searchBox").value.trim(); render(); });
+document.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => {
+  addPreset = b.getAttribute("data-preset");
+  document.querySelectorAll("[data-preset]").forEach((x) => x.classList.toggle("active", x === b));
+  $("addWhen").classList.toggle("hidden", addPreset !== "custom");
+  $("addHint").textContent = addPreset === "auto"
+    ? "おまかせ＝今日17:00（過ぎていれば明日9:00）にカレンダー登録されます。登録後、カレンダーの【タスク】として通常どおり通知されます。"
+    : "選んだ日時にカレンダー登録されます。登録後、カレンダーの【タスク】として通常どおり通知されます。";
+}));
+$("addAssignee").addEventListener("change", () => {
+  const v = $("addAssignee").value;
+  $("addHint").textContent = v === "自分"
+    ? "おまかせ＝今日17:00（過ぎていれば明日9:00）にカレンダー登録されます。登録後、カレンダーの【タスク】として通常どおり通知されます。"
+    : v + "さんには次回の同期でSlack DM（あなた名義）でタスクが送られます。日時は「締切」として扱われます（プリセット・指定なしなら締切なし）。✅が付けば対応済みとして回収されます。";
+});
+$("addSubmit").addEventListener("click", submitAdd);
+$("memSubmit").addEventListener("click", submitMember);
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js").catch(() => {});
+}
+fetchState().catch(() => { showErr("読み込みに失敗しました。通信を確認してページを再読み込みしてください。"); $("syncNote").textContent = "同期できていません"; render(); });
+setInterval(() => { if (!document.hidden) fetchState().catch(() => {}); }, 30000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) fetchState().catch(() => {}); });
+</script>
+</body>
+</html>
