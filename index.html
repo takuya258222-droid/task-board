@@ -68,6 +68,9 @@ button.primary:disabled{ opacity:.5;}
 .meet-row .mt{ font-size:14px; font-weight:700; line-height:1.45;}
 .meet-row .mm2{ font-size:12px; color:var(--sub); margin-top:2px; line-height:1.55;}
 .meet-row .acts{ flex:0 0 auto; display:flex; flex-direction:column; gap:6px;}
+.meet-row .mi2[data-gocase]{ cursor:pointer;}
+.ph-badge{ display:inline-block; font-size:11px; font-weight:700; color:#fff; border-radius:999px; padding:1px 8px; vertical-align:1px;}
+.ph-badge.ph1{ background:#2563eb;} .ph-badge.ph2{ background:#d97706;} .ph-badge.ph3{ background:#ea580c;} .ph-badge.ph4{ background:#7c3aed;} .ph-badge.ph5{ background:#0e7a3d;}
 button.mini-warn{ font-size:12px; font-weight:700; padding:9px 11px; min-height:40px; border-radius:8px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
 button.mini-ghost{ font-size:12px; font-weight:700; padding:9px 11px; min-height:40px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
 .start-row{ display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:7px;}
@@ -198,6 +201,8 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 <div id="errBar"></div>
 <div id="okBar"></div>
 
+<div id="dash"></div>
+
 <details class="panel" id="addPanel">
 <summary style="font-size:14px; font-weight:700; cursor:pointer;">＋ タスクを追加</summary>
 <label for="addTitle">タイトル（必須）</label>
@@ -251,7 +256,6 @@ footer{ font-size:11px; color:var(--sub); padding:0 14px 26px; max-width:860px; 
 </div>
 </div>
 
-<div id="dash"></div>
 <div id="list"><div class="empty" id="loadingBox">読み込み中…</div></div>
 </main>
 <nav id="tabbar"></nav>
@@ -1107,8 +1111,10 @@ function meetRowHtml(c) {
     ? prep.map((s) => esc(s.label.replace("①準備", "").replace(/^・/, "")) + (s.status === "done" ? "済" : s.status === "open" ? "対応中" : "未")).join(" / ")
     : "準備タスク未送信";
   const time = c.meetingIso ? String(new Date(c.meetingIso).getHours()) + ":" + String(new Date(c.meetingIso).getMinutes()).padStart(2, "0") : "";
-  let h = '<div class="meet-row"><div class="mi2"><div class="mt">' + esc(c.facility) + " × " + esc(c.person) + "</div>" +
-          '<div class="mm2">' + (time ? esc(time) + " ｜ " : "") + "担当: " + esc(c.owner || "自分") + " ｜ 現在: " + esc(c.currentPhase) + "<br>準備: " + prepTxt + "</div></div>";
+  const phIdx = PHASES.indexOf(c.currentPhase);
+  const badge = '<span class="ph-badge' + (phIdx >= 0 ? " ph" + (phIdx + 1) : "") + '">' + esc(c.currentPhase) + "</span>";
+  let h = '<div class="meet-row"><div class="mi2" data-gocase="' + esc(c.eventId) + '"><div class="mt">' + esc(c.facility) + " × " + esc(c.person) + ' <span style="color:var(--sub);">›</span></div>' +
+          '<div class="mm2">' + (time ? esc(time) + " ｜ " : "") + "担当: " + esc(c.owner || "自分") + " ｜ " + badge + "<br>準備: " + prepTxt + "</div></div>";
   if (c.pending) {
     h += '<div class="acts"><span class="hist-pend">反映待ち</span></div>';
   } else {
@@ -1176,17 +1182,19 @@ function renderDash() {
   const startedM = cases.filter((c) => c.startResult === "started" && (c.startDate || "").slice(0, 7) === ym).length;
   const schedM = cases.filter((c) => !c.startResult && (c.startDate || "").slice(0, 7) === ym).length;
   const cancM = cases.filter((c) => c.startResult === "cancelled" && (c.startResultDate || "").slice(0, 7) === ym).length;
-  if (waiting.length || needDate.length || startedM || cancM) {
-    h += '<div class="dash-panel"><h2>🏢 入社待ち <span class="cnt">' + waiting.length + '件</span></h2>';
-    h += '<div class="dash-sub">今月: 入社済み ' + startedM + "件 ｜ 予定 " + schedM + "件 ｜ キャンセル " + cancM + "件</div>";
-    for (const c of needDate) {
-      h += '<div class="start-row past"><div class="mi2"><div style="font-size:14px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + '</div>' +
-           '<div style="font-size:12px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div></div>' +
-           '<div class="acts"><button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
-    }
-    for (const c of waiting) h += startRowHtml(c);
-    h += "</div>";
+  // 入社待ちは常時表示（0件でも見出しと件数を出す。見つけられないという指摘 2026-11-18 への対応）
+  h += '<div class="dash-panel"><h2>🏢 入社待ち <span class="cnt">' + waiting.length + '件</span></h2>';
+  h += '<div class="dash-sub">今月: 入社済み ' + startedM + "件 ｜ 予定 " + schedM + "件 ｜ キャンセル " + cancM + "件</div>";
+  if (!waiting.length && !needDate.length) {
+    h += '<div class="dash-sub">現在、入社待ちの案件はありません</div>';
   }
+  for (const c of needDate) {
+    h += '<div class="start-row past"><div class="mi2"><div style="font-size:14px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + '</div>' +
+         '<div style="font-size:12px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div></div>' +
+         '<div class="acts"><button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
+  }
+  for (const c of waiting) h += startRowHtml(c);
+  h += "</div>";
   box.innerHTML = h;
 }
 
