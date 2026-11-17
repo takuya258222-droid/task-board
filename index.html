@@ -24,6 +24,7 @@ h1 .tag{ font-size:11px; font-weight:700; background:#fbbf24; color:#78350f; bor
 .sum-chip.red{ background:var(--danger); border-color:#fca5a5;}
 .sum-chip.amber{ background:#92400e; border-color:#fbbf24;}
 .sum-chip.ok{ background:#065f46; border-color:#34d399;}
+button.sum-chip{ font-family:inherit; cursor:pointer;}
 .next-meet{ font-size:13px; color:#dbeafe; margin-top:7px; line-height:1.5;}
 #syncNote{ font-size:12px; color:#bfdbfe; margin-top:2px;}
 .controls{ margin-top:9px;}
@@ -1014,10 +1015,12 @@ function renderSummary() {
   h += '<span class="sum-chip' + (dueT ? " amber" : "") + '">本日期限 <b>' + dueT + "</b></span>";
   h += '<span class="sum-chip">今日の面談 <b>' + meetsToday + "</b></span>";
   h += '<span class="sum-chip' + (startsToday ? " amber" : "") + '">今日の入社 <b>' + startsToday + "</b></span>";
-  if (waiting) h += '<span class="sum-chip">入社待ち <b>' + waiting + "</b></span>";
+  if (waiting) h += '<button type="button" class="sum-chip" data-gostarts="1">入社待ち <b>' + waiting + "</b></button>";
   if (alerts.length) h += '<span class="sum-chip red">要確認 <b>' + alerts.length + "</b></span>";
   if (pend) h += '<span class="sum-chip amber">反映待ち <b>' + pend + "</b></span>";
   $("summary").innerHTML = h;
+  const gs = $("summary").querySelector("[data-gostarts]");
+  if (gs) gs.addEventListener("click", () => { activeTab = "onboarding"; render(); });
   const now = Date.now();
   const fut = cases.filter((c) => c.meetingIso && new Date(c.meetingIso).getTime() >= now - 3 * 3600 * 1000)
                    .sort((a, b) => new Date(a.meetingIso) - new Date(b.meetingIso));
@@ -1548,6 +1551,7 @@ function pendingStartRowHtml(o) {
 
 function renderDash() {
   const box = $("dash");
+  if (activeTab === "onboarding") { box.innerHTML = startPanelHtml(); return; }
   if (activeTab !== "all") { box.innerHTML = ""; return; }
   let h = "";
   if (alerts.length) {
@@ -1576,6 +1580,12 @@ function renderDash() {
     h += meetRowHtml(c);
   }
   h += "</div>";
+  box.innerHTML = h;
+}
+
+// 入社待ちセクション（2026-11-18: 「すべて」タブ上部から入社タブの先頭へ移設。内容は従来どおり）
+function startPanelHtml() {
+  let h = "";
   const waiting = cases.filter((c) => c.startDate && c.startResult !== "started" && c.startResult !== "cancelled")
                         .sort((a, b) => (a.startDate < b.startDate ? -1 : 1));
   const needDate = cases.filter((c) => caseDecided(c) && !c.startDate && !c.startResult);
@@ -1609,7 +1619,7 @@ function renderDash() {
     h += '<button class="add-start-btn" data-start-add-toggle="1">＋ 入社待ちを追加</button>';
   }
   h += "</div></div>";
-  box.innerHTML = h;
+  return h;
 }
 
 function render() {
