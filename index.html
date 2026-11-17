@@ -71,6 +71,10 @@ button.primary:disabled{ opacity:.5;}
 .meet-row .mi2[data-gocase]{ cursor:pointer;}
 .ph-badge{ display:inline-block; font-size:11px; font-weight:700; color:#fff; border-radius:999px; padding:1px 8px; vertical-align:1px;}
 .ph-badge.ph1{ background:#2563eb;} .ph-badge.ph2{ background:#d97706;} .ph-badge.ph3{ background:#ea580c;} .ph-badge.ph4{ background:#7c3aed;} .ph-badge.ph5{ background:#0e7a3d;}
+.start-add{ margin-top:10px; border-top:1px dashed var(--line); padding-top:9px;}
+.start-add label{ display:block; font-size:12px; color:var(--sub); margin:8px 0 4px;}
+.start-add textarea,.start-add input[type="date"]{ width:100%; font-size:16px; padding:10px; border:1px solid var(--line); border-radius:9px; background:#fff; font-family:inherit; line-height:1.5;}
+button.add-start-btn{ width:100%; font-size:14px; font-weight:700; padding:12px; min-height:48px; border-radius:10px; border:1px dashed var(--accent); background:#f8faff; color:var(--accent); cursor:pointer;}
 button.mini-warn{ font-size:12px; font-weight:700; padding:9px 11px; min-height:40px; border-radius:8px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
 button.mini-ghost{ font-size:12px; font-weight:700; padding:9px 11px; min-height:40px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
 .start-row{ display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:7px;}
@@ -284,7 +288,7 @@ const TABS = [
 ];
 const PHASES = ["①準備", "②内定確認", "③書類回収", "④入力・申請", "⑤入職フォロー"];
 const SYNC_SLOTS = [[8,45],[12,0],[15,0],[17,30],[19,30]];
-let tasks = [], adds = [], memberAdds = [], meetingAdds = [], cases = [], history = [], members = [], alerts = [];
+let tasks = [], adds = [], memberAdds = [], meetingAdds = [], startAdds = [], cases = [], history = [], members = [], alerts = [];
 let summaryPending = [], summarySent = {};
 let sheetUpdatedAt = "";
 let failures = {}; // taskId -> failure
@@ -300,7 +304,10 @@ let addPreset = "auto";
 let optTasks = {};   // taskId -> { kind: "complete"|"delete", row: 完了済み側に出す仮の行 }
 let optHistory = {}; // taskId -> { task: 未対応側に出す仮のタスク }
 let optCases = {};   // eventId -> { kind: "lost"|"close", case: 仮に消した案件 }
+let optStarts = [];  // 入社待ち追加の楽観表示 { text, date }（サーバ側 startAdds か実案件に着地したら消す）
 let summaryPendingLocal = {}; // person -> true（送信予約の即時表示）
+let startFormOpen = false;
+let startAddTextVal = "", startAddDateVal = "";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -398,6 +405,13 @@ async function fetchState() {
   adds = data.adds || [];
   memberAdds = data.memberAdds || [];
   meetingAdds = data.meetingAdds || [];
+  startAdds = data.startAdds || [];
+  // 入社待ち追加の楽観表示の畳み込み: サーバの startAdds に着地した分と、実案件（入社日一致＋施設/相手が文面に含まれる）になった分は仮表示を消す
+  optStarts = optStarts.filter((o) => {
+    if (startAdds.some((a) => a.text === o.text && a.date === o.date)) return false;
+    if (rawCases.some((c) => c.startDate === o.date && (o.text.includes(c.facility) || (c.person && o.text.includes(c.person))))) return false;
+    return true;
+  });
   members = data.members || [];
   alerts = data.alerts || [];
   summaryPending = data.summaryPending || [];
@@ -648,6 +662,31 @@ async function submitMeeting() {
     "面談の追加を記録できませんでした。通信を確認して、もう一度試してください。");
   btn.disabled = false;
   if (ok) { $("mtgText").value = ""; showOk("面談の追加を受け付けました。次の同期でカレンダーに登録されます。"); }
+}
+
+async function submitStart() {
+  const text = ($("startAddText").value || "").trim();
+  const date = $("startAddDate").value || "";
+  if (!text) { showErr("施設・相手が読み取れる文面を貼り付けてください。"); return; }
+  if (!date) { showErr("入社日を選んでください。"); return; }
+  if (sending["addStart"]) return;
+  sending["addStart"] = true;
+  const entry = { text: text, date: date };
+  optStarts.push(entry);
+  startFormOpen = false;
+  startAddTextVal = ""; startAddDateVal = "";
+  render();
+  const r = await postRaw({ action: "addStart", text: text, date: date });
+  if (!r.ok) {
+    optStarts = optStarts.filter((o) => o !== entry);
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("入社待ちの追加を記録できませんでした。通信を確認して、もう一度試してください。");
+    delete sending["addStart"];
+    return;
+  }
+  try { await fetchState(); } catch (_) { render(); }
+  showOk("入社待ちの追加を受け付けました。次の同期でカレンダーに入社予定が作られます。");
+  delete sending["addStart"];
 }
 
 async function submitMember() {
@@ -1145,6 +1184,19 @@ function startRowHtml(c) {
   return h;
 }
 
+function pendingStartRowHtml(o) {
+  const a = Date.parse((o.date || "") + "T00:00:00+09:00");
+  const b = Date.parse(todayStr() + "T00:00:00+09:00");
+  const d = isNaN(a) || isNaN(b) ? null : Math.round((a - b) / 86400000);
+  const badge = d === null ? "" :
+    '<span class="days-badge' + (d < 0 ? " red" : d <= 3 ? " amber" : "") + '">' +
+    (d < 0 ? Math.abs(d) + "日経過" : d === 0 ? "今日が入社日" : "あと" + d + "日") + "</span>";
+  return '<div class="start-row"><div class="mi2"><div style="font-size:14px; font-weight:700;">' + esc(o.text) + '</div>' +
+         '<div style="font-size:12px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(o.date)) + "</div>" +
+         (badge ? '<div style="margin-top:4px;">' + badge + "</div>" : "") + "</div>" +
+         '<div class="acts"><span class="hist-pend">反映待ち（' + esc(nextSyncLabel()) + "）</span></div></div>";
+}
+
 function renderDash() {
   const box = $("dash");
   if (activeTab !== "all") { box.innerHTML = ""; return; }
@@ -1183,9 +1235,11 @@ function renderDash() {
   const schedM = cases.filter((c) => !c.startResult && (c.startDate || "").slice(0, 7) === ym).length;
   const cancM = cases.filter((c) => c.startResult === "cancelled" && (c.startResultDate || "").slice(0, 7) === ym).length;
   // 入社待ちは常時表示（0件でも見出しと件数を出す。見つけられないという指摘 2026-11-18 への対応）
+  const pendStarts = optStarts.concat(startAdds.filter((a) => !optStarts.some((o) => o.text === a.text && o.date === a.date)))
+                               .sort((a, b) => (a.date < b.date ? -1 : 1));
   h += '<div class="dash-panel"><h2>🏢 入社待ち <span class="cnt">' + waiting.length + '件</span></h2>';
   h += '<div class="dash-sub">今月: 入社済み ' + startedM + "件 ｜ 予定 " + schedM + "件 ｜ キャンセル " + cancM + "件</div>";
-  if (!waiting.length && !needDate.length) {
+  if (!waiting.length && !needDate.length && !pendStarts.length) {
     h += '<div class="dash-sub">現在、入社待ちの案件はありません</div>';
   }
   for (const c of needDate) {
@@ -1194,7 +1248,18 @@ function renderDash() {
          '<div class="acts"><button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
   }
   for (const c of waiting) h += startRowHtml(c);
-  h += "</div>";
+  for (const o of pendStarts) h += pendingStartRowHtml(o);
+  h += '<div class="start-add">';
+  if (startFormOpen) {
+    h += '<label>施設・相手が読み取れる文を貼り付け<textarea id="startAddText" rows="2" placeholder="例：○○施設 △△様 入社決定">' + esc(startAddTextVal) + '</textarea></label>' +
+         '<label>入社日<input type="date" id="startAddDate" value="' + esc(startAddDateVal) + '"></label>' +
+         '<div class="start-btns"><button class="sb-save" data-start-add-submit="1">追加する</button>' +
+         '<button class="res-btn gray" data-start-add-toggle="1">やめる</button></div>' +
+         '<div class="note">次の同期でテキストから施設・相手を読み取り、カレンダーに入社予定が作られ、入社待ちに入ります。</div>';
+  } else {
+    h += '<button class="add-start-btn" data-start-add-toggle="1">＋ 入社待ちを追加</button>';
+  }
+  h += "</div></div>";
   box.innerHTML = h;
 }
 
@@ -1277,6 +1342,12 @@ function render() {
     const el = document.getElementById("case-" + ev);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }));
+  document.querySelectorAll("[data-start-add-toggle]").forEach((b) => b.addEventListener("click", () => { startFormOpen = !startFormOpen; render(); }));
+  document.querySelectorAll("[data-start-add-submit]").forEach((b) => b.addEventListener("click", () => submitStart()));
+  const sat = $("startAddText");
+  if (sat) sat.addEventListener("input", () => { startAddTextVal = sat.value; });
+  const sad = $("startAddDate");
+  if (sad) sad.addEventListener("change", () => { startAddDateVal = sad.value; });
 }
 
 $("searchBox").addEventListener("input", () => { query = $("searchBox").value.trim(); render(); });
