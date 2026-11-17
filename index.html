@@ -170,6 +170,10 @@ button.send-btn:disabled{ opacity:.55;}
 .card.overdue .due-badge{ color:var(--danger); background:var(--danger-bg); border-color:#fecaca;}
 .card.dueToday .due-badge{ color:var(--pend); background:var(--pend-bg); border-color:#fde68a;}
 .memo-line{ font-size:13px; margin-top:6px; background:#f8fafc; border:1px solid var(--line); border-radius:8px; padding:7px 9px; line-height:1.55; white-space:pre-wrap; word-break:break-word;}
+.memo-line[data-memo-edit]{ cursor:pointer;}
+.stage-edit{ flex:0 0 auto; font-size:12px; font-weight:700; padding:7px 10px; min-height:36px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--accent); cursor:pointer;}
+.person-tasks{ margin-top:10px; border-top:1px dashed var(--line); padding-top:10px;}
+.person-tasks .card{ margin-bottom:8px;}
 button.edit-btn{ flex:0 0 auto; font-size:13px; font-weight:700; padding:12px 13px; min-height:50px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
 .meta-edit{ margin-top:9px; border-top:1px dashed var(--line); padding-top:4px;}
 .meta-edit label{ display:block; font-size:12px; color:var(--sub); margin:8px 0 4px;}
@@ -306,6 +310,10 @@ let optHistory = {}; // taskId -> { task: 未対応側に出す仮のタスク }
 let optCases = {};   // eventId -> { kind: "lost"|"close", case: 仮に消した案件 }
 let optStarts = [];  // 入社待ち追加の楽観表示 { text, date }（サーバ側 startAdds か実案件に着地したら消す）
 let summaryPendingLocal = {}; // person -> true（送信予約の即時表示）
+let openPeople = {};   // person -> true（人カードのタスク展開状態）
+let optAdds = [];      // タスク追加の楽観表示 { title, datetime, assignee }（サーバ adds に着地したら消す）
+let optMeetings = [];  // 面談追加の楽観表示 { text, assignee }
+let optMemberAdds = []; // メンバー追加の楽観表示 { name, email }
 let startFormOpen = false;
 let startAddTextVal = "", startAddDateVal = "";
 
@@ -315,6 +323,18 @@ const configured = () => API_URL.indexOf("http") === 0;
 const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
 const fmtMD = (ymd) => { const m = String(ymd || "").match(/^\d{4}-(\d{1,2})-(\d{1,2})/); return m ? Number(m[1]) + "/" + Number(m[2]) : ""; };
 const fmtIsoMdHm = (iso) => { const d = new Date(iso || ""); if (isNaN(d.getTime())) return ""; return (d.getMonth() + 1) + "/" + d.getDate() + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+const attrQ = (s) => '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+function daysToYmd(ymd) {
+  const a = Date.parse((ymd || "") + "T00:00:00+09:00");
+  const b = Date.parse(todayStr() + "T00:00:00+09:00");
+  if (isNaN(a) || isNaN(b)) return null;
+  return Math.round((a - b) / 86400000);
+}
+function htmlToNode(html) {
+  const tpl = document.createElement("template");
+  tpl.innerHTML = String(html).trim();
+  return tpl.content.firstElementChild;
+}
 
 function nextSyncLabel() {
   const now = new Date();
@@ -402,9 +422,16 @@ async function fetchState() {
   history = rawHistory.filter((x) => !optHistory[x.id])
     .concat(Object.values(optTasks).map((o) => o.row));
   cases = rawCases.filter((c) => !optCases[c.eventId]);
-  adds = data.adds || [];
-  memberAdds = data.memberAdds || [];
-  meetingAdds = data.meetingAdds || [];
+  // 追加系の楽観表示は、サーバ側の記録に着地した分から畳み込む（着地しなければ反映待ち表示が残る）
+  const rawAdds = data.adds || [];
+  optAdds = optAdds.filter((o) => !rawAdds.some((a) => a.title === o.title && (a.assignee || "") === (o.assignee || "")));
+  adds = rawAdds.concat(optAdds);
+  const rawMemberAdds = data.memberAdds || [];
+  optMemberAdds = optMemberAdds.filter((o) => !rawMemberAdds.some((a) => a.email === o.email));
+  memberAdds = rawMemberAdds.concat(optMemberAdds);
+  const rawMeetingAdds = data.meetingAdds || [];
+  optMeetings = optMeetings.filter((o) => !rawMeetingAdds.some((a) => a.text === o.text));
+  meetingAdds = rawMeetingAdds.concat(optMeetings);
   startAdds = data.startAdds || [];
   // 入社待ち追加の楽観表示の畳み込み: サーバの startAdds に着地した分と、実案件（入社日一致＋施設/相手が文面に含まれる）になった分は仮表示を消す
   optStarts = optStarts.filter((o) => {
@@ -447,18 +474,76 @@ async function optFail(optObj, key, msg) {
   showErr(msg);
 }
 
-async function postAction(payload, confirmFn, failMsg) {
-  try {
-    const r = await postRaw(payload);
-    if (!r.ok) throw new Error(r.error || "ng");
-    await fetchState();
-    if (confirmFn && !confirmFn()) throw new Error("not_landed");
-    return true;
-  } catch (e) {
-    try { await fetchState(); } catch (_) {}
-    showErr(failMsg);
-    return false;
+// ---- アクション経路の差分更新（全面再描画とPOST直後の再取得を避け、カクつき・スクロール飛びを防ぐ） ----
+// 着地の帳尻合わせは、30秒ごとの定期再取得と pruneOpts の消失検出に委ねる。
+function refreshChrome() { renderSummary(); renderChips(); renderTabs(); }
+
+// 画面内にある最初の行を基準に、DOM変更の前後で見た目の位置がずれないようスクロールを補正する
+function stableView(mutate) {
+  const cand = document.querySelectorAll("#dash .meet-row, #dash .start-row, #list .card, #list .hist-row, #list .group-head, .person-tasks .card");
+  let anchor = null, before = 0;
+  for (const el of cand) {
+    const r = el.getBoundingClientRect();
+    if (r.bottom > 0 && r.top < window.innerHeight) { anchor = el; before = r.top; break; }
   }
+  mutate();
+  if (anchor && anchor.isConnected) {
+    const delta = anchor.getBoundingClientRect().top - before;
+    if (delta) window.scrollBy(0, delta);
+  }
+}
+
+function maybeEmptyList() {
+  const list = $("list");
+  if (!list) return;
+  if (list.querySelector(".card, .group-head, .opt-strip, .hist-row")) return;
+  list.innerHTML = '<div class="empty">' + (activeTab === "history" ? "完了済みの項目はまだありません。" : "このタブの未対応タスクはありません。") + "</div>";
+}
+
+function removeTaskDom(id) {
+  document.querySelectorAll("[data-card-id=" + attrQ(id) + "]").forEach((el) => el.remove());
+  // グループ見出しの件数を合わせ、空になったグループは見出し・案件詳細ごと畳む
+  document.querySelectorAll("#list .group-head").forEach((gh) => {
+    const key = gh.getAttribute("data-group");
+    const rest = document.querySelectorAll("#list [data-group-key=" + attrQ(key) + "]").length;
+    if (rest === 0) {
+      const det = document.getElementById("case-" + key);
+      if (det) det.remove();
+      gh.remove();
+    } else {
+      const gn = gh.querySelector(".gn");
+      if (gn) gn.textContent = rest + "件";
+    }
+  });
+  maybeEmptyList();
+}
+
+function replaceCardDom(t) {
+  if (!t) return;
+  document.querySelectorAll("[data-card-id=" + attrQ(t.id) + "]").forEach((el) => {
+    const node = htmlToNode(cardHtml(t));
+    el.replaceWith(node);
+    bindEvents(node);
+  });
+}
+
+function refreshStartDom(c) {
+  // 入社日・結果の変更は、ダッシュボードと開いている案件詳細の入社ボックスだけを差し替える
+  renderDash();
+  bindEvents($("dash"));
+  const det = document.getElementById("case-" + c.eventId);
+  if (det) {
+    const old = det.querySelector(".start-box");
+    const html = startBoxHtml(c);
+    if (old && html) {
+      const node = htmlToNode(html);
+      old.replaceWith(node);
+      bindEvents(node);
+    } else if (old && !html) {
+      old.remove();
+    }
+  }
+  refreshChrome();
 }
 
 function histRowFromTask(t, how) {
@@ -472,10 +557,10 @@ async function complete(id) {
   sending[id] = true;
   optTasks[id] = { kind: "complete", row: histRowFromTask(t, "✅で完了") };
   tasks = tasks.filter((x) => x.id !== id);
-  render();
+  history = history.concat(optTasks[id].row);
+  stableView(() => { removeTaskDom(id); refreshChrome(); refreshOpenPeople(); });
   const r = await postRaw({ action: "complete", id: id });
   if (!r.ok) { await optFail(optTasks, id, "記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[id]; return; }
-  try { await fetchState(); } catch (_) { render(); }
   delete sending[id];
 }
 
@@ -506,10 +591,10 @@ async function doDelete(id) {
   confirmDeleteId = null;
   optTasks[id] = { kind: "delete", row: histRowFromTask(t, "削除") };
   tasks = tasks.filter((x) => x.id !== id);
-  render();
+  history = history.concat(optTasks[id].row);
+  stableView(() => { removeTaskDom(id); refreshChrome(); refreshOpenPeople(); });
   const r = await postRaw({ action: "delete", id: id });
   if (!r.ok) { await optFail(optTasks, id, "削除を記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[id]; return; }
-  try { await fetchState(); } catch (_) { render(); }
   delete sending[id];
 }
 
@@ -528,10 +613,14 @@ async function reopen(id) {
   sending[key] = true;
   optHistory[id] = { task: taskFromHistory(x) };
   history = history.filter((h) => h.id !== id);
-  render();
+  tasks = tasks.concat(optHistory[id].task);
+  stableView(() => {
+    document.querySelectorAll("[data-hist-id=" + attrQ(id) + "]").forEach((el) => el.remove());
+    maybeEmptyList();
+    refreshChrome();
+  });
   const r = await postRaw({ action: "reopen", id: id });
   if (!r.ok) { await optFail(optHistory, id, "戻しを記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[key]; return; }
-  try { await fetchState(); } catch (_) { render(); }
   delete sending[key];
 }
 
@@ -548,14 +637,20 @@ async function saveMeta(id) {
   if (!dueEl || !memoEl) return;
   const due = dueEl.value || "";
   const memo = memoEl.value || "";
+  const t = tasks.find((x) => x.id === id);
   sending[key] = true;
-  const ok = await postAction({ action: "setMeta", id: id, due: due, memo: memo },
-    () => { const n = tasks.find((x) => x.id === id); return n && (n.metaDue || "") === due && (n.memo || "") === memo; },
-    "期日・メモを保存できませんでした。通信を確認して、もう一度試してください。");
-  delete sending[key];
   editingMetaId = null;
-  render();
-  if (ok) showOk("期日・メモを保存しました");
+  if (t) { t.metaDue = due; t.memo = memo; replaceCardDom(t); }
+  refreshChrome();
+  refreshOpenPeople();
+  const r = await postRaw({ action: "setMeta", id: id, due: due, memo: memo });
+  delete sending[key];
+  if (!r.ok) {
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("期日・メモを保存できませんでした。通信を確認して、もう一度試してください。");
+    return;
+  }
+  showOk("期日・メモを保存しました");
 }
 
 async function caseClose(eventId, kind) {
@@ -571,10 +666,27 @@ async function caseClose(eventId, kind) {
   if (c) optCases[eventId] = { kind: kind, case: c };
   cases = cases.filter((x) => x.eventId !== eventId);
   tasks = tasks.filter((t) => t.groupKey !== eventId);
-  render();
+  // 差分更新: ダッシュボードは件数・担当別内訳まで正しくなるよう作り直し、一覧側は該当グループだけを除去する
+  stableView(() => {
+    renderDash();
+    bindEvents($("dash"));
+    document.querySelectorAll("#list [data-group-key=" + attrQ(eventId) + "]").forEach((el) => el.remove());
+    const gh = document.querySelector("#list .group-head[data-group=" + attrQ(eventId) + "]");
+    if (gh) gh.remove();
+    const det = document.getElementById("case-" + eventId);
+    if (det) det.remove();
+    if (activeTab === "all" || activeTab === "tour") {
+      const strip = document.createElement("div");
+      strip.className = "opt-strip";
+      strip.textContent = (c ? c.facility + " " + c.person : "案件") + " を「" + (kind === "lost" ? "失注" : "終了") + "」にしました（反映待ち・" + nextSyncLabel() + "）";
+      $("list").insertBefore(strip, $("list").firstChild);
+    }
+    maybeEmptyList();
+    refreshChrome();
+    refreshOpenPeople();
+  });
   const r = await postRaw({ action: "caseClose", eventId: eventId, kind: kind });
   if (!r.ok) { await optFail(optCases, eventId, "記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[key]; return; }
-  try { await fetchState(); } catch (_) { render(); }
   delete sending[key];
 }
 
@@ -582,10 +694,19 @@ async function setStartDate(eventId) {
   const el = $("startDate-" + eventId);
   if (!el || !el.value) { showErr("入社日を選んでください。"); return; }
   const date = el.value;
-  const ok = await postAction({ action: "setStartDate", eventId: eventId, date: date },
-    () => { const n = cases.find((x) => x.eventId === eventId); return n && n.startDate === date; },
-    "入社日を保存できませんでした。通信を確認して、もう一度試してください。");
-  if (ok) showOk("入社日を " + fmtMD(date) + " に登録しました。次の同期で\u3010入社\u3011予定が作られます。");
+  const key = "start:" + eventId;
+  if (sending[key]) return;
+  sending[key] = true;
+  const c = cases.find((x) => x.eventId === eventId);
+  if (c) { c.startDate = date; c.daysToStart = daysToYmd(date); refreshStartDom(c); }
+  const r = await postRaw({ action: "setStartDate", eventId: eventId, date: date });
+  delete sending[key];
+  if (!r.ok) {
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("入社日を保存できませんでした。通信を確認して、もう一度試してください。");
+    return;
+  }
+  showOk("入社日を " + fmtMD(date) + " に登録しました。次の同期で\u3010入社\u3011予定が作られます。");
 }
 
 async function setStartResult(eventId, result) {
@@ -608,10 +729,22 @@ async function setStartResult(eventId, result) {
     doneMsg = "入社日を " + fmtMD(el.value) + " にリスケしました。";
   }
   if (!window.confirm(confirmMsg)) return;
-  const ok = await postAction(payload,
-    () => { const n = cases.find((x) => x.eventId === eventId); return n && (result === "reschedule" ? n.startDate === payload.newDate : n.startResult === result); },
-    "結果を保存できませんでした。通信を確認して、もう一度試してください。");
-  if (ok) { reschedOpen[eventId] = false; showOk(doneMsg); }
+  const key = "result:" + eventId;
+  if (sending[key]) return;
+  sending[key] = true;
+  if (c) {
+    if (result === "reschedule") { c.startDate = payload.newDate; c.daysToStart = daysToYmd(payload.newDate); reschedOpen[eventId] = false; }
+    else { c.startResult = result; c.startResultDate = todayStr(); }
+    refreshStartDom(c);
+  }
+  const r = await postRaw(payload);
+  delete sending[key];
+  if (!r.ok) {
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("結果を保存できませんでした。通信を確認して、もう一度試してください。");
+    return;
+  }
+  showOk(doneMsg);
 }
 
 async function sendSummary(person) {
@@ -620,13 +753,15 @@ async function sendSummary(person) {
   const label = person === "自分" ? "自分" : person + "さん";
   if (!window.confirm(label + "の未対応 " + list.length + "件を、Slack DMで送ります（次の同期で送信。同日にボタン/自動で送信済みなら送りません）。よろしいですか？")) return;
   summaryPendingLocal[person] = true;
-  render();
-  const ok = await postAction({ action: "sendSummary", member: person },
-    () => (summaryPending || []).indexOf(person) >= 0,
-    "送信予約を記録できませんでした。通信を確認して、もう一度試してください。");
-  if (!ok) delete summaryPendingLocal[person];
-  else showOk(label + "への送信を受け付けました。次の同期で送ります。");
-  render();
+  refreshPersonCard(person);
+  const r = await postRaw({ action: "sendSummary", member: person });
+  if (!r.ok) {
+    delete summaryPendingLocal[person];
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("送信予約を記録できませんでした。通信を確認して、もう一度試してください。");
+    return;
+  }
+  showOk(label + "への送信を受け付けました。次の同期で送ります。");
 }
 
 function presetDatetime() {
@@ -644,24 +779,44 @@ async function submitAdd() {
   const title = $("addTitle").value.trim();
   if (!title) { showErr("タイトルを入力してください。"); return; }
   const btn = $("addSubmit");
+  if (btn.disabled) return;
   btn.disabled = true;
-  const ok = await postAction({ action: "addTask", title: title, datetime: presetDatetime(), assignee: $("addAssignee").value },
-    () => adds.some((a) => a.title === title),
-    "追加を記録できませんでした。通信を確認して、もう一度試してください。");
+  const entry = { title: title, datetime: presetDatetime(), assignee: $("addAssignee").value };
+  optAdds.push(entry);
+  adds = adds.concat(entry);
+  render();
+  const r = await postRaw({ action: "addTask", title: entry.title, datetime: entry.datetime, assignee: entry.assignee });
   btn.disabled = false;
-  if (ok) { $("addTitle").value = ""; $("addWhen").value = ""; showOk("タスクの追加を受け付けました。次の同期でカレンダーに登録されます。"); }
+  if (!r.ok) {
+    optAdds = optAdds.filter((o) => o !== entry);
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("追加を記録できませんでした。通信を確認して、もう一度試してください。");
+    return;
+  }
+  $("addTitle").value = ""; $("addWhen").value = "";
+  showOk("タスクの追加を受け付けました。次の同期でカレンダーに登録されます。");
 }
 
 async function submitMeeting() {
   const text = $("mtgText").value.trim();
   if (!text) { showErr("面談の内容を貼り付けてください。"); return; }
   const btn = $("mtgSubmit");
+  if (btn.disabled) return;
   btn.disabled = true;
-  const ok = await postAction({ action: "addMeeting", text: text, assignee: $("mtgAssignee").value },
-    () => meetingAdds.some((a) => a.text === text),
-    "面談の追加を記録できませんでした。通信を確認して、もう一度試してください。");
+  const entry = { text: text, assignee: $("mtgAssignee").value };
+  optMeetings.push(entry);
+  meetingAdds = meetingAdds.concat(entry);
+  render();
+  const r = await postRaw({ action: "addMeeting", text: entry.text, assignee: entry.assignee });
   btn.disabled = false;
-  if (ok) { $("mtgText").value = ""; showOk("面談の追加を受け付けました。次の同期でカレンダーに登録されます。"); }
+  if (!r.ok) {
+    optMeetings = optMeetings.filter((o) => o !== entry);
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("面談の追加を記録できませんでした。通信を確認して、もう一度試してください。");
+    return;
+  }
+  $("mtgText").value = "";
+  showOk("面談の追加を受け付けました。次の同期でカレンダーに登録されます。");
 }
 
 async function submitStart() {
@@ -684,7 +839,6 @@ async function submitStart() {
     delete sending["addStart"];
     return;
   }
-  try { await fetchState(); } catch (_) { render(); }
   showOk("入社待ちの追加を受け付けました。次の同期でカレンダーに入社予定が作られます。");
   delete sending["addStart"];
 }
@@ -695,12 +849,22 @@ async function submitMember() {
   if (!name) { showErr("メンバーの名前を入力してください。"); return; }
   if (!email || email.indexOf("@") < 0) { showErr("メールアドレスを正しく入力してください。"); return; }
   const btn = $("memSubmit");
+  if (btn.disabled) return;
   btn.disabled = true;
-  const ok = await postAction({ action: "addMember", name: name, email: email },
-    () => memberAdds.some((a) => a.email === email),
-    "メンバー追加を記録できませんでした。通信を確認して、もう一度試してください。");
+  const entry = { name: name, email: email };
+  optMemberAdds.push(entry);
+  memberAdds = memberAdds.concat(entry);
+  render();
+  const r = await postRaw({ action: "addMember", name: name, email: email });
   btn.disabled = false;
-  if (ok) { $("memName").value = ""; $("memEmail").value = ""; showOk("メンバー追加を受け付けました。次の同期から監視対象に入ります。"); }
+  if (!r.ok) {
+    optMemberAdds = optMemberAdds.filter((o) => o !== entry);
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("メンバー追加を記録できませんでした。通信を確認して、もう一度試してください。");
+    return;
+  }
+  $("memName").value = ""; $("memEmail").value = "";
+  showOk("メンバー追加を受け付けました。次の同期から監視対象に入ります。");
 }
 
 async function disableMember(label) {
@@ -708,10 +872,15 @@ async function disableMember(label) {
   const key = "member:" + label;
   if (sending[key]) return;
   sending[key] = true;
-  await postAction({ action: "disableMember", member: label },
-    () => { const m = members.find((x) => x.label === label); return m && m.pendingOff; },
-    "無効化を記録できませんでした。通信を確認して、もう一度試してください。");
+  const m = members.find((x) => x.label === label);
+  if (m) m.pendingOff = true;
+  render();
+  const r = await postRaw({ action: "disableMember", member: label });
   delete sending[key];
+  if (!r.ok) {
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("無効化を記録できませんでした。通信を確認して、もう一度試してください。");
+  }
 }
 </script>
 <script>
@@ -818,7 +987,8 @@ function cardHtml(t) {
   if (t.pending) cls.push("pending");
   const phIdx = PHASES.indexOf(t.phase);
   if (t.type === "tour" && phIdx >= 0) cls.push("ph" + (phIdx + 1));
-  let h = '<div class="' + cls.join(" ") + '">';
+  const gk = t.groupKey || t.groupTitle || "その他";
+  let h = '<div class="' + cls.join(" ") + '" data-card-id="' + esc(t.id) + '" data-group-key="' + esc(gk) + '">';
   h += '<div class="row1"><span class="chip ' + esc(t.type) + '">' + esc(t.typeLabel || "") + "</span>" +
        '<span class="title">' + esc(t.title) + "</span></div>";
   h += flagsHtml(t);
@@ -831,7 +1001,7 @@ function cardHtml(t) {
   if (t.type === "member" && t.shareKind) meta += " ｜ " + esc(t.shareKind);
   h += '<div class="line">' + meta + "</div>";
   if (t.metaDue) h += '<div class="line"><span class="due-badge">期日: ' + esc(fmtMD(t.metaDue)) + "</span></div>";
-  if (t.memo) h += '<div class="memo-line">📝 ' + esc(t.memo) + "</div>";
+  if (t.memo) h += '<div class="memo-line"' + (t.pending ? "" : ' data-memo-edit="' + esc(t.id) + '" title="タップでメモ・期日を編集"') + ">📝 " + esc(t.memo) + "</div>";
   if (failures[t.id]) h += '<div class="fail-note">前回の反映に失敗しました: ' + esc(failures[t.id].note || "理由不明") + "（もう一度操作できます）</div>";
   if (editingMetaId === t.id && !t.pending) {
     h += '<div class="meta-edit"><label>期日（クリアは空にする）<input type="date" id="metaDueInput" value="' + esc(t.metaDue || "") + '"></label>' +
@@ -848,7 +1018,7 @@ function cardHtml(t) {
       h += '<span class="pend-chip">反映待ち（' + esc(nextSyncLabel()) + "）</span>";
     } else {
       h += '<button class="done-btn" data-done="' + esc(t.id) + '">完了</button>';
-      h += '<button class="edit-btn" data-edit="' + esc(t.id) + '">編集</button>';
+      h += '<button class="edit-btn" data-edit="' + esc(t.id) + '">メモ・期日</button>';
       h += '<button class="del-btn" data-del="' + esc(t.id) + '">削除</button>';
     }
     if (t.slackUrl) h += '<a class="slack-link" href="' + esc(t.slackUrl) + '" target="_blank" rel="noopener">Slackで開く</a>';
@@ -927,10 +1097,23 @@ function caseDetailHtml(c) {
     h += '<div class="seg ' + (st === "done" ? "done" : st === "open" ? "now" : "") + '">' + esc(ph) + "<br>" + (st === "done" ? "完了" : st === "open" ? "対応中" : "未送信") + "</div>";
   }
   h += "</div>";
+  // 段階行→メモ・期日編集の導線: そのフェーズの段階行数とタスク数が一致して一意に対応付く場合のみ、順序で対応付けてボタンを付ける
+  const phaseSeen = {};
   for (const s of c.stages) {
+    const idx = phaseSeen[s.phase] || 0;
+    phaseSeen[s.phase] = idx + 1;
+    let editBtn = "";
+    if (s.status === "open") {
+      const stageCount = c.stages.filter((x) => x.phase === s.phase).length;
+      const phaseTasks = tasks.filter((t) => t.groupKey === c.eventId && t.phase === s.phase);
+      if (stageCount === phaseTasks.length && phaseTasks[idx] && !phaseTasks[idx].pending) {
+        editBtn = '<button class="stage-edit" data-stage-edit="' + esc(phaseTasks[idx].id) + '">メモ・期日</button>';
+      }
+    }
     h += '<div class="stage-row"><span class="st ' + (s.status === "done" ? "done" : s.status === "open" ? "open" : "yet") + '">' +
          (s.status === "done" ? "完了" : s.status === "open" ? "対応中" : "未送信") + "</span>" +
          '<span class="sl">' + esc(s.label) + "</span>" +
+         editBtn +
          (s.slackUrl ? '<a class="slack-link" href="' + esc(s.slackUrl) + '" target="_blank" rel="noopener">Slack</a>' : "") + "</div>";
   }
   const f = failures["case:" + c.eventId];
@@ -1003,6 +1186,8 @@ function personOpenTasks(person) {
   const list = tasks.filter((t) => {
     if (t.type === "tour") return (t.owner || "自分") === person;
     if (t.type === "member") return (t.member || t.groupTitle || "") === person;
+    // 自分の分は全種別（メール/Slack/カレンダー/入社）を含む。メンバー側は従来どおり面談＋共有/割当のみ
+    if (person === "自分") return (t.owner || "自分") === "自分";
     return false;
   });
   return sortSummaryTasks(list);
@@ -1050,16 +1235,56 @@ function personStats(person) {
   const list = personOpenTasks(person);
   const over = list.filter((t) => effOverdue(t)).length;
   const oldest = list.reduce((m, t) => Math.max(m, t.elapsedDays || 0), 0);
-  const bd = { tour: 0, req: 0, mention: 0, assign: 0, other: 0 };
+  const bd = { mail: 0, slack: 0, calendar: 0, tour: 0, onboarding: 0, req: 0, mention: 0, assign: 0, share: 0 };
   for (const t of list) {
     if (t.type === "tour") bd.tour++;
+    else if (t.type === "mail") bd.mail++;
+    else if (t.type === "slack") bd.slack++;
+    else if (t.type === "calendar") bd.calendar++;
+    else if (t.type === "onboarding") bd.onboarding++;
     else if (t.shareKind === "依頼共有") bd.req++;
     else if (t.shareKind === "メンション共有") bd.mention++;
     else if (t.shareKind === "割当タスク") bd.assign++;
-    else bd.other++;
+    else bd.share++;
   }
   const stuck = list.filter((t) => (t.elapsedDays || 0) >= 5).length;
   return { list: list, over: over, oldest: oldest, bd: bd, stuck: stuck };
+}
+
+function personStatsHtml(s) {
+  return '<span class="stat-chip">未対応 <b>' + s.list.length + "</b>件</span>" +
+    (s.over ? '<span class="stat-chip red">期限超過 <b>' + s.over + "</b>件</span>" : '<span class="stat-chip">期限超過 0件</span>') +
+    '<span class="stat-chip' + (s.oldest >= 5 ? " amber" : "") + '">最古 <b>' + s.oldest + "</b>日</span>";
+}
+
+function personBdHtml(s) {
+  const parts = [];
+  const add = (n, label) => { if (n) parts.push(label + " " + n + "件"); };
+  add(s.bd.tour, "面談"); add(s.bd.mail, "メール"); add(s.bd.slack, "Slack"); add(s.bd.calendar, "カレンダー"); add(s.bd.onboarding, "入社");
+  add(s.bd.req, "依頼"); add(s.bd.mention, "メンション"); add(s.bd.assign, "割当"); add(s.bd.share, "共有");
+  return "内訳: " + parts.join(" ｜ ");
+}
+
+function personPactsHtml(p, s) {
+  const pend = (summaryPending || []).indexOf(p) >= 0 || summaryPendingLocal[p];
+  let h = "";
+  if (s.list.length) h += '<button class="copy-btn" data-ptoggle="' + esc(p) + '">' + (openPeople[p] ? "タスクを閉じる" : "タスクを見る") + "</button>";
+  if (s.list.length) h += '<button class="copy-btn" data-copy="' + esc(p) + '">まとめをコピー</button>';
+  if (pend) h += '<button class="send-btn" disabled>送信待ち（' + esc(nextSyncLabel()) + "）</button>";
+  else if (s.list.length) h += '<button class="send-btn" data-send="' + esc(p) + '">Slackで送る</button>';
+  if (!s.list.length) h += '<span style="font-size:12.5px; color:var(--sub); font-weight:700;">未対応なし</span>';
+  return h;
+}
+
+function bindPersonEvents(root) {
+  if (!root || !root.querySelectorAll) return;
+  root.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => copySummary(b.getAttribute("data-copy"))));
+  root.querySelectorAll("[data-send]").forEach((b) => b.addEventListener("click", () => sendSummary(b.getAttribute("data-send"))));
+  root.querySelectorAll("[data-ptoggle]").forEach((b) => b.addEventListener("click", () => {
+    const p = b.getAttribute("data-ptoggle");
+    openPeople[p] = !openPeople[p];
+    render();
+  }));
 }
 
 function renderPeople() {
@@ -1067,26 +1292,40 @@ function renderPeople() {
   let h = "";
   for (const p of people) {
     const s = personStats(p);
-    const pend = (summaryPending || []).indexOf(p) >= 0 || summaryPendingLocal[p];
     const sentAt = summarySent[p];
-    h += '<div class="person-card' + (s.stuck ? " stuck" : "") + '"><div class="pn">' + esc(p === "自分" ? "自分の分" : p + "さん") +
+    h += '<div class="person-card' + (s.stuck ? " stuck" : "") + '" data-person="' + esc(p) + '"><div class="pn">' + esc(p === "自分" ? "自分の分" : p + "さん") +
          (s.stuck ? '<span class="flag red">停滞 ' + s.stuck + "件（5日以上）</span>" : "") + "</div>";
-    h += '<div class="stats"><span class="stat-chip">未対応 <b>' + s.list.length + "</b>件</span>" +
-         (s.over ? '<span class="stat-chip red">期限超過 <b>' + s.over + "</b>件</span>" : '<span class="stat-chip">期限超過 0件</span>') +
-         '<span class="stat-chip' + (s.oldest >= 5 ? " amber" : "") + '">最古 <b>' + s.oldest + "</b>日</span></div>";
-    h += '<div class="bd">内訳: 面談 ' + s.bd.tour + "件 ｜ 依頼 " + s.bd.req + "件 ｜ メンション " + s.bd.mention + "件 ｜ 割当 " + s.bd.assign + "件" + (s.bd.other ? " ｜ その他 " + s.bd.other + "件" : "") + "</div>";
-    h += '<div class="pacts">';
-    if (s.list.length) h += '<button class="copy-btn" data-copy="' + esc(p) + '">まとめをコピー</button>';
-    if (pend) h += '<button class="send-btn" disabled>送信待ち（' + esc(nextSyncLabel()) + "）</button>";
-    else if (s.list.length) h += '<button class="send-btn" data-send="' + esc(p) + '">Slackで送る</button>';
-    if (!s.list.length) h += '<span style="font-size:12.5px; color:var(--sub); font-weight:700;">未対応なし</span>';
-    h += "</div>";
+    h += '<div class="stats">' + personStatsHtml(s) + "</div>";
+    h += '<div class="bd">' + personBdHtml(s) + "</div>";
+    h += '<div class="pacts">' + personPactsHtml(p, s) + "</div>";
+    if (openPeople[p] && s.list.length) {
+      h += '<div class="person-tasks">' + s.list.map(cardHtml).join("") + "</div>";
+    }
     if (sentAt) h += '<div class="sent-line">最終送信: ' + esc(fmtIsoMdHm(sentAt)) + "</div>";
     h += "</div>";
   }
   $("copyList").innerHTML = h;
-  document.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", () => copySummary(b.getAttribute("data-copy"))));
-  document.querySelectorAll("[data-send]").forEach((b) => b.addEventListener("click", () => sendSummary(b.getAttribute("data-send"))));
+  bindPersonEvents($("copyList"));
+}
+
+// アクション経路用: 人カードの統計・内訳・ボタンだけを差し替え、展開リストのDOMは保持する
+function refreshPersonCard(person) {
+  const card = document.querySelector(".person-card[data-person=" + attrQ(person) + "]");
+  if (!card) return;
+  const s = personStats(person);
+  card.classList.toggle("stuck", Boolean(s.stuck));
+  const pn = card.querySelector(".pn");
+  if (pn) pn.innerHTML = esc(person === "自分" ? "自分の分" : person + "さん") + (s.stuck ? '<span class="flag red">停滞 ' + s.stuck + "件（5日以上）</span>" : "");
+  const st = card.querySelector(".stats");
+  if (st) st.innerHTML = personStatsHtml(s);
+  const bd = card.querySelector(".bd");
+  if (bd) bd.innerHTML = personBdHtml(s);
+  const pa = card.querySelector(".pacts");
+  if (pa) { pa.innerHTML = personPactsHtml(person, s); bindPersonEvents(pa); }
+}
+
+function refreshOpenPeople() {
+  document.querySelectorAll(".person-card[data-person]").forEach((card) => refreshPersonCard(card.getAttribute("data-person")));
 }
 
 function renderMemberPanel() {
@@ -1276,7 +1515,7 @@ function render() {
     '<div class="opt-strip">' + esc(o.case.facility) + " " + esc(o.case.person) + " を「" + (o.kind === "lost" ? "失注" : "終了") + "」にしました（反映待ち・" + esc(nextSyncLabel()) + "）</div>").join("");
   if (activeTab === "history") {
     h = history.length ? history.map((x) => {
-      let row = '<div class="hist-row' + (x.opt ? " opt" : "") + '"><div class="ht">' + esc(x.title) + '</div><div class="hm">' +
+      let row = '<div class="hist-row' + (x.opt ? " opt" : "") + '"' + (x.id ? ' data-hist-id="' + esc(x.id) + '"' : "") + '><div class="ht">' + esc(x.title) + '</div><div class="hm">' +
         esc(x.closedAt) + " ｜ " + esc(x.howLabel) + (x.owner ? " ｜ 担当: " + esc(x.owner) : "") + "</div>";
       if (x.opt) {
         row += '<span class="hist-pend">反映待ち（' + esc(nextSyncLabel()) + "）</span>";
@@ -1309,29 +1548,37 @@ function render() {
     }
   }
   $("list").innerHTML = h;
-  document.querySelectorAll("[data-done]").forEach((b) => b.addEventListener("click", () => complete(b.getAttribute("data-done"))));
-  document.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => openMetaEdit(b.getAttribute("data-edit"))));
-  document.querySelectorAll("[data-meta-save]").forEach((b) => b.addEventListener("click", () => saveMeta(b.getAttribute("data-meta-save"))));
-  document.querySelectorAll("[data-meta-cancel]").forEach((b) => b.addEventListener("click", () => cancelMetaEdit()));
-  document.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => askDelete(b.getAttribute("data-del"))));
-  document.querySelectorAll("[data-del-confirm]").forEach((b) => b.addEventListener("click", () => doDelete(b.getAttribute("data-del-confirm"))));
-  document.querySelectorAll("[data-del-cancel]").forEach((b) => b.addEventListener("click", () => cancelDelete()));
-  document.querySelectorAll("[data-reopen]").forEach((b) => b.addEventListener("click", () => reopen(b.getAttribute("data-reopen"))));
-  document.querySelectorAll("[data-group]").forEach((b) => b.addEventListener("click", () => {
+  bindEvents(document);
+}
+
+// root 配下の操作ボタンにハンドラを束ねる（全面描画時は document、差分更新時は差し替えた部分だけを渡し、二重付与を避ける）
+function bindEvents(root) {
+  if (!root || !root.querySelectorAll) return;
+  root.querySelectorAll("[data-done]").forEach((b) => b.addEventListener("click", () => complete(b.getAttribute("data-done"))));
+  root.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => openMetaEdit(b.getAttribute("data-edit"))));
+  root.querySelectorAll("[data-memo-edit]").forEach((b) => b.addEventListener("click", () => openMetaEdit(b.getAttribute("data-memo-edit"))));
+  root.querySelectorAll("[data-stage-edit]").forEach((b) => b.addEventListener("click", () => openMetaEdit(b.getAttribute("data-stage-edit"))));
+  root.querySelectorAll("[data-meta-save]").forEach((b) => b.addEventListener("click", () => saveMeta(b.getAttribute("data-meta-save"))));
+  root.querySelectorAll("[data-meta-cancel]").forEach((b) => b.addEventListener("click", () => cancelMetaEdit()));
+  root.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => askDelete(b.getAttribute("data-del"))));
+  root.querySelectorAll("[data-del-confirm]").forEach((b) => b.addEventListener("click", () => doDelete(b.getAttribute("data-del-confirm"))));
+  root.querySelectorAll("[data-del-cancel]").forEach((b) => b.addEventListener("click", () => cancelDelete()));
+  root.querySelectorAll("[data-reopen]").forEach((b) => b.addEventListener("click", () => reopen(b.getAttribute("data-reopen"))));
+  root.querySelectorAll("[data-group]").forEach((b) => b.addEventListener("click", () => {
     const k = b.getAttribute("data-group");
     openCases[k] = !openCases[k];
     render();
   }));
-  document.querySelectorAll("[data-lost]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-lost"), "lost")));
-  document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-close"), "close")));
-  document.querySelectorAll("[data-start-save]").forEach((b) => b.addEventListener("click", () => setStartDate(b.getAttribute("data-start-save"))));
-  document.querySelectorAll("[data-result]").forEach((b) => b.addEventListener("click", () => setStartResult(b.getAttribute("data-ev"), b.getAttribute("data-result"))));
-  document.querySelectorAll("[data-resched]").forEach((b) => b.addEventListener("click", () => {
+  root.querySelectorAll("[data-lost]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-lost"), "lost")));
+  root.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-close"), "close")));
+  root.querySelectorAll("[data-start-save]").forEach((b) => b.addEventListener("click", () => setStartDate(b.getAttribute("data-start-save"))));
+  root.querySelectorAll("[data-result]").forEach((b) => b.addEventListener("click", () => setStartResult(b.getAttribute("data-ev"), b.getAttribute("data-result"))));
+  root.querySelectorAll("[data-resched]").forEach((b) => b.addEventListener("click", () => {
     const ev = b.getAttribute("data-resched");
     reschedOpen[ev] = !reschedOpen[ev];
     render();
   }));
-  document.querySelectorAll("[data-gocase]").forEach((b) => b.addEventListener("click", () => {
+  root.querySelectorAll("[data-gocase]").forEach((b) => b.addEventListener("click", () => {
     const ev = b.getAttribute("data-gocase");
     const c = cases.find((x) => x.eventId === ev);
     activeTab = "tour";
@@ -1342,11 +1589,11 @@ function render() {
     const el = document.getElementById("case-" + ev);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }));
-  document.querySelectorAll("[data-start-add-toggle]").forEach((b) => b.addEventListener("click", () => { startFormOpen = !startFormOpen; render(); }));
-  document.querySelectorAll("[data-start-add-submit]").forEach((b) => b.addEventListener("click", () => submitStart()));
-  const sat = $("startAddText");
+  root.querySelectorAll("[data-start-add-toggle]").forEach((b) => b.addEventListener("click", () => { startFormOpen = !startFormOpen; render(); }));
+  root.querySelectorAll("[data-start-add-submit]").forEach((b) => b.addEventListener("click", () => submitStart()));
+  const sat = root.querySelector("#startAddText");
   if (sat) sat.addEventListener("input", () => { startAddTextVal = sat.value; });
-  const sad = $("startAddDate");
+  const sad = root.querySelector("#startAddDate");
   if (sad) sad.addEventListener("change", () => { startAddDateVal = sad.value; });
 }
 
