@@ -2,6 +2,7 @@
 * タスクボード連携スクリプト
 * バージョン v8（2026-11-18）: complete に tour:pending: 特例（未送信ステージの先行完了）を追加
 * バージョン v9（2026-11-18）: tour:pending: の stageKey に offer（内定確認の先行確定）を追加
+* バージョン v10（2026-11-18）: state に pendingActionIds（未適用アクションの対象ID一覧）を追加。先行チェック（tour:pending:）など、タスク行に紐づかない未適用アクションの反映待ち状態をフロントが再読み込み後も復元できるようにするため
 * 公開ページ（GitHub Pages）から Googleシート「タスクボード」を読み書きするための受け口。
 * 合言葉なし＝オープンモード（URLを知っている人だけが使える、家事/西STリストと同じ方式。ボードはユーザー専用）。
 * - 状態取得: GET?action=state
@@ -98,6 +99,20 @@ const status = String(values[i][4] || "");
 if (taskId && status === "未適用") ids[taskId] = true;
 }
 return ids;
+}
+
+function pendingActionIds_() {
+// 未適用アクションの対象ID（処理待ちのB列）の一覧。tasks/history/cases の pending は
+// 各行に紐づけて返しているが、先行チェック（tour:pending:<eventId>:<stageKey>）の
+// complete 行はどの表示行にも紐づかないため、フロントが再読み込み後も「反映待ち」を
+// 復元できるよう、対象IDだけを一覧で返す（重複はそのまま。フロント側で集合化する）。
+const values = actionRows_();
+const out = [];
+for (let i = 1; i < values.length; i++) {
+const taskId = String(values[i][1] || "");
+if (taskId && String(values[i][4] || "") === "未適用") out.push(taskId);
+}
+return out;
 }
 
 function pendingAdds_() {
@@ -292,6 +307,7 @@ pendingOff: pending["member:" + label] === true
 
 return {
 tasks: tasks,
+pendingActionIds: pendingActionIds_(),
 adds: pendingAdds_(),
 memberAdds: pendingMemberAdds_(),
 meetingAdds: pendingMeetings_(),

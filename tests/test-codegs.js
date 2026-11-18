@@ -309,6 +309,12 @@ let st5 = get();
 check("state取得が pending行込みでも正常", st5 && Array.isArray(st5.tasks) && Array.isArray(st5.failures));
 check("pending行が通常タスクとして現れない", st5.tasks.every((t) => String(t.id).indexOf("tour:pending:") !== 0));
 check("pending行は failures に混ざらない（未適用のため）", st5.failures.every((f) => String(f.taskId).indexOf("tour:pending:") !== 0));
+// ---- v10: state.pendingActionIds（未適用アクションの対象ID一覧） ----
+check("state に pendingActionIds（配列）がある", Array.isArray(st5.pendingActionIds));
+check("pendingActionIds に先行チェック（docs）が含まれる", st5.pendingActionIds.includes("tour:pending:evT:docs"));
+check("pendingActionIds に offer も含まれる", st5.pendingActionIds.includes("tour:pending:evT:offer"));
+check("pendingActionIds に sendSummary の対象も含まれる", st5.pendingActionIds.includes("summary:和田"));
+check("pendingActionIds に適用済の行は含まれない", !st5.pendingActionIds.includes("mail:555.5"));
 // cancelAction でも pending 行を取り消せる（既存の扱いに乗る）
 r = post({ action: "cancelAction", id: "tour:pending:evT:docs" });
 check("cancelAction で pending complete を取り消せる", r.ok === true && r.action === "complete", JSON.stringify(r));

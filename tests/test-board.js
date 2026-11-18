@@ -93,6 +93,7 @@ sheetUpdatedAt: new Date().toISOString(),
 fetchedAt: new Date().toISOString()
 };
 st.cases.forEach((c) => Object.assign(c, caseOverrides[c.eventId] || {}));
+st.pendingActionIds = [...pending, ...deletePending, ...reopenPending, ...casePendSet];
 return st;
 }
 
@@ -322,9 +323,10 @@ await page.click('[data-tab="tour"]');
 check("面談タブのグループは面談待ち（①②）の案件だけ（③以降のev1は出ない）", await page.locator(".group-head").count() === 1 && await page.locator('[data-group="ev1"]').count() === 0);
 await page.evaluate(() => { openCases["ev1"] = true; render(); });
 check("案件詳細が開く", await page.locator("#case-ev1").count() === 1);
-check("進捗セグメント5つ", await page.locator("#case-ev1 .seg").count() === 5);
-check("段階行6行", await page.locator("#case-ev1 .stage-row").count() === 6);
-check("⑤セグメントは未送信（doneでない）", await page.locator("#case-ev1 .seg").nth(4).getAttribute("class").then((c) => !c.includes("done") && !c.includes("now")));
+check("段階ステップは4つ（準備・内定・回収・準備完了）", await page.locator("#case-ev1 .seg").count() === 4);
+check("段階行6行（①は集約しても1行）", await page.locator("#case-ev1 .stage-row").count() === 6);
+check("ステップの並びは準備→内定→回収→準備完了", await page.locator("#case-ev1 .seg").nth(0).innerText().then((s) => s.includes("準備")) && await page.locator("#case-ev1 .seg").nth(1).innerText().then((s) => s.includes("内定")) && await page.locator("#case-ev1 .seg").nth(2).innerText().then((s) => s.includes("回収")) && await page.locator("#case-ev1 .seg").nth(3).innerText().then((s) => s.includes("準備完了")));
+check("回収ステップが対応中・準備完了ステップは未到達", await page.locator("#case-ev1 .seg").nth(2).getAttribute("class").then((c) => c.includes("now")) && await page.locator("#case-ev1 .seg").nth(3).getAttribute("class").then((c) => !c.includes("done") && !c.includes("now")));
 check("失注ボタンあり", await page.locator("[data-lost='ev1']").count() === 1);
 check("失注/終了が「案件を閉じる」ゾーンに目立つ配置", await page.locator("#case-ev1 .close-zone [data-lost='ev1']").count() === 1 && await page.locator("#case-ev1 .close-zone [data-close='ev1']").count() === 1);
 
@@ -478,15 +480,15 @@ const selfCard = page.locator(".person-card", { hasText: "自分の分" });
 check("自分カードに停滞フラグ（8日経過×2）", await selfCard.innerText().then((s) => s.includes("停滞")));
 check("自分カードに最終送信の表示", await selfCard.innerText().then((s) => s.includes("最終送信")));
 check("Slackで送るボタン（和田）がある", await page.locator("[data-send='和田']").count() === 1);
-check("自分カードの内訳に全種別（面談2・Slack1・カレンダー1・入社1）", await selfCard.innerText().then((s) => s.includes("面談 2件") && s.includes("Slack 1件") && s.includes("カレンダー 1件") && s.includes("入社 1件")));
+check("自分カードの内訳（面談2・回収漏れ1＝未登録苑・Slack1・カレンダー1・入社1。入社済みのev1は回収漏れに出ない）", await selfCard.innerText().then((s) => s.includes("面談 2件") && s.includes("回収漏れ 1件") && s.includes("Slack 1件") && s.includes("カレンダー 1件") && s.includes("入社 1件")));
 
 // 人ビュー: 人ごとの残タスクを1件ずつ展開表示
 check("人カードに「タスクを見る」トグルがある", await page.locator("[data-ptoggle='自分']").count() === 1 && await page.locator("[data-ptoggle='和田']").count() === 1);
 await page.click("[data-ptoggle='自分']");
 await page.waitForTimeout(200);
 const selfTasksBox = page.locator('.person-card[data-person="自分"] .person-tasks');
-check("自分の展開リストに5件出る", await selfTasksBox.locator(".card").count() === 5);
-check("自分の展開リストに全種別が混在（面談/Slack/カレンダー/入社）", await selfTasksBox.locator(".chip.tour").count() >= 1 && await selfTasksBox.locator(".chip.slack").count() === 1 && await selfTasksBox.locator(".chip.calendar").count() === 1 && await selfTasksBox.locator(".chip.onboarding").count() === 1);
+check("自分の展開リストに6件出る（タスク5件+回収漏れ1件）", await selfTasksBox.locator(".card").count() === 6);
+check("自分の展開リストに回収漏れカードと全種別が混在（面談/Slack/カレンダー/入社）", await selfTasksBox.locator(".chip.leak").count() === 1 && await selfTasksBox.locator(".chip.tour").count() === 2 && await selfTasksBox.locator(".chip.slack").count() === 1 && await selfTasksBox.locator(".chip.calendar").count() === 1 && await selfTasksBox.locator(".chip.onboarding").count() === 1);
 check("自分の展開リストに各タスクのタイトルが出る", await selfTasksBox.innerText().then((s) => s.includes("深堀香織") && s.includes("河添大地") && s.includes("コンサルタントプロフィール記入") && s.includes("伊藤奈美")));
 check("自分の展開リストの行にメモ・期日ボタンがある", await selfTasksBox.locator("[data-edit='calendar:555.5']").count() === 1);
 await page.click("[data-ptoggle='和田']");
@@ -885,6 +887,9 @@ await page6.close();
 // 入社タブの入社待ち行から回収チェックリストを操作する（案件詳細と同じ組み立て・同じ操作経路）
 // ※モックの pending は全ページ共有。page6 の完了分（tour:333.3）が残っているので前提（ev1は回収1/4）に合わせて消しておく
 pending.delete("tour:333.3");
+// page6 の先行チェック分（tour:pending:ev1:followup）も消す。state.pendingActionIds 経由でサーバ側の
+// 反映待ちとして復元されるのが新仕様（v10）なので、前提に合わせてサーバ側も未チェックに戻しておく
+pending.delete("tour:pending:ev1:followup");
 // ※caseOverrides も全ページ共有。本体テストで ev1 に付けた「入社済み」を戻し、入社待ちに出る状態で始める
 caseOverrides.ev1.startResult = "";
 caseOverrides.ev1.startResultDate = "";
@@ -1895,6 +1900,352 @@ gBefore19.rows.every((r, i) => Math.abs(r.rel - gAfter19.rows[i].rel) <= 1 && Ma
 Math.abs(gBefore19.boxH - gAfter19.boxH) <= 1,
 JSON.stringify({ before: gBefore19, after: gAfter19 }));
 await page19.close();
+
+// ---- v20: サーバ側の反映待ち（state.pendingActionIds）を正として、先行チェック・内定の反映待ちが再読み込み後も復元される ----
+const srvPend20 = new Set(["tour:pending:evS1:docs", "tour:pending:evS2:offer"]);
+const page20 = await ctx.newPage();
+await page20.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+let resp20 = { ok: true };
+if (body.action === "complete") srvPend20.add(body.id);
+if (body.action === "cancelAction") {
+if (srvPend20.delete(body.id)) resp20 = { ok: true };
+else resp20 = { ok: false, error: "no_pending_action" };
+}
+await new Promise((r) => setTimeout(r, 250));
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(resp20) });
+return;
+}
+const st20 = mockState();
+st20.startAdds = [];
+const ev1fix20 = st20.cases.find((c) => c.eventId === "ev1");
+if (ev1fix20) { ev1fix20.startDate = ymdOf(daysFromNow(7)); ev1fix20.daysToStart = 7; ev1fix20.startResult = ""; ev1fix20.startResultDate = ""; }
+st20.pendingActionIds = Array.from(srvPend20);
+st20.cases.push({ eventId: "evS1", facility: "復元苑", person: "復元様", owner: "自分", meetingLabel: mdOf(-2) + " 10時", meetingIso: daysFromNow(-2).toISOString(), currentPhase: "③書類回収", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(4)), daysToStart: 4, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備（3日前・前日・当日）", status: "done", slackUrl: "", ts: "800.0" },
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "800.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]});
+st20.cases.push({ eventId: "evS2", facility: "内定苑", person: "内定様", owner: "和田", meetingLabel: mdOf(1) + " 10時", meetingIso: daysFromNow(1).toISOString(), currentPhase: "②内定確認", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備（3日前・前日・当日）", status: "done", slackUrl: "", ts: "801.0" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "", ts: "" }
+]});
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st20) });
+});
+await page20.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page20.click('[data-tab="onboarding"]');
+await page20.waitForTimeout(300);
+await page20.click("[data-collect-toggle='evS1']");
+await page20.waitForTimeout(200);
+check("サーバ側で先行チェック済みの③は、開いた直後から「送信され次第完了」で出る（セッション操作なし）", await page20.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evS1:docs']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && inp.checked && !inp.disabled && row && row.getAttribute("data-cstate") === "stagePending";
+}));
+await page20.click("#dash [data-collect-check='tour:pending:evS1:docs']");
+await page20.waitForTimeout(700);
+check("サーバ側の先行チェックを外すと cancelAction がPOSTされる", posts.some((p) => p.action === "cancelAction" && p.id === "tour:pending:evS1:docs"));
+check("外すと行が未チェック（送信待ち）に戻る", await page20.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evS1:docs']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && !inp.checked && row && row.getAttribute("data-cstate") === "notyet";
+}));
+await page20.click("#dash [data-collect-check='tour:pending:evS1:docs']");
+await page20.waitForTimeout(700);
+check("再チェックで complete がPOSTされ行が「送信され次第完了」に戻る", posts.some((p) => p.action === "complete" && p.id === "tour:pending:evS1:docs") && await page20.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evS1:docs']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && inp.checked && row && row.getAttribute("data-cstate") === "stagePending";
+}));
+await page20.click('[data-tab="tour"]');
+await page20.waitForTimeout(200);
+check("サーバ側で内定の先行確定が反映待ちの案件には「内定にする」ボタンが出ない", await page20.locator('#list [data-offer="evS2"]').count() === 0);
+await page20.evaluate(() => { openCases["evS2"] = true; render(); });
+await page20.waitForTimeout(200);
+check("詳細では「内定 反映待ち」と取り消しボタンが出る（サーバ正で復元）", await page20.locator("#case-evS2").innerText().then((s) => s.includes("内定 反映待ち")) && await page20.locator("[data-cancel-offer='evS2']").count() === 1);
+await page20.close();
+// 別ページ（再読み込み相当）でも、サーバ側の先行チェックはそのまま復元される
+const page20b = await ctx.newPage();
+await page20b.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") { await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); return; }
+const st20b = mockState();
+st20b.startAdds = [];
+const ev1fix20b = st20b.cases.find((c) => c.eventId === "ev1");
+if (ev1fix20b) { ev1fix20b.startDate = ymdOf(daysFromNow(7)); ev1fix20b.daysToStart = 7; ev1fix20b.startResult = ""; ev1fix20b.startResultDate = ""; }
+st20b.pendingActionIds = Array.from(srvPend20);
+st20b.cases.push({ eventId: "evS1", facility: "復元苑", person: "復元様", owner: "自分", meetingLabel: mdOf(-2) + " 10時", meetingIso: daysFromNow(-2).toISOString(), currentPhase: "③書類回収", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(4)), daysToStart: 4, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備（3日前・前日・当日）", status: "done", slackUrl: "", ts: "800.0" },
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "800.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]});
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st20b) });
+});
+await page20b.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page20b.click('[data-tab="onboarding"]');
+await page20b.waitForTimeout(300);
+await page20b.click("[data-collect-toggle='evS1']");
+await page20b.waitForTimeout(200);
+check("再読み込み後もサーバ側の先行チェックはチェック済みのまま（消えない）", await page20b.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evS1:docs']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && inp.checked && row && row.getAttribute("data-cstate") === "stagePending";
+}));
+await page20b.close();
+
+// ---- v20: 先行チェックが同期で「失敗」になったら、次回取得で楽観表示を畳んで失敗を surface する ----
+let fail21 = false;
+const page21 = await ctx.newPage();
+await page21.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+await new Promise((r) => setTimeout(r, 250));
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+return;
+}
+const st21 = mockState();
+st21.startAdds = [];
+const ev1fix21 = st21.cases.find((c) => c.eventId === "ev1");
+if (ev1fix21) { ev1fix21.startDate = ymdOf(daysFromNow(7)); ev1fix21.daysToStart = 7; ev1fix21.startResult = ""; ev1fix21.startResultDate = ""; }
+st21.pendingActionIds = [];
+if (fail21) st21.failures = [{ taskId: "tour:pending:evF1:followup", action: "complete", note: "テスト失敗理由", requestedAt: "2026-11-18T10:00:00+09:00" }];
+st21.cases.push({ eventId: "evF1", facility: "失敗苑", person: "失敗様", owner: "自分", meetingLabel: mdOf(-5) + " 10時", meetingIso: daysFromNow(-5).toISOString(), currentPhase: "⑤入職フォロー", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(2)), daysToStart: 2, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備（3日前・前日・当日）", status: "done", slackUrl: "", ts: "810.0" },
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "810.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "done", slackUrl: "https://example.com/f3", ts: "811.1" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "done", slackUrl: "https://example.com/f4", ts: "812.2" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]});
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st21) });
+});
+await page21.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page21.click('[data-tab="onboarding"]');
+await page21.waitForTimeout(300);
+await page21.click("[data-collect-toggle='evF1']");
+await page21.waitForTimeout(200);
+await page21.click("#dash [data-collect-check='tour:pending:evF1:followup']");
+await page21.waitForTimeout(700);
+check("⑤の先行チェックが付く（送信され次第完了）", await page21.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evF1:followup']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && inp.checked && row && row.getAttribute("data-cstate") === "stagePending";
+}));
+fail21 = true;
+await page21.evaluate(() => fetchState());
+await page21.waitForTimeout(500);
+check("同期で失敗になった先行チェックは未チェックに戻る", await page21.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evF1:followup']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && !inp.checked && row && row.getAttribute("data-cstate") === "notyet";
+}));
+check("先行チェックの失敗がエラーバーで surface される", await page21.locator("#errBar").isVisible() && await page21.locator("#errBar").innerText().then((s) => s.includes("先行チェックの反映に失敗")));
+await page21.close();
+
+// ---- v20: 段階表示（準備→内定→回収→準備完了）・①準備の集約・面談タブのコンパクト化・見出しの色付け ----
+const page22 = await ctx.newPage();
+await page22.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+if (body.action === "complete") pending.add(body.id);
+let resp22 = { ok: true };
+if (body.action === "cancelAction") {
+const hit = pending.delete(body.id) || deletePending.delete(body.id) || reopenPending.delete(body.id) || casePendSet.delete(body.id);
+if (!hit) resp22 = { ok: false, error: "no_pending_action" };
+}
+await new Promise((r) => setTimeout(r, 250));
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(resp22) });
+return;
+}
+const st22 = mockState();
+st22.startAdds = [];
+const ev1fix22 = st22.cases.find((c) => c.eventId === "ev1");
+if (ev1fix22) { ev1fix22.startDate = ymdOf(daysFromNow(7)); ev1fix22.daysToStart = 7; ev1fix22.startResult = ""; ev1fix22.startResultDate = ""; }
+st22.cases.push({ eventId: "evP1", facility: "準備苑", person: "準備様", owner: "自分", meetingLabel: mdOf(3) + " 10時", meetingIso: daysFromNow(3).toISOString(), currentPhase: "①準備", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備・3日前", status: "open", slackUrl: "https://example.com/p1", ts: "" },
+{ phase: "①準備", label: "①準備・前日", status: "open", slackUrl: "https://example.com/p2", ts: "" },
+{ phase: "①準備", label: "①準備・当日", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]});
+st22.tasks.push(
+{ id: "tour:101.1", type: "tour", typeLabel: "面談", title: "🟦準備苑 準備様（3日前）", datetimeLabel: mdOf(0) + " 9時", elapsedDays: 4, deadlineLabel: "", slackUrl: "https://example.com/p1", groupKey: "evP1", groupTitle: "準備苑 準備様", member: "", shareKind: "", overdue: false, phase: "①準備", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" },
+{ id: "tour:102.2", type: "tour", typeLabel: "面談", title: "🟦準備苑 準備様（前日）", datetimeLabel: mdOf(2) + " 9時", elapsedDays: 4, deadlineLabel: "", slackUrl: "https://example.com/p2", groupKey: "evP1", groupTitle: "準備苑 準備様", member: "", shareKind: "", overdue: false, phase: "①準備", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" }
+);
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st22) });
+});
+await page22.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page22.click('[data-tab="tour"]');
+await page22.waitForTimeout(300);
+check("面談タブの見出しに段階ミニ表示（準備→内定→回収→準備完了）が出る", await page22.evaluate(() => {
+const head = document.querySelector('[data-group="evP1"]');
+let el = head && head.nextElementSibling;
+while (el && !el.classList.contains("steps-mini")) el = el.nextElementSibling;
+if (!el) return false;
+const sms = Array.from(el.querySelectorAll(".sm"));
+return sms.length === 4 && sms[0].textContent === "準備" && sms[0].classList.contains("now") && sms[1].textContent === "内定" && sms[3].textContent === "準備完了";
+}));
+check("案件見出しは未対応4日で薄いamber（age3）に色付く", await page22.evaluate(() => {
+const head = document.querySelector('[data-group="evP1"]');
+return Boolean(head) && head.classList.contains("age3") && getComputedStyle(head).backgroundColor === "rgb(255, 251, 235)";
+}));
+check("一覧の操作ボタンはコンパクト（高さ48px以下・横並び）", await page22.evaluate(() => {
+const b1 = document.querySelector('[data-bulk="evP1"]');
+const b2 = document.querySelector('[data-offer="evP1"]');
+if (!b1 || !b2) return false;
+return b1.offsetHeight <= 48 && b2.offsetHeight <= 48 && Math.abs(b1.offsetTop - b2.offsetTop) <= 2;
+}));
+await page22.evaluate(() => { openCases["evP1"] = true; render(); });
+await page22.waitForTimeout(200);
+check("詳細の段階行は5行（①準備は1行に集約）", await page22.locator("#case-evP1 .stage-row").count() === 5);
+check("準備の集約行に未送信の注記（当日分は未送信です）", await page22.locator("[data-prep-row='evP1']").innerText().then((s) => s.includes("当日分は未送信です")));
+check("準備の集約行に「まとめて完了（2件）」ボタン", await page22.locator("[data-prep-done='evP1']").count() === 1 && await page22.locator("[data-prep-done='evP1']").innerText().then((s) => s.includes("2件")));
+check("詳細のステップは4つ・準備が対応中", await page22.locator("#case-evP1 .seg").count() === 4 && await page22.locator("#case-evP1 .seg").nth(0).getAttribute("class").then((c) => c.includes("now")));
+await page22.click("[data-prep-done='evP1']");
+await page22.waitForTimeout(1300);
+check("まとめて完了で①タスク2件とも complete がPOSTされる", posts.some((p) => p.action === "complete" && p.id === "tour:101.1") && posts.some((p) => p.action === "complete" && p.id === "tour:102.2"));
+check("まとめて完了後は準備行が完了になり、ステップは準備=完了・内定=次に進む", await page22.evaluate(() => {
+const row = document.querySelector("[data-prep-row='evP1']");
+const segs = document.querySelectorAll("#case-evP1 .seg");
+return Boolean(row) && row.textContent.includes("完了") && segs.length === 4 && segs[0].classList.contains("done") && segs[1].classList.contains("now");
+}));
+await page22.close();
+
+// ---- v20: 「準備完了」の表示・回収漏れの人ビュー表示・未対応日数の色付け段階 ----
+const page23 = await ctx.newPage();
+await page23.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+if (body.action === "complete") pending.add(body.id);
+let resp23 = { ok: true };
+if (body.action === "cancelAction") {
+const hit = pending.delete(body.id) || deletePending.delete(body.id) || reopenPending.delete(body.id) || casePendSet.delete(body.id);
+if (!hit) resp23 = { ok: false, error: "no_pending_action" };
+}
+await new Promise((r) => setTimeout(r, 250));
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(resp23) });
+return;
+}
+const st23 = mockState();
+st23.startAdds = [];
+const ev1fix23 = st23.cases.find((c) => c.eventId === "ev1");
+if (ev1fix23) { ev1fix23.startDate = ymdOf(daysFromNow(7)); ev1fix23.daysToStart = 7; ev1fix23.startResult = ""; ev1fix23.startResultDate = ""; }
+st23.cases.push(
+{ eventId: "evDone", facility: "完了苑", person: "完了様", owner: "自分", meetingLabel: mdOf(-9) + " 10時", meetingIso: daysFromNow(-9).toISOString(), currentPhase: "⑤入職フォロー", status: "準備完了", pending: false, startDate: ymdOf(daysFromNow(3)), daysToStart: 3, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備（3日前・前日・当日）", status: "done", slackUrl: "", ts: "700.0" },
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "700.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "done", slackUrl: "https://example.com/d3", ts: "701.1" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "done", slackUrl: "https://example.com/d4", ts: "702.2" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "done", slackUrl: "https://example.com/d5", ts: "703.3" }
+]},
+{ eventId: "evNear", facility: "間近苑", person: "間近様", owner: "自分", meetingLabel: mdOf(-4) + " 10時", meetingIso: daysFromNow(-4).toISOString(), currentPhase: "④入力・申請", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(2)), daysToStart: 2, startResult: "", startResultDate: "",
+stages: [
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "710.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "done", slackUrl: "https://example.com/n3", ts: "711.1" },
+{ phase: "④入力・申請", label: "④入力・申請／契約申請", status: "open", slackUrl: "https://example.com/n4", ts: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]},
+{ eventId: "evWLeak", facility: "漏れ苑", person: "漏れ様", owner: "和田", meetingLabel: mdOf(-3) + " 10時", meetingIso: daysFromNow(-3).toISOString(), currentPhase: "③書類回収", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(1)), daysToStart: 1, startResult: "", startResultDate: "",
+stages: [
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "720.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "open", slackUrl: "https://example.com/w3", ts: "" }
+]},
+{ eventId: "evAge", facility: "経過苑", person: "経過様", owner: "自分", meetingLabel: mdOf(-6) + " 10時", meetingIso: daysFromNow(-6).toISOString(), currentPhase: "③書類回収", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(10)), daysToStart: 10, startResult: "", startResultDate: "",
+stages: [
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "730.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "open", slackUrl: "https://example.com/a3", ts: "" }
+]}
+);
+st23.tasks.push(
+{ id: "tour:777.1", type: "tour", typeLabel: "面談", title: "🟪間近苑 間近様", datetimeLabel: mdOf(-4) + " 10時", elapsedDays: 6, deadlineLabel: "", slackUrl: "https://example.com/n4", groupKey: "evNear", groupTitle: "間近苑 間近様", member: "", shareKind: "", overdue: false, phase: "④入力・申請", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" },
+{ id: "tour:888.1", type: "tour", typeLabel: "面談", title: "🟧漏れ苑 漏れ様", datetimeLabel: mdOf(-3) + " 10時", elapsedDays: 4, deadlineLabel: "", slackUrl: "https://example.com/w3", groupKey: "evWLeak", groupTitle: "漏れ苑 漏れ様", member: "", shareKind: "", overdue: false, phase: "③書類回収", owner: "和田", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" },
+{ id: "tour:999.1", type: "tour", typeLabel: "面談", title: "🟧経過苑 経過様", datetimeLabel: mdOf(-6) + " 10時", elapsedDays: 5, deadlineLabel: "", slackUrl: "https://example.com/a3", groupKey: "evAge", groupTitle: "経過苑 経過様", member: "", shareKind: "", overdue: false, phase: "③書類回収", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" },
+{ id: "mail:2023.1", type: "mail", typeLabel: "メール", title: "色付テスト3日｜確認依頼", datetimeLabel: "11/15 10時", elapsedDays: 3, deadlineLabel: "", slackUrl: "", groupKey: "", groupTitle: "", member: "", shareKind: "", overdue: false, phase: "", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" },
+{ id: "slack:2023.2", type: "slack", typeLabel: "Slack", title: "色付テスト7日｜判断待ち", datetimeLabel: "11/11 10時", elapsedDays: 7, deadlineLabel: "", slackUrl: "", groupKey: "", groupTitle: "", member: "", shareKind: "", overdue: false, phase: "", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" }
+);
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st23) });
+});
+await page23.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page23.waitForTimeout(300);
+check("色付け: 期限超過は明確な赤背景が優先（経過8日でもage5にならない）", await page23.evaluate(() => {
+const el = document.querySelector('[data-card-id="tour:222.2"]');
+return Boolean(el) && el.classList.contains("overdue") && !el.classList.contains("age5") && getComputedStyle(el).backgroundColor === "rgb(254, 226, 226)";
+}));
+check("色付け: 本日期限はamber優先（経過5日でもage5にならない）", await page23.evaluate(() => {
+const el = document.querySelector('[data-card-id="calendar:555.5"]');
+return Boolean(el) && el.classList.contains("dueToday") && !el.classList.contains("age5");
+}));
+check("色付け: 未対応3日で薄いamber（age3）+「未対応3日」フラグ", await page23.evaluate(() => {
+const el = document.querySelector('[data-card-id="mail:2023.1"]');
+return Boolean(el) && el.classList.contains("age3") && getComputedStyle(el).backgroundColor === "rgb(255, 251, 235)" && el.textContent.includes("未対応3日");
+}));
+check("色付け: 未対応5日以上で薄いorange（age5）+「未対応7日」フラグ", await page23.evaluate(() => {
+const el = document.querySelector('[data-card-id="slack:2023.2"]');
+return Boolean(el) && el.classList.contains("age5") && getComputedStyle(el).backgroundColor === "rgb(255, 237, 213)" && el.textContent.includes("未対応7日");
+}));
+check("色付け: 未対応2日では色が付かない", await page23.evaluate(() => {
+const el = document.querySelector('[data-card-id="mail:111.1"]');
+return Boolean(el) && !el.classList.contains("age3") && !el.classList.contains("age5");
+}));
+await page23.click('[data-tab="tour"]');
+await page23.waitForTimeout(200);
+check("準備完了の案件は面談タブに出ない", await page23.locator('[data-group="evDone"]').count() === 0);
+await page23.click('[data-tab="onboarding"]');
+await page23.waitForTimeout(300);
+check("準備完了バッジが入社待ち行に出る", await page23.evaluate(() => {
+const slot = document.querySelector("[data-ready-slot='evDone']");
+return Boolean(slot) && slot.textContent.includes("準備完了") && Boolean(slot.querySelector(".days-badge.ready"));
+}));
+check("準備完了の行から入社結果（入社済み等）を選べる", await page23.locator("[data-result='started'][data-ev='evDone']").count() === 1 && await page23.locator("[data-result='cancelled'][data-ev='evDone']").count() === 1);
+check("入社待ち行も未対応日数で色付く（経過苑: 5日経過タスク→age5）", await page23.evaluate(() => {
+const slot = document.querySelector("[data-ready-slot='evAge']");
+const row = slot && slot.closest(".start-row");
+return Boolean(row) && row.classList.contains("age5");
+}));
+await page23.click("[data-collect-toggle='evNear']");
+await page23.waitForTimeout(200);
+await page23.click("#dash [data-collect-check='tour:777.1']");
+await page23.waitForTimeout(700);
+await page23.click("#dash [data-collect-check='tour:pending:evNear:followup']");
+await page23.waitForTimeout(700);
+check("回収を全部チェックすると再構築を待たず「準備完了」バッジが出る（楽観表示）", await page23.evaluate(() => {
+const slot = document.querySelector("[data-ready-slot='evNear']");
+return Boolean(slot) && slot.textContent.includes("準備完了");
+}));
+await page23.click('[data-tab="member"]');
+await page23.waitForTimeout(300);
+check("人ビュー: 和田の未対応に回収漏れが数えられる（合計3件・内訳に回収漏れ1件）", await page23.evaluate(() => {
+const s = personStats("和田");
+return s.total === 3 && s.leaks.length === 1 && s.bd.leak === 1;
+}) && await page23.locator(".person-card", { hasText: "和田さん" }).innerText().then((s) => s.includes("回収漏れ 1件")));
+await page23.click("[data-ptoggle='和田']");
+await page23.waitForTimeout(200);
+check("人ビュー: 回収漏れカードに施設×相手・残り項目・入社日（あと1日）が出る", await page23.evaluate(() => {
+const el = document.querySelector(".person-card[data-person='和田'] [data-leak-case='evWLeak']");
+return Boolean(el) && el.textContent.includes("漏れ苑") && el.textContent.includes("書類回収") && el.textContent.includes("あと1日");
+}));
+check("人ビュー: 回収漏れに統合された段階タスクは通常カードとして二重に出ない", await page23.locator(".person-card[data-person='和田'] .person-tasks [data-card-id='tour:888.1']").count() === 0);
+await page23.close();
 
 check("コンソールエラー0", errors.length === 0, errors.join(" | ").slice(0, 300));
 
