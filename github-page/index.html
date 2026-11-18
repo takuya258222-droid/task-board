@@ -1664,10 +1664,10 @@ async function setStartResult(eventId, result) {
 }
 
 async function sendSummary(person) {
-  const list = personOpenTasks(person);
-  if (!list.length) return;
+  const s = personStats(person);
+  if (!s.total) return;
   const label = person === "自分" ? "自分" : person + "さん";
-  if (!window.confirm(label + "の未対応 " + list.length + "件を、Slack DMで送ります（次の同期で送信。同日にボタン/自動で送信済みなら送りません）。よろしいですか？")) return;
+  if (!window.confirm(label + "の未対応 " + s.total + "件を、Slack DMで送ります（次の同期で送信。同日にボタン/自動で送信済みなら送りません）。よろしいですか？")) return;
   summaryPendingLocal[person] = true;
   refreshPersonCard(person);
   queueAction({ action: "sendSummary", member: person });
@@ -2597,10 +2597,14 @@ function personOpenTasks(person) {
 // 期限超過は行頭「⚠️期限超過 」、ボード設定の期日がある項目はその期日を締切として表示（📌行は出さない）、
 // メモ・投稿リンクは子行、末尾は✅依頼の1行。クライアント側の state から生成できる範囲で送信版に寄せる
 // （面談のフェーズバッジは phase まで。送信版の「・前日」等の細分は状態ファイル側の情報のため含めない）。
-function buildSummaryText(person, list) {
+// 回収漏れ（personStats の leaks）は種別ブロックの最後に「■ 回収漏れ（内定済み・未回収）」として寄せ、
+// 1行目の総件数にも含める（人カードの未対応件数と一致させる）。回収漏れ案件に属する通常タスクは
+// personStats 側で差し引かれているため、通常ブロックには出ない（二重計上回避）。
+function buildSummaryText(person, list, leaks) {
   const now = new Date();
+  const total = list.length + (leaks ? leaks.length : 0);
   const head = [
-    "【タスクボード】未対応まとめ ｜ **" + (person === "自分" ? "自分の分" : person + "さん") + "** ｜ 全" + list.length + "件",
+    "【タスクボード】未対応まとめ ｜ **" + (person === "自分" ? "自分の分" : person + "さん") + "** ｜ 全" + total + "件",
     (now.getMonth() + 1) + "/" + now.getDate() + " " + now.getHours() + "時時点"
   ];
   const cats = person === "自分"
@@ -2631,13 +2635,24 @@ function buildSummaryText(person, list) {
     }
     blocks.push(lines.join("\n"));
   }
+  if (leaks && leaks.length) {
+    const lines = ["■ 回収漏れ（内定済み・未回収）"];
+    for (const lk of leaks) {
+      const c = lk.case;
+      const nm = String(c.person || "").replace(/(様|さん)$/, "");
+      let line = "・" + (c.facility || "") + " × **" + nm + "様** ｜ 残り: " + lk.items.map((it) => it.name).join("・");
+      if (c.startDate) line += " ｜ 入社日: " + fmtMD(c.startDate);
+      lines.push(line);
+    }
+    blocks.push(lines.join("\n"));
+  }
   return head.join("\n") + "\n\n" + blocks.join("\n\n") + "\n\n対応したら元のメッセージに✅をお願いします";
 }
 
 async function copySummary(person) {
-  const list = personOpenTasks(person);
-  if (!list.length) return;
-  const text = buildSummaryText(person, list);
+  const s = personStats(person);
+  if (!s.total) return;
+  const text = buildSummaryText(person, s.list, s.leaks);
   let ok = false;
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); ok = true; }
@@ -2700,9 +2715,9 @@ function personPactsHtml(p, s) {
   const total = s.total !== undefined ? s.total : s.list.length;
   let h = "";
   if (total) h += '<button class="copy-btn" data-ptoggle="' + esc(p) + '">' + (openPeople[p] ? "タスクを閉じる" : "タスクを見る") + "</button>";
-  if (s.list.length) h += '<button class="copy-btn" data-copy="' + esc(p) + '">まとめをコピー</button>';
+  if (total) h += '<button class="copy-btn" data-copy="' + esc(p) + '">まとめをコピー</button>';
   if (pend) h += '<button class="send-btn" disabled>送信待ち（' + esc(nextSyncLabel()) + "）</button>";
-  else if (s.list.length) h += '<button class="send-btn" data-send="' + esc(p) + '">Slackで送る</button>';
+  else if (total) h += '<button class="send-btn" data-send="' + esc(p) + '">Slackで送る</button>';
   if (!total) h += '<span style="font-size:13.5px; color:var(--sub); font-weight:700;">未対応なし</span>';
   return h;
 }
