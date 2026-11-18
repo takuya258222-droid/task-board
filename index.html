@@ -12,7 +12,7 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <style>
-:root{ --bg:#f4f6fa; --card:#fff; --line:#dde1e7; --txt:#1c2330; --sub:#5b6577; --accent:#2563eb; --accent-d:#1e3a8a; --danger:#b91c1c; --danger-bg:#fef2f2; --pend:#b45309; --pend-bg:#fffbeb; --amber:#d97706; --ok:#0e7a3d; --ok-bg:#f0fdf4;}
+:root{ --bg:#f4f6fa; --card:#fff; --line:#dde1e7; --txt:#1c2330; --sub:#5b6577; --accent:#2563eb; --accent-d:#1e3a8a; --danger:#b91c1c; --danger-bg:#fef2f2; --pend:#b45309; --pend-bg:#fffbeb; --amber:#d97706; --ok:#0e7a3d; --ok-bg:#f0fdf4; --today:#c2410c; --today-bg:#fff7ed;}
 *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 body{ margin:0; font-size:15.5px; line-height:1.6; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif; background:var(--bg); color:var(--txt);}
 header{ position:sticky; top:0; z-index:20; background:linear-gradient(180deg,#1e3a8a,#2563eb); color:#fff; padding:8px 12px 8px; box-shadow:0 2px 10px rgba(30,58,138,.25);}
@@ -85,6 +85,7 @@ button.mini-ghost{ font-size:13px; font-weight:700; padding:11px 13px; min-heigh
 .start-row{ display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:7px;}
 .start-row.soon{ border-color:#fde68a; background:#fffdf5;}
 .start-row.past{ border-color:#fecaca; background:#fff8f8;}
+.start-row.today{ border-color:#fdba74; border-left:5px solid var(--today); background:var(--today-bg);}
 .start-row .mi2{ flex:1; min-width:0;}
 .start-row .acts{ flex:0 0 auto; display:flex; flex-direction:column; gap:6px;}
 .panel-start-form{ display:flex; gap:7px; margin-top:8px;}
@@ -96,6 +97,7 @@ button.res-btn.red{ border-color:#fecaca; background:#fff; color:var(--danger);}
 .days-badge{ display:inline-block; font-size:13px; font-weight:700; border-radius:8px; padding:2px 8px; background:#eef2ff; color:var(--accent); border:1px solid #c7d2fe;}
 .days-badge.red{ background:var(--danger-bg); color:var(--danger); border-color:#fecaca;}
 .days-badge.amber{ background:var(--pend-bg); color:var(--pend); border-color:#fde68a;}
+.days-badge.today{ background:var(--today); color:#fff; border-color:var(--today); font-size:14px; padding:3px 10px;}
 .group-head{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:#eef2ff; border:1px solid #c7d2fe; border-radius:12px; padding:13px; margin:14px 0 8px; cursor:pointer; min-height:52px;}
 .group-head .gt{ font-size:15.5px; font-weight:700; flex:1; line-height:1.4;}
 .group-head .gn{ font-size:13px; color:var(--sub); font-weight:700;}
@@ -1944,9 +1946,9 @@ function meetRowHtml(c) {
 function startRowHtml(c) {
   const d = c.daysToStart;
   const badge = (d === null || d === undefined) ? "" :
-    '<span class="days-badge' + (d < 0 ? " red" : d <= 3 ? " amber" : "") + '">' +
-    (d < 0 ? Math.abs(d) + "日経過" : d === 0 ? "今日が入社日" : "あと" + d + "日") + "</span>";
-  const cls = d !== null && d !== undefined && d < 0 ? " past" : (d !== null && d !== undefined && d <= 3 ? " soon" : "");
+    '<span class="days-badge' + (d < 0 ? " red" : d === 0 ? " today" : d <= 3 ? " amber" : "") + '">' +
+    (d < 0 ? Math.abs(d) + "日経過" : d === 0 ? "本日入社" : "あと" + d + "日") + "</span>";
+  const cls = d !== null && d !== undefined && d === 0 ? " today" : (d !== null && d !== undefined && d < 0 ? " past" : (d !== null && d !== undefined && d <= 3 ? " soon" : ""));
   let h = '<div class="start-row' + cls + '"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + "</div>" +
           '<div style="font-size:13px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(c.startDate)) + " ｜ 担当: " + esc(c.owner || "自分") + "</div>" +
           '<div style="margin-top:4px;">' + badge + "</div>";
