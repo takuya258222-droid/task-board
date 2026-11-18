@@ -85,6 +85,9 @@ button.mini-ghost{ font-size:13px; font-weight:700; padding:11px 13px; min-heigh
 .start-row.past{ border-color:#fecaca; background:#fff8f8;}
 .start-row .mi2{ flex:1; min-width:0;}
 .start-row .acts{ flex:0 0 auto; display:flex; flex-direction:column; gap:6px;}
+.panel-start-form{ display:flex; gap:7px; margin-top:8px;}
+.panel-start-form input[type="date"]{ flex:1; min-width:0; font-size:16px; padding:10px; border:1px solid var(--line); border-radius:9px; background:#fff; font-family:inherit; min-height:52px;}
+.panel-start-form .sb-save{ flex:0 0 auto;}
 button.res-btn{ font-size:13px; font-weight:700; padding:11px 13px; min-height:44px; border-radius:8px; border:1px solid #bbf7d0; background:var(--ok-bg); color:var(--ok); cursor:pointer;}
 button.res-btn.gray{ border-color:var(--line); background:#fff; color:var(--txt);}
 button.res-btn.red{ border-color:#fecaca; background:#fff; color:var(--danger);}
@@ -325,6 +328,8 @@ let confirmDeleteId = null;
 let editingMetaId = null;
 let openCases = {};
 let openStarts = {};   // eventId -> true（入社待ち行の回収チェックリスト展開状態）
+let panelStartDateVals = {}; // eventId -> 入社待ち行で選択中の入社日（30秒ごとの再描画で入力が消えないよう保持）
+let startDateSaved = {};     // eventId -> { date, until }（入社日は即時保存済みだが【入社】予定の作成は次回同期。その間の反映待ち表示用）
 let reschedOpen = {};
 let query = "", ownerFilter = "all", phaseFilter = "all", overdueOnly = false;
 let addPreset = "auto";
@@ -377,6 +382,21 @@ function nextSyncLabel() {
     }
   }
   return "次の同期で反映";
+}
+
+// 次の同期スロットの時刻（epoch ms）。入社日の反映待ち表示の目安に使う
+function nextSyncTime() {
+  const now = new Date();
+  for (let d = 0; d < 8; d++) {
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + d);
+    const dow = day.getDay();
+    if (dow === 0 || dow === 6) continue;
+    for (const [h, m] of SYNC_SLOTS) {
+      const t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m);
+      if (t > now) return t.getTime();
+    }
+  }
+  return 0;
 }
 
 function pruneOpts(rawTasks, rawHistory, rawCases) {
@@ -468,6 +488,12 @@ async function fetchState() {
   summaryPending = data.summaryPending || [];
   summarySent = data.summarySent || {};
   sheetUpdatedAt = data.sheetUpdatedAt || "";
+  // 入社日の反映待ち表示の畳み込み: 案件が消えた・日付が変わった・次の同期が終わった頃（スロット+35分）を過ぎたら消す
+  for (const eid of Object.keys(startDateSaved)) {
+    const f = startDateSaved[eid];
+    const rc = rawCases.find((c) => c.eventId === eid);
+    if (!rc || rc.startDate !== f.date || (f.until && Date.now() > f.until)) delete startDateSaved[eid];
+  }
   $("syncNote").textContent = "最終更新: " + (sheetUpdatedAt ? fmtIsoMdHm(sheetUpdatedAt) : "—") +
     "／" + nextSyncLabel();
   render();
@@ -903,15 +929,33 @@ async function onCollectToggle(input) {
 async function setStartDate(eventId) {
   const el = $("startDate-" + eventId);
   if (!el || !el.value) { showErr("入社日を選んでください。"); return; }
-  const date = el.value;
+  await saveStartDate(eventId, el.value);
+}
+
+// 入社待ち行（入社タブ）から詳細を開かずに登録する経路。保存処理とPOST形式は案件詳細側と共通（saveStartDate）
+async function setStartDatePanel(eventId) {
+  const el = $("panelStartDate-" + eventId);
+  if (!el || !el.value) { showErr("入社日を選んでください。"); return; }
+  await saveStartDate(eventId, el.value);
+}
+
+async function saveStartDate(eventId, date) {
   const key = "start:" + eventId;
   if (sending[key]) return;
   sending[key] = true;
   const c = cases.find((x) => x.eventId === eventId);
-  if (c) { c.startDate = date; c.daysToStart = daysToYmd(date); refreshStartDom(c); }
+  if (c) {
+    c.startDate = date; c.daysToStart = daysToYmd(date);
+    // 入社日自体はAPIへ即時保存されるが、【入社】予定の作成は次回同期。同期が終わる頃まで行に反映待ちを出す
+    const nt = nextSyncTime();
+    startDateSaved[eventId] = { date: date, until: nt ? nt + 35 * 60000 : 0 };
+    delete panelStartDateVals[eventId];
+    stableView(() => refreshStartDom(c));
+  }
   const r = await postRaw({ action: "setStartDate", eventId: eventId, date: date });
   delete sending[key];
   if (!r.ok) {
+    delete startDateSaved[eventId];
     try { await fetchState(); } catch (_) { render(); }
     showErr("入社日を保存できませんでした。通信を確認して、もう一度試してください。");
     return;
@@ -1732,6 +1776,9 @@ function startRowHtml(c) {
   let h = '<div class="start-row' + cls + '"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + "</div>" +
           '<div style="font-size:13px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(c.startDate)) + " ｜ 担当: " + esc(c.owner || "自分") + "</div>" +
           '<div style="margin-top:4px;">' + badge + "</div>";
+  if (startDateSaved[c.eventId] && startDateSaved[c.eventId].date === c.startDate) {
+    h += '<div style="margin-top:4px;"><span class="hist-pend" style="margin-top:0;">反映待ち（' + esc(nextSyncLabel()) + "）</span></div>";
+  }
   if (reschedOpen[c.eventId]) {
     h += '<input type="date" id="reschedDate-' + esc(c.eventId) + '" style="width:100%; font-size:16px; padding:9px; border:1px solid var(--line); border-radius:8px; margin-top:7px;">' +
          '<button class="sb-save" style="width:100%; margin-top:6px;" data-result="reschedule" data-ev="' + esc(c.eventId) + '">この日付でリスケ</button>';
@@ -1812,6 +1859,8 @@ function startPanelHtml() {
   for (const c of needDate) {
     h += '<div class="start-row past"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + '</div>' +
          '<div style="font-size:13px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div>' +
+         '<div class="panel-start-form"><input type="date" id="panelStartDate-' + esc(c.eventId) + '" data-panel-start-input="' + esc(c.eventId) + '" value="' + esc(panelStartDateVals[c.eventId] || "") + '">' +
+         '<button class="sb-save" data-start-save-panel="' + esc(c.eventId) + '">入社日を登録</button></div>' +
          startCollectHtml(c) + '</div>' +
          '<div class="acts"><button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
   }
@@ -1914,6 +1963,8 @@ function bindEvents(root) {
   root.querySelectorAll("[data-lost]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-lost"), "lost")));
   root.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-close"), "close")));
   root.querySelectorAll("[data-start-save]").forEach((b) => b.addEventListener("click", () => setStartDate(b.getAttribute("data-start-save"))));
+  root.querySelectorAll("[data-start-save-panel]").forEach((b) => b.addEventListener("click", () => setStartDatePanel(b.getAttribute("data-start-save-panel"))));
+  root.querySelectorAll("[data-panel-start-input]").forEach((inp) => inp.addEventListener("change", () => { panelStartDateVals[inp.getAttribute("data-panel-start-input")] = inp.value; }));
   root.querySelectorAll("[data-result]").forEach((b) => b.addEventListener("click", () => setStartResult(b.getAttribute("data-ev"), b.getAttribute("data-result"))));
   root.querySelectorAll("[data-resched]").forEach((b) => b.addEventListener("click", () => {
     const ev = b.getAttribute("data-resched");
