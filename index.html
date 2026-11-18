@@ -1503,12 +1503,14 @@ function offerPending(c) {
   return tasks.some((t) => t.id === pid && t.pending);
 }
 
-// ボタンの表示条件: 現在フェーズが①準備で、②内定確認の段階が全て未送信（notyet）の案件だけ。
+// ボタンの表示条件: 現在フェーズが①準備または②内定確認で、②内定確認の段階が全て未送信
+// （notyet）の案件だけ。①の段階タスクが全て完了するとフェーズは②内定確認へ進むが、②タスク
+// 自体は未送信のまま待機する案件（面談終了〜②送信待ち）こそ先行確定の主対象なので②も含める。
 // ②タスクが実在（open）する案件は通常のタスク完了で処理するので出さない。内定確定済み・
 // 案件アクション反映中・先行確定の反映待ちの案件にも出さない。
 function canOffer(c) {
   if (!c || c.pending || caseDecided(c)) return false;
-  if (!c.currentPhase || c.currentPhase.indexOf("①") !== 0) return false;
+  if (!c.currentPhase || (c.currentPhase.indexOf("①") !== 0 && c.currentPhase.indexOf("②") !== 0)) return false;
   if (offerPending(c)) return false;
   const sts = c.stages.filter((s) => s.phase === "②内定確認");
   if (!sts.length) return false;
