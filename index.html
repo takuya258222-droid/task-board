@@ -302,6 +302,7 @@ button.cancel-opt-btn{ flex:0 0 auto; font-size:13.5px; font-weight:700; padding
 ・「削除」は「完了」とは別です。メール/Slackは記録上閉じるだけ（メッセージ・下書き自体は消えません）、カレンダーは予定自体を削除、入社はそのステージだけを閉じ、面談は段階ごとの削除ルール（準備=離脱、内定確認=クローズ、書類回収以降=完了と同じ扱い）に従います。削除の前に確認画面が出ます。<br>
 ・完了済みタブの「未対応に戻す」は、次回同期で台帳（状態ファイル）に再開を記録して未対応に戻します。元のメッセージの✅は残りますが、再開記録が優先され、リマインドも再開日から再開します（面談は次の段階のタスクが送信済みだと戻せません）。<br>
 ・入社日を登録すると次の同期でカレンダーに&#x3010;入社&#x3011;予定が作られ、入社準備タスクが流れます。結果（入社済み/キャンセル）は当月末まで表示されます。<br>
+・入社待ちの回収チェックリストでは、まだSlackに送られていない段階（書類回収・入力/申請・入職フォロー）も先にチェックできます。その段階が実際に送られた時点で、そのまま完了として消し込まれます（チェックを外せば取り消せます）。<br>
 ・このボードのURLは共有しないでください（あなた専用です）。
 </footer>
 <script>
@@ -339,6 +340,8 @@ let addPreset = "auto";
 let optTasks = {};   // taskId -> { kind: "complete"|"delete", row: 完了済み側に出す仮の行 }
 let optHistory = {}; // taskId -> { task: 未対応側に出す仮のタスク }
 let optCases = {};   // eventId -> { kind: "lost"|"close", case: 仮に消した案件 }
+let optDecided = {};   // eventId -> { flipped: [stageIdx...], prevPhase }（②内定確認の楽観完了で案件を内定確定済みに見せる記録。実データが追いついたら畳む）
+let optStageDone = {}; // "tour:pending:<eventId>:<stageKey>" -> { eventId, stageKey }（未送信ステージの先行完了。段階が実在化したら実項目へ引き継ぐ）
 let optStarts = [];  // 入社待ち追加の楽観表示 { text, date, assignee, docsCollected }（サーバ側 startAdds か実案件に着地したら消す）
 let summaryPendingLocal = {}; // person -> true（送信予約の即時表示）
 let openPeople = {};   // person -> true（人カードのタスク展開状態）
@@ -402,6 +405,10 @@ function nextSyncTime() {
   return 0;
 }
 
+function dropOptDecidedFor(t) {
+  if (t && t.type === "tour" && t.phase === "②内定確認" && t.groupKey) delete optDecided[t.groupKey];
+}
+
 function pruneOpts(rawTasks, rawHistory, rawCases) {
   // 消失検出: POST が ok でも「未適用（pending）」にも「適用結果」にも現れない操作は、黙って成功扱いにしない。
   // 痕跡なしが3回の state 取得続いたら消失とみなし、表示を元に戻して警告する（ユーザーはそのまま再操作できる）。
@@ -413,6 +420,7 @@ function pruneOpts(rawTasks, rawHistory, rawCases) {
       o.misses = 0; // キューに着地している
     } else if (st && !st.pending) {
       delete optTasks[id];
+      dropOptDecidedFor(o.task);
       if (failures[id]) showErr("反映に失敗しました: " + (failures[id].note || "理由不明"));
       else showErr("⚠️ 操作の消失を検出しました: 「" + (o.row.title || id) + "」の操作が記録に見当たりません。もう一度操作してください。");
     } else if (!st && sh) {
@@ -421,6 +429,7 @@ function pruneOpts(rawTasks, rawHistory, rawCases) {
       o.misses = (o.misses || 0) + 1;
       if (o.misses >= 3) {
         delete optTasks[id];
+        dropOptDecidedFor(o.task);
         showErr("⚠️ 操作の消失を検出しました: 「" + (o.row.title || id) + "」の操作が記録に見当たりません。もう一度操作してください。");
       }
     }
@@ -486,6 +495,20 @@ async function fetchState() {
     if (rawCases.some((c) => c.startDate === o.date && (o.text.includes(c.facility) || (c.person && o.text.includes(c.person))))) return false;
     return true;
   });
+  // ②内定確認の楽観完了（optDecided）: 実データが内定確定に追いつくまで、案件へ先行反映する。
+  // 実データ側が内定確定済みになった・案件が消えたら記録を畳む（自然に実データへ置き換わる）。
+  for (const ev of Object.keys(optDecided)) {
+    const rc = rawCases.find((c) => c.eventId === ev);
+    const cc = cases.find((c) => c.eventId === ev);
+    if (!rc || !cc || caseDecided(rc)) { delete optDecided[ev]; continue; }
+    optDecided[ev] = applyCaseDecided(cc);
+  }
+  // 未送信ステージの先行完了（optStageDone）: 段階が実在化（open/done）したら実項目側へ引き継ぐ
+  for (const pid of Object.keys(optStageDone)) {
+    const rec = optStageDone[pid];
+    const rc = rawCases.find((c) => c.eventId === rec.eventId);
+    if (!rc || !stageStillNotyet(rc, rec.stageKey)) delete optStageDone[pid];
+  }
   members = data.members || [];
   alerts = data.alerts || [];
   summaryPending = data.summaryPending || [];
@@ -609,9 +632,15 @@ async function complete(id) {
   if (!t || t.pending) return;
   sending[id] = true;
   optTasks[id] = { kind: "complete", task: t, row: histRowFromTask(t, "✅で完了", "complete") };
+  // ②内定確認の完了は、その瞬間に案件を内定確定済みとして扱い、入社待ちへ即移動させる（同期の再構築を待たない）
+  let decidedEv = "";
+  if (t.type === "tour" && t.phase === "②内定確認" && t.groupKey) {
+    const c = cases.find((x) => x.eventId === t.groupKey);
+    if (c && !caseDecided(c)) { optDecided[t.groupKey] = applyCaseDecided(c); decidedEv = t.groupKey; }
+  }
   tasks = tasks.filter((x) => x.id !== id);
   history = history.concat(optTasks[id].row);
-  stableView(() => { removeTaskDom(id); refreshChrome(); refreshOpenPeople(); });
+  stableView(() => { removeTaskDom(id); refreshChrome(); refreshOpenPeople(); if (decidedEv) { renderDash(); bindEvents($("dash")); } });
   const r = await postRaw({ action: "complete", id: id });
   if (!r.ok) { await optFail(optTasks, id, "記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[id]; return; }
   delete sending[id];
@@ -770,6 +799,12 @@ async function cancelOptTask(id) {
   if (!o || !o.task) return;
   sending[key] = true;
   delete optTasks[id];
+  // ②内定確認の完了を取り消す場合は、内定確定済みの先行表示も巻き戻す
+  if (o.task && o.task.type === "tour" && o.task.phase === "②内定確認" && o.task.groupKey && optDecided[o.task.groupKey]) {
+    const c = cases.find((x) => x.eventId === o.task.groupKey);
+    rollbackCaseDecided(c, optDecided[o.task.groupKey]);
+    delete optDecided[o.task.groupKey];
+  }
   history = history.filter((x) => !(x.id === id && x.opt));
   tasks = tasks.filter((x) => x.id !== id).concat(o.task);
   stableView(() => render());
@@ -851,34 +886,39 @@ async function cancelCasePending(eventId) {
 function setCollectRowState(row, state) {
   row.setAttribute("data-cstate", state);
   let tag = row.querySelector(".cl-tag");
-  if (state === "pending" || state === "pendingOpt") {
+  const label = state === "pending" || state === "pendingOpt" ? "反映待ち"
+    : state === "stagePending" ? "送信され次第完了"
+    : state === "notyet" ? "送信待ち" : "";
+  if (label) {
     if (!tag) {
       tag = document.createElement("span");
       row.appendChild(tag);
     }
     tag.className = "cl-tag";
-    tag.textContent = "反映待ち";
+    tag.textContent = label;
   } else if (tag) {
     tag.remove();
   }
 }
 
 // セクション見出しの進捗と、一覧の案件カード（グループ見出し）の「回収 n/m」チップを、行の状態から合わせ直す
+// 同じ案件のチェックリストは案件詳細と入社待ち行の両方に出ることがあるため、対象の全ボックスを更新する
 function syncCollectDom(ev) {
-  const box = document.querySelector(".collect-box[data-collect-ev=" + attrQ(ev) + "]");
   let done = 0, total = 0;
-  if (box) {
+  document.querySelectorAll(".collect-box[data-collect-ev=" + attrQ(ev) + "]").forEach((box) => {
+    let d = 0, t = 0;
     box.querySelectorAll(".collect-row").forEach((r) => {
-      total++;
+      t++;
       const st = r.getAttribute("data-cstate");
-      if (st === "done" || st === "pending" || st === "pendingOpt") done++;
+      if (st === "done" || st === "pending" || st === "pendingOpt" || st === "stagePending") d++;
     });
     const prog = box.querySelector("[data-collect-prog]");
-    if (prog && total) {
-      prog.textContent = done === total ? "全て回収済み" : done + "/" + total;
-      prog.classList.toggle("ok", done === total);
+    if (prog && t) {
+      prog.textContent = d === t ? "全て回収済み" : d + "/" + t;
+      prog.classList.toggle("ok", d === t);
     }
-  }
+    done = d; total = t;
+  });
   const chip = document.querySelector("[data-collect-chip=" + attrQ(ev) + "]");
   if (chip && total) chip.textContent = "回収 " + done + "/" + total;
   const startChip = document.querySelector("[data-start-collect=" + attrQ(ev) + "]");
@@ -913,7 +953,13 @@ async function onCollectToggle(input) {
   if (!taskId || !ev) return;
   const row = input.closest(".collect-row");
   const state = row ? row.getAttribute("data-cstate") : "";
-  if (input.checked && state === "open") {
+  if (input.checked && state === "notyet") {
+    // 未送信ステージの先行完了: tour:pending:<eventId>:<stageKey> のIDで complete を送る
+    await completeStagePending(ev, taskId);
+  } else if (!input.checked && state === "stagePending") {
+    // 先行完了の取り消し（楽観分はローカル取消、サーバ側 pending は cancelAction）
+    await cancelStagePending(ev, taskId);
+  } else if (input.checked && state === "open") {
     await complete(taskId);
     // complete() の楽観表示で詳細ごと消えた場合（その案件の最後のタスクだった場合）は何もしない
     if (optTasks[taskId] && row && row.isConnected) {
@@ -927,6 +973,49 @@ async function onCollectToggle(input) {
     refreshCaseDetail(ev);
     refreshStartPanel();
   }
+}
+
+// 未送信ステージの先行完了: チェックした瞬間にアプリ内では完了扱いにし、POST {action:"complete", id:"tour:pending:..."}
+// 段階が実際に送信された時点で、同期がこの完了をそのまま消し込む（API v8 の受け口）
+async function completeStagePending(ev, pid) {
+  if (sending[pid]) return;
+  const stageKey = pid.split(":").pop();
+  sending[pid] = true;
+  optStageDone[pid] = { eventId: ev, stageKey: stageKey };
+  document.querySelectorAll("input[data-collect-check=" + attrQ(pid) + "]").forEach((inp) => {
+    inp.checked = true;
+    const row = inp.closest(".collect-row");
+    if (row) setCollectRowState(row, "stagePending");
+  });
+  syncCollectDom(ev);
+  const r = await postRaw({ action: "complete", id: pid });
+  delete sending[pid];
+  if (!r.ok) {
+    delete optStageDone[pid];
+    try { await fetchState(); } catch (_) { render(); }
+    showErr("記録できませんでした。通信を確認して、もう一度試してください。");
+    return;
+  }
+  showOk("先行チェックしました（この段階が送られた時点で、そのまま完了として消し込まれます）");
+}
+
+// 先行完了の取り消し: サーバ側に未適用の complete があれば cancelAction で取り消す
+async function cancelStagePending(ev, pid) {
+  const key = "cancel:" + pid;
+  if (sending[key]) return;
+  sending[key] = true;
+  const saved = optStageDone[pid];
+  delete optStageDone[pid];
+  document.querySelectorAll("input[data-collect-check=" + attrQ(pid) + "]").forEach((inp) => {
+    inp.checked = false;
+    const row = inp.closest(".collect-row");
+    if (row) setCollectRowState(row, "notyet");
+  });
+  syncCollectDom(ev);
+  const r = await postRaw({ action: "cancelAction", id: pid });
+  delete sending[key];
+  const done = await cancelSettled(r, () => { if (saved) optStageDone[pid] = saved; }, "先行チェック");
+  if (done) showOk("先行チェックを取り消しました");
 }
 
 async function setStartDate(eventId) {
@@ -1317,8 +1406,26 @@ function caseDecided(c) {
          stageStateOf(c, "④入力・申請") !== "yet" || stageStateOf(c, "⑤入職フォロー") !== "yet";
 }
 
+// ②内定確認の楽観完了: 案件をその場で内定確定済みに見せる（②の open 段階を done にし、現在フェーズを③へ）。
+// 巻き戻しに必要な情報（反転させた段階の位置と元のフェーズ）を記録として返す。
+function applyCaseDecided(c) {
+  const rec = { flipped: [], prevPhase: c.currentPhase };
+  c.stages.forEach((s, i) => {
+    if (s.phase === "②内定確認" && s.status === "open") { s.status = "done"; rec.flipped.push(i); }
+  });
+  if (c.currentPhase === "②内定確認") c.currentPhase = "③書類回収";
+  return rec;
+}
+
+function rollbackCaseDecided(c, rec) {
+  if (!c || !rec) return;
+  for (const i of rec.flipped) { if (c.stages[i]) c.stages[i].status = "open"; }
+  c.currentPhase = rec.prevPhase;
+}
+
 // ---- 内定後の回収チェックリスト ----
-// 対象は実在する段階タスク（③書類回収＋④の全タスク＋⑤入職フォロー。未送信=notyet は含まない）。
+// 対象は段階タスク（③書類回収＋④の全タスク＋⑤入職フォロー）。送信済みの段階は実タスクで、
+// 内定確定済みの案件では未送信（notyet）の段階も「送信待ち」行として先にチェックできる（後述）。
 // 新しい状態は持たず、cases[].stages と tasks（＋楽観完了の optTasks）から毎回組み立てる。
 const COLLECT_PHASES = ["③書類回収", "④入力・申請", "⑤入職フォロー"];
 
@@ -1338,10 +1445,65 @@ function tsKey(id) {
 // 楽観完了で tasks から外れたタスク（optTasks）も候補に含めるため、1件チェックした直後でも
 // 残りの項目の対応付けが壊れない。状態: done（反映済み）/ open / pending（サーバ側で反映待ち）/
 // pendingOpt（楽観完了で反映待ち）/ nolink（対応タスクが特定できない）
+// ---- 未送信ステージの先行完了（tour:pending:<eventId>:<stageKey>） ----
+// 内定確定済みの案件では、まだ送信されていない段階もチェックリストに「送信待ち」行として出し、
+// 先にチェックできるようにする。チェックは API v8 の受け口（complete + tour:pending: 形式のID）へ送り、
+// 段階が実際に送信された時点で同期がそのまま完了として消し込む。送信済みの段階は従来どおり実タスクで扱う。
+const STAGEKEY_PHASE = { docs: "③書類回収", duo: "④入力・申請", sesio: "④入力・申請", contract: "④入力・申請", formrun: "④入力・申請", followup: "⑤入職フォロー" };
+const STAGE4_SET = [["duo", "duo登録"], ["sesio", "セシオ登録"], ["contract", "契約申請"], ["formrun", "フォームラン回収"]];
+
+function stageKeyOf4(name) {
+  if (name.includes("フォームラン")) return "formrun";
+  if (name.includes("契約")) return "contract";
+  if (name.includes("セシオ")) return "sesio";
+  if (name.includes("duo")) return "duo";
+  return "";
+}
+
+function isStagePending(pid) {
+  if (optStageDone[pid]) return true;
+  return tasks.some((t) => t.id === pid && t.pending);
+}
+
+function pendingStageItem(c, s, key, name) {
+  const pid = "tour:pending:" + c.eventId + ":" + key;
+  return { stage: s, name: name, state: isStagePending(pid) ? "stagePending" : "notyet", taskId: pid, stageKey: key };
+}
+
+// その stageKey の段階が実データ側でまだ未送信（notyet）のままか。実在化したら先行完了の記録を畳む判定に使う
+function stageStillNotyet(c, key) {
+  const ph = STAGEKEY_PHASE[key];
+  if (!ph) return false;
+  const sts = c.stages.filter((s) => s.phase === ph && s.status === "notyet");
+  if (!sts.length) return false;
+  if (ph !== "④入力・申請") return true;
+  if (sts.some((s) => (s.label || "").indexOf("／") < 0)) return true; // 汎用エントリのまま＝4点セット分は未送信
+  return sts.some((s) => stageKeyOf4(collectName(s)) === key);
+}
+
 function collectItems(c) {
   const items = [];
+  const decided = caseDecided(c);
   for (const s of c.stages) {
-    if (COLLECT_PHASES.indexOf(s.phase) < 0 || s.status === "notyet") continue;
+    if (COLLECT_PHASES.indexOf(s.phase) < 0) continue;
+    if (s.status === "notyet") {
+      // 未送信の段階は内定確定済みの案件だけ「送信待ち」行として出す（未内定の案件には出さない）
+      if (!decided) continue;
+      if (s.phase === "③書類回収") {
+        items.push(pendingStageItem(c, s, "docs", collectName(s)));
+      } else if (s.phase === "⑤入職フォロー") {
+        items.push(pendingStageItem(c, s, "followup", collectName(s)));
+      } else if (s.phase === "④入力・申請") {
+        if ((s.label || "").indexOf("／") < 0) {
+          // 汎用エントリ「④入力・申請」のまま未送信なら、新4点セットを送信待ち行として展開する
+          for (const [key, nm] of STAGE4_SET) items.push(pendingStageItem(c, s, key, nm));
+        } else {
+          const key = stageKeyOf4(collectName(s));
+          if (key) items.push(pendingStageItem(c, s, key, collectName(s)));
+        }
+      }
+      continue;
+    }
     items.push({ stage: s, name: collectName(s), state: s.status === "done" ? "done" : "nolink", taskId: "" });
   }
   for (const ph of COLLECT_PHASES) {
@@ -1372,7 +1534,7 @@ function collectItems(c) {
 }
 
 function collectProgress(items) {
-  return { done: items.filter((i) => i.state === "done" || i.state === "pending" || i.state === "pendingOpt").length, total: items.length };
+  return { done: items.filter((i) => i.state === "done" || i.state === "pending" || i.state === "pendingOpt" || i.state === "stagePending").length, total: items.length };
 }
 
 function collectBoxHtml(c) {
@@ -1383,14 +1545,16 @@ function collectBoxHtml(c) {
   h += '<div class="collect-head">📦 内定後の回収 <span class="collect-prog' + (p.done === p.total ? " ok" : "") + '" data-collect-prog>' +
        (p.done === p.total ? "全て回収済み" : p.done + "/" + p.total) + "</span></div>";
   for (const it of items) {
-    const checked = it.state === "done" || it.state === "pending" || it.state === "pendingOpt";
+    const checked = it.state === "done" || it.state === "pending" || it.state === "pendingOpt" || it.state === "stagePending";
     const disabled = it.state === "done" || it.state === "nolink";
+    const tag = it.state === "done" ? '<span class="cl-tag done">回収済み</span>'
+      : (it.state === "pending" || it.state === "pendingOpt") ? '<span class="cl-tag">反映待ち</span>'
+      : it.state === "stagePending" ? '<span class="cl-tag">送信され次第完了</span>'
+      : it.state === "notyet" ? '<span class="cl-tag">送信待ち</span>' : "";
     h += '<label class="collect-row' + (it.state === "done" ? " done" : "") + '" data-cstate="' + it.state + '">' +
          '<input type="checkbox" data-collect-check="' + esc(it.taskId) + '" data-collect-ev="' + esc(c.eventId) + '"' +
          (checked ? " checked" : "") + (disabled ? " disabled" : "") + ">" +
-         '<span class="cl-name">' + esc(it.name) + "</span>" +
-         (it.state === "done" ? '<span class="cl-tag done">回収済み</span>'
-           : (it.state === "pending" || it.state === "pendingOpt") ? '<span class="cl-tag">反映待ち</span>' : "") +
+         '<span class="cl-name">' + esc(it.name) + "</span>" + tag +
          "</label>";
   }
   if (items.some((i) => i.state === "done")) {
@@ -1957,7 +2121,14 @@ function render() {
     if (!visible.length && !h) {
       h = '<div class="empty">このタブの未対応タスクはありません。</div>';
     } else if (activeTab === "tour") {
-      h += groupHtml(visible, (t) => t.groupTitle || "その他");
+      // 面談タブは「面談待ち」専用: 現在フェーズが①準備・②内定確認の案件だけ出す。
+      // 内定確定済み（③以降）の案件は入社タブの入社待ちで扱う（詳細を開いている案件は例外として残す）
+      const tourVisible = visible.filter((t) => {
+        const c = cases.find((x) => x.eventId === t.groupKey);
+        if (!c) return true;
+        return MEET_WAIT_PHASES.indexOf(c.currentPhase) >= 0 || openCases[t.groupKey];
+      });
+      h += groupHtml(tourVisible, (t) => t.groupTitle || "その他");
     } else if (activeTab === "member") {
       h += groupHtml(visible, (t) => (t.member || t.groupTitle || "その他") + " さん");
     } else {
