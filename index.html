@@ -339,7 +339,7 @@ let addPreset = "auto";
 let optTasks = {};   // taskId -> { kind: "complete"|"delete", row: 完了済み側に出す仮の行 }
 let optHistory = {}; // taskId -> { task: 未対応側に出す仮のタスク }
 let optCases = {};   // eventId -> { kind: "lost"|"close", case: 仮に消した案件 }
-let optStarts = [];  // 入社待ち追加の楽観表示 { text, date }（サーバ側 startAdds か実案件に着地したら消す）
+let optStarts = [];  // 入社待ち追加の楽観表示 { text, date, assignee, docsCollected }（サーバ側 startAdds か実案件に着地したら消す）
 let summaryPendingLocal = {}; // person -> true（送信予約の即時表示）
 let openPeople = {};   // person -> true（人カードのタスク展開状態）
 let optAdds = [];      // タスク追加の楽観表示 { title, datetime, assignee }（サーバ adds に着地したら消す）
@@ -347,6 +347,7 @@ let optMeetings = [];  // 面談追加の楽観表示 { text, assignee }
 let optMemberAdds = []; // メンバー追加の楽観表示 { name, email }
 let startFormOpen = false;
 let startAddTextVal = "", startAddDateVal = "";
+let startAddAssigneeVal = "自分", startAddDocsVal = false; // 入社待ち追加フォームの担当・書類回収済み（再描画で消えないよう保持）
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -481,7 +482,7 @@ async function fetchState() {
   startAdds = data.startAdds || [];
   // 入社待ち追加の楽観表示の畳み込み: サーバの startAdds に着地した分と、実案件（入社日一致＋施設/相手が文面に含まれる）になった分は仮表示を消す
   optStarts = optStarts.filter((o) => {
-    if (startAdds.some((a) => a.text === o.text && a.date === o.date)) return false;
+    if (startAdds.some((a) => a.text === o.text && a.date === o.date && (a.assignee || "自分") === (o.assignee || "自分"))) return false;
     if (rawCases.some((c) => c.startDate === o.date && (o.text.includes(c.facility) || (c.person && o.text.includes(c.person))))) return false;
     return true;
   });
@@ -1082,12 +1083,16 @@ async function submitStart() {
   if (!date) { showErr("入社日を選んでください。"); return; }
   if (sending["addStart"]) return;
   sending["addStart"] = true;
-  const entry = { text: text, date: date };
+  const assigneeEl = $("startAddAssignee");
+  const docsEl = $("startAddDocs");
+  const entry = { text: text, date: date,
+    assignee: (assigneeEl && assigneeEl.value) || startAddAssigneeVal || "自分",
+    docsCollected: docsEl ? docsEl.checked : startAddDocsVal === true };
   optStarts.push(entry);
   startFormOpen = false;
-  startAddTextVal = ""; startAddDateVal = "";
+  startAddTextVal = ""; startAddDateVal = ""; startAddAssigneeVal = "自分"; startAddDocsVal = false;
   render();
-  const r = await postRaw({ action: "addStart", text: text, date: date });
+  const r = await postRaw({ action: "addStart", text: text, date: date, assignee: entry.assignee, docsCollected: entry.docsCollected });
   if (!r.ok) {
     optStarts = optStarts.filter((o) => o !== entry);
     try { await fetchState(); } catch (_) { render(); }
@@ -1800,9 +1805,10 @@ function pendingStartRowHtml(o) {
   const badge = d === null ? "" :
     '<span class="days-badge' + (d < 0 ? " red" : d <= 3 ? " amber" : "") + '">' +
     (d < 0 ? Math.abs(d) + "日経過" : d === 0 ? "今日が入社日" : "あと" + d + "日") + "</span>";
+  const docsChip = o.docsCollected ? '<span class="days-badge">書類回収済み</span>' : "";
   return '<div class="start-row"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(o.text) + '</div>' +
-         '<div style="font-size:13px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(o.date)) + "</div>" +
-         (badge ? '<div style="margin-top:4px;">' + badge + "</div>" : "") + "</div>" +
+         '<div style="font-size:13px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(o.date)) + " ｜ 担当: " + esc(o.assignee || "自分") + "</div>" +
+         ((badge || docsChip) ? '<div style="margin-top:4px;">' + badge + (badge && docsChip ? " " : "") + docsChip + "</div>" : "") + "</div>" +
          '<div class="acts"><span class="hist-pend">反映待ち（' + esc(nextSyncLabel()) + "）</span></div></div>";
 }
 
@@ -1870,16 +1876,17 @@ function startPanelHtml() {
     h += '<div class="dash-sub">現在、入社待ちの案件はありません</div>';
   }
   // 担当者別グルーピング: 並びは ownersList()（自分→有効メンバー登録順）を正とし、名簿に無い担当（無効化済み等）が
-  // データに残っていれば末尾に足して行が消えないようにする。追加直後の仮表示行（pendStarts）は自分の分に入る。
+  // データに残っていれば末尾に足して行が消えないようにする。追加直後の仮表示行（pendStarts）は各行の担当のセクションに入る。
   const ownerOf = (c) => c.owner || "自分";
   const order = ownersList();
   const seenOwner = (o) => { if (order.indexOf(o) < 0) order.push(o); };
   needDate.forEach((c) => seenOwner(ownerOf(c)));
   waiting.forEach((c) => seenOwner(ownerOf(c)));
+  pendStarts.forEach((p) => seenOwner(p.assignee || "自分"));
   for (const o of order) {
     const nd = needDate.filter((c) => ownerOf(c) === o);
     const wt = waiting.filter((c) => ownerOf(c) === o); // waiting は全体で入社日昇順にソート済み（近い順を維持）
-    const pd = o === "自分" ? pendStarts : [];
+    const pd = pendStarts.filter((p) => (p.assignee || "自分") === o); // 追加直後の仮表示行は選んだ担当のセクションに出す
     const cnt = nd.length + wt.length + pd.length;
     if (!cnt) continue;
     h += '<div class="start-owner" data-start-owner="' + esc(o) + '">' + esc(o === "自分" ? "自分の分" : o + "さんの分") + '<span class="oc">' + cnt + "件</span></div>";
@@ -1889,11 +1896,17 @@ function startPanelHtml() {
   }
   h += '<div class="start-add">';
   if (startFormOpen) {
+    const selA = startAddAssigneeVal || "自分";
+    const aOpts = ['<option value="自分"' + (selA === "自分" ? " selected" : "") + ">自分</option>"]
+      .concat(members.filter((m) => m.status === "有効").map((m) => '<option value="' + esc(m.label) + '"' + (selA === m.label ? " selected" : "") + ">" + esc(m.label) + "（メンバー）</option>"))
+      .join("");
     h += '<label>施設・相手が読み取れる文を貼り付け<textarea id="startAddText" rows="2" placeholder="例：○○施設 △△様 入社決定">' + esc(startAddTextVal) + '</textarea></label>' +
          '<label>入社日<input type="date" id="startAddDate" value="' + esc(startAddDateVal) + '"></label>' +
+         '<label>担当者<select id="startAddAssignee">' + aOpts + '</select></label>' +
+         '<label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="startAddDocs" style="width:22px; height:22px;"' + (startAddDocsVal ? " checked" : "") + '>書類回収済み（既に書類をもらっている）</label>' +
          '<div class="start-btns"><button class="sb-save" data-start-add-submit="1">追加する</button>' +
          '<button class="res-btn gray" data-start-add-toggle="1">やめる</button></div>' +
-         '<div class="note">次の同期でテキストから施設・相手を読み取り、カレンダーに入社予定が作られ、入社待ちに入ります。</div>';
+         '<div class="note">次の同期でテキストから施設・相手を読み取り、カレンダーに入社予定が作られ、入社待ちに入ります。担当がメンバーの場合はそのメンバーの案件として登録されます。「書類回収済み」にした場合は、③書類回収は送られず回収済みとして登録されます。</div>';
   } else {
     h += '<button class="add-start-btn" data-start-add-toggle="1">＋ 入社待ちを追加</button>';
   }
@@ -2009,6 +2022,10 @@ function bindEvents(root) {
   if (sat) sat.addEventListener("input", () => { startAddTextVal = sat.value; });
   const sad = root.querySelector("#startAddDate");
   if (sad) sad.addEventListener("change", () => { startAddDateVal = sad.value; });
+  const saa = root.querySelector("#startAddAssignee");
+  if (saa) saa.addEventListener("change", () => { startAddAssigneeVal = saa.value; });
+  const sdc = root.querySelector("#startAddDocs");
+  if (sdc) sdc.addEventListener("change", () => { startAddDocsVal = sdc.checked; });
 }
 
 $("searchBox").addEventListener("input", () => { query = $("searchBox").value.trim(); render(); });
