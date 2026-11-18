@@ -2071,11 +2071,40 @@ function caseAgeDays(c) {
 // ---- 回収漏れ（内定済みなのに回収が残っている案件）: 人ビューの未完了に浮かせる ----
 // 対象は③④⑤の未完了項目（未送信＝送信待ちの段階も含む）。その段階の実タスクが通常タスクとしても
 // 出る場合は、回収漏れ側を優先して二重に出さない（personStats で taskIds を差し引く）。
+// 回収項目→先行チェック（tour:pending:）の stageKey 対応
+function stageItemKeyOf(it) {
+  if (it.stage.phase === "③書類回収") return "docs";
+  if (it.stage.phase === "⑤入職フォロー") return "followup";
+  if (it.stage.phase === "④入力・申請") return stageKeyOf4(it.name);
+  return "";
+}
+
+// その回収項目の段階に先行チェックが生きていれば（楽観分・サーバ未適用・アウトボックスの
+// いずれか）、その項目は「アプリで完了＝終わっているもの」として残りから外す。段階タスクが
+// 実在化した後も、先行チェックの消し込み（同期）が済むまでの間は未対応に数えない。
+function preCheckedItem(c, it) {
+  if (!it.taskId || it.taskId.indexOf("tour:pending:") === 0) return false;
+  const k = stageItemKeyOf(it);
+  return Boolean(k) && isStagePending("tour:pending:" + c.eventId + ":" + k);
+}
+
+// 先行チェックで「終わっているもの」になる実タスクの id 集合（まとめの通常セクション用）
+function preCheckedTaskIds() {
+  const out = {};
+  for (const c of cases) {
+    for (const it of collectItems(c)) {
+      if (it.taskId && it.taskId.indexOf("tour:pending:") !== 0 && preCheckedItem(c, it)) out[it.taskId] = true;
+    }
+  }
+  return out;
+}
+
 function caseLeaks(c) {
   if (!c || !caseDecided(c)) return null;
   if (c.startResult === "started" || c.startResult === "cancelled") return null;
   const items = collectItems(c);
-  const remain = items.filter((it) => it.state === "open" || it.state === "notyet" || it.state === "nolink");
+  const remain = items.filter((it) => it.state === "open" || it.state === "notyet" || it.state === "nolink")
+    .filter((it) => !preCheckedItem(c, it));
   if (!remain.length) return null;
   const taskIds = remain.filter((it) => it.taskId && it.taskId.indexOf("tour:pending:") !== 0).map((it) => it.taskId);
   return { case: c, items: remain, taskIds: taskIds };
@@ -2581,6 +2610,12 @@ function sortSummaryTasks(list) {
 
 function personOpenTasks(person) {
   const list = tasks.filter((t) => {
+    // アプリで完了/削除したタスクは、同期の適用前（サーバ側で反映待ち＝pending）でも
+    // 「終わっているもの」として数えない（ユーザーの指示 2026-11-18。ヘッダーの未対応件数が
+    // !pending で数えるのと同じ扱い）。再読み込み後・別端末で開いた場合も、サーバが返す
+    // pending が根拠になるため同じ結果になる。戻し（未対応に戻す）の反映待ちは、未対応に
+    // 戻す操作なので未対応として数える（optReopen の行が該当）。
+    if (t.pending && !t.optReopen) return false;
     if (t.type === "tour") return (t.owner || "自分") === person;
     if (t.type === "member") return (t.member || t.groupTitle || "") === person;
     // 自分の分は全種別（メール/Slack/カレンダー/入社）を含む。メンバー側は従来どおり面談＋共有/割当のみ
@@ -2620,6 +2655,11 @@ function buildSummaryText(person, list, leaks) {
       if (t.type === "tour") {
         line = "・**" + (t.groupTitle || t.title) + "** ｜ 【" + (t.phase || "面談") + "】" + (t.datetimeLabel || "");
         if (t.metaDue) line += " ｜ 締切: " + fmtMD(t.metaDue);
+        // 段階ラベルに「／<項目名>」があるタスク（④の各項目など）は、行末に項目名を付けて
+        // 同じ案件の行同士を判別できるようにする（タイトル内の【段階ラベル】から取る）
+        const itm = String(t.title || "").match(/【([^】]*)】/);
+        const itmName = itm && itm[1].indexOf("／") >= 0 ? itm[1].split("／").pop().trim() : "";
+        if (itmName) line += " ｜ " + itmName;
       } else {
         const mid = t.type === "member" ? (t.shareKind || t.typeLabel || "") : (t.typeLabel || "");
         let when;
@@ -2676,7 +2716,16 @@ function personStats(person) {
   const leaks = personLeaks(person);
   const leakIds = {};
   leaks.forEach((l) => l.taskIds.forEach((id) => { leakIds[id] = true; }));
-  const list = personOpenTasks(person).filter((t) => !leakIds[t.id]);
+  // 回収漏れ案件に属する面談タスクは、通常リストに出さず回収漏れ側へ寄せる。差し引きは
+  // 残り項目の taskIds だけに頼らない: 項目が「反映待ち（pending）」になると残りから外れて
+  // taskIds にも入らないため、そのままだとタスクだけ通常側に残って二重計上になる
+  // （実データで確認した不具合 2026-11-18）。案件（groupKey）単位で差し引くことで、
+  // ①②のタスクが残る内定直後の案件も含め、案件ごと回収漏れ側に寄せる。
+  const leakEv = {};
+  leaks.forEach((l) => { leakEv[l.case.eventId] = true; });
+  // その段階に先行チェックが生きている実タスクも「終わっているもの」として通常リストから外す
+  const preDone = preCheckedTaskIds();
+  const list = personOpenTasks(person).filter((t) => !leakIds[t.id] && !preDone[t.id] && !(t.type === "tour" && t.groupKey && leakEv[t.groupKey]));
   const over = list.filter((t) => effOverdue(t)).length;
   const oldest = list.reduce((m, t) => Math.max(m, t.elapsedDays || 0), 0);
   const bd = { mail: 0, slack: 0, calendar: 0, tour: 0, onboarding: 0, req: 0, mention: 0, assign: 0, share: 0, leak: leaks.length };
