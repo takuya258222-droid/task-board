@@ -1747,9 +1747,12 @@ function renderMeetingPending() {
 // ---- ダッシュボード（すべてタブ上部） ----
 const ALERT_KINDS = { "naitei-overdue": "内定確認", "docs-overdue": "書類回収", "start-overdue": "入社結果", "action-failure": "反映失敗", "share-stale": "共有停滞" };
 
+// 面談実施待ちの対象フェーズ: これから面談を実施する案件だけ（③以降は実施済み・内定済みなので出さない）
+const MEET_WAIT_PHASES = ["①準備", "②内定確認"];
+
 function upcomingMeetings() {
   const start = new Date(); start.setHours(0, 0, 0, 0);
-  return cases.filter((c) => c.meetingIso && new Date(c.meetingIso).getTime() >= start.getTime())
+  return cases.filter((c) => c.meetingIso && new Date(c.meetingIso).getTime() >= start.getTime() && MEET_WAIT_PHASES.includes(c.currentPhase))
               .sort((a, b) => new Date(a.meetingIso) - new Date(b.meetingIso));
 }
 
