@@ -102,6 +102,8 @@ button.res-btn.red{ border-color:#fecaca; background:#fff; color:var(--danger);}
 .group-head .gt{ font-size:15.5px; font-weight:700; flex:1; line-height:1.4;}
 .group-head .gn{ font-size:13px; color:var(--sub); font-weight:700;}
 .group-head .chev{ color:var(--sub); font-size:14px;}
+.case-idle{ color:var(--sub); font-size:14px; line-height:1.5; background:#f8fafc; border:1px dashed var(--line); border-radius:12px; padding:11px 13px; margin:0 0 8px;}
+.case-idle[hidden]{ display:none;}
 .case-detail{ background:#fff; border:1px solid #c7d2fe; border-radius:12px; padding:14px; margin:-2px 0 10px;}
 .progress{ display:flex; gap:4px; margin:8px 0;}
 .progress .seg{ flex:1; text-align:center; font-size:11px; padding:7px 2px; border-radius:7px; background:#eef0f3; color:var(--sub); line-height:1.3;}
@@ -589,19 +591,30 @@ function maybeEmptyList() {
 
 function removeTaskDom(id) {
   document.querySelectorAll("[data-card-id=" + attrQ(id) + "]").forEach((el) => el.remove());
-  // グループ見出しの件数を合わせ、空になったグループは見出し・案件詳細ごと畳む
+  // グループ見出しの件数を合わせ、空になったグループは見出し・案件詳細ごと畳む。
+  // ただし面談タブの案件グループ（data-case-group）は案件母体表示のため、案件自体が
+  // 面談待ち（①②）の間は最後のタスクが無くなっても見出しを残し、状態行を出す
+  // （内定確定で③へ進んだ案件は従来どおり畳む）
   document.querySelectorAll("#list .group-head").forEach((gh) => {
     const key = gh.getAttribute("data-group");
     const rest = document.querySelectorAll("#list [data-group-key=" + attrQ(key) + "]").length;
     if (rest === 0) {
+      const c = gh.hasAttribute("data-case-group") ? cases.find((x) => x.eventId === key) : null;
+      if (c && activeTab === "tour" && MEET_WAIT_PHASES.indexOf(c.currentPhase) >= 0) {
+        const idle = document.querySelector("#list [data-idle-for=" + attrQ(key) + "]");
+        if (idle) idle.hidden = false;
+        const cnt = gh.querySelector(".gcnt");
+        if (cnt) cnt.textContent = "";
+        return;
+      }
       const det = document.getElementById("case-" + key);
       if (det) det.remove();
       const orow = document.querySelector("#list [data-offer-row=" + attrQ(key) + "]");
       if (orow) orow.remove();
       gh.remove();
     } else {
-      const gn = gh.querySelector(".gn");
-      if (gn) gn.textContent = rest + "件";
+      const cnt = gh.querySelector(".gcnt") || gh.querySelector(".gn");
+      if (cnt) cnt.textContent = rest + "件";
     }
   });
   maybeEmptyList();
@@ -1459,6 +1472,8 @@ function tabCount(key) {
   if (key === "all") return tasks.length + adds.length;
   if (key === "history") return history.length;
   if (key === "calendar") return tasks.filter((t) => t.type === "calendar").length + adds.length;
+  // 面談タブは案件母体表示なので、バッジも面談待ち（①②）の案件数に合わせる（表示件数と一致させる）
+  if (key === "tour") return cases.filter((c) => MEET_WAIT_PHASES.indexOf(c.currentPhase) >= 0).length;
   return tasks.filter((t) => t.type === key).length;
 }
 
@@ -1880,6 +1895,88 @@ function caseDetailHtml(c) {
          '<button class="ghost-btn" data-close="' + esc(c.eventId) + '">案件を終了</button></div></div>';
   }
   h += "</div>";
+  return h;
+}
+
+// ---- 面談タブ（案件母体表示） ----
+// 面談タブは「面談待ち」の案件一覧が正。タスクを母体に組み立てると、未完了タスクが
+// 1件も無い案件（①が全て完了して②が未送信の案件、将来の面談で段階タスク未送信の案件）が
+// グループ自体生成されず消えてしまうため、グループは案件から組み立てる。
+// （タスク母体の groupHtml はメンバータブ用にそのまま残す）
+// 案件への絞り込みはタスク用の matchesFilters と同じ条件を案件の属性で判定する
+function caseMatchesFilters(c) {
+  if (ownerFilter !== "all" && (c.owner || "自分") !== ownerFilter) return false;
+  if (phaseFilter !== "all" && c.currentPhase !== phaseFilter) return false;
+  if (overdueOnly && !tasks.some((t) => t.groupKey === c.eventId && effOverdue(t))) return false;
+  if (query) {
+    const hay = [c.facility, c.person, c.meetingLabel, c.owner, c.currentPhase].join(" ");
+    if (!hay.includes(query)) return false;
+  }
+  return true;
+}
+
+// ①/②タスクの削除（＝離脱/クローズ）を楽観記録中の案件は面談待ちから外す
+// （削除の取り消しで optTasks から消えれば、次回描画で自動的に戻る）
+function caseClosingByDelete(c) {
+  return Object.values(optTasks).some((o) => o.kind === "delete" && o.task && o.task.type === "tour" &&
+    o.task.groupKey === c.eventId && (o.task.phase === "①準備" || o.task.phase === "②内定確認"));
+}
+
+// 面談タブに出す案件: フェーズ①準備・②内定確認の全案件（先の予定・タスク0件も含む）。
+// 詳細を開いている案件は導線維持のため例外として残す。並びは面談日時の昇順（近いものが上）
+function tourTabCases() {
+  return cases
+    .filter((c) => (MEET_WAIT_PHASES.indexOf(c.currentPhase) >= 0 || openCases[c.eventId]) && !caseClosingByDelete(c))
+    .filter(caseMatchesFilters)
+    .sort((a, b) => {
+      const ta = a.meetingIso ? new Date(a.meetingIso).getTime() : NaN;
+      const tb = b.meetingIso ? new Date(b.meetingIso).getTime() : NaN;
+      return (isNaN(ta) ? Infinity : ta) - (isNaN(tb) ? Infinity : tb);
+    });
+}
+
+// 未完了タスクが無い案件に出す状態行: 最初の未送信段階が分かる文言にする。
+// タスクがある間は hidden で出し、最後のタスクが消えたら removeTaskDom が表示に切り替える
+function caseIdleHtml(c, hasItems) {
+  let yetLabel = "";
+  for (const ph of PHASES) {
+    const s = c.stages.find((x) => x.phase === ph && x.status === "notyet");
+    if (s) { yetLabel = s.label; break; }
+  }
+  let msg = "未対応のタスクはありません";
+  if (yetLabel) msg += "（" + yetLabel + "は未送信です）";
+  return '<div class="case-idle" data-idle-for="' + esc(c.eventId) + '"' + (hasItems ? " hidden" : "") + ">" + esc(msg) + "</div>";
+}
+
+function tourCaseGroupHtml(c, tourTasks) {
+  const items = tourTasks.filter((t) => t.groupKey === c.eventId);
+  let chipHtml = "";
+  const cItems = collectItems(c);
+  if (cItems.length) chipHtml = '<span class="collect-chip" data-collect-chip="' + esc(c.eventId) + '">回収 ' + collectProgress(cItems).done + "/" + cItems.length + "</span>";
+  const phIdx = PHASES.indexOf(c.currentPhase);
+  const badge = '<span class="ph-badge' + (phIdx >= 0 ? " ph" + (phIdx + 1) : "") + '">' + esc(c.currentPhase) + "</span>";
+  let h = '<button class="group-head" data-group="' + esc(c.eventId) + '" data-case-group="1"><span class="gt">' +
+    esc(c.facility) + " " + esc(c.person) + "</span>" + chipHtml + badge +
+    '<span class="gn">' + esc(c.meetingLabel || "") + "</span>" +
+    (items.length ? '<span class="gn gcnt">' + items.length + "件</span>" : "") +
+    '<span class="chev">' + (openCases[c.eventId] ? "▲" : "▼") + "</span></button>";
+  if (canOffer(c) || canBulk(c)) {
+    h += '<div class="group-acts" data-offer-row="' + esc(c.eventId) + '">' +
+      (canBulk(c) ? '<button class="bulk-btn" data-bulk="' + esc(c.eventId) + '">⏩ 内定まで一括で進める</button>' : "") +
+      (canOffer(c) ? '<button class="offer-btn" data-offer="' + esc(c.eventId) + '">✅ 内定にする</button>' : "") +
+      "</div>";
+  }
+  if (openCases[c.eventId]) h += caseDetailHtml(c);
+  h += items.map(cardHtml).join("");
+  h += caseIdleHtml(c, items.length > 0);
+  return h;
+}
+
+function tourCasesHtml(tourTasks) {
+  let h = tourTabCases().map((c) => tourCaseGroupHtml(c, tourTasks)).join("");
+  // 案件記録に紐づかない tour タスクは従来どおりタスク母体のグループで残す（取りこぼし防止）
+  const orphans = tourTasks.filter((t) => !cases.some((c) => c.eventId === t.groupKey));
+  if (orphans.length) h += groupHtml(orphans, (t) => t.groupTitle || "その他");
   return h;
 }
 
@@ -2354,17 +2451,15 @@ function render() {
     if (activeTab === "all" || activeTab === "calendar") {
       h += adds.map(addCardHtml).join("");
     }
-    if (!visible.length && !h) {
-      h = '<div class="empty">このタブの未対応タスクはありません。</div>';
-    } else if (activeTab === "tour") {
-      // 面談タブは「面談待ち」専用: 現在フェーズが①準備・②内定確認の案件だけ出す。
+    if (activeTab === "tour") {
+      // 面談タブは「面談待ち」専用: 案件母体で、フェーズ①準備・②内定確認の全案件を
+      // 未完了タスクの有無にかかわらず出す（先の予定・段階タスク未送信の案件も含む）。
       // 内定確定済み（③以降）の案件は入社タブの入社待ちで扱う（詳細を開いている案件は例外として残す）
-      const tourVisible = visible.filter((t) => {
-        const c = cases.find((x) => x.eventId === t.groupKey);
-        if (!c) return true;
-        return MEET_WAIT_PHASES.indexOf(c.currentPhase) >= 0 || openCases[t.groupKey];
-      });
-      h += groupHtml(tourVisible, (t) => t.groupTitle || "その他");
+      const th = tourCasesHtml(visible);
+      if (!th && !h) h = '<div class="empty">このタブの未対応タスクはありません。</div>';
+      else h += th;
+    } else if (!visible.length && !h) {
+      h = '<div class="empty">このタブの未対応タスクはありません。</div>';
     } else if (activeTab === "member") {
       h += groupHtml(visible, (t) => (t.member || t.groupTitle || "その他") + " さん");
     } else {

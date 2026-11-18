@@ -1674,6 +1674,89 @@ await page17.waitForTimeout(300);
 check("途中失敗: 内定までは進まず入社待ちに出ない（途中苑）", await page17.locator("#dash").innerText().then((s) => !s.includes("途中苑")));
 await page17.close();
 
+// 面談タブの案件母体表示: 未完了タスク0件の①②案件（②送信待ち・当日未送信・将来で全段階未送信）も必ず出る
+const page18 = await ctx.newPage();
+await page18.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+await new Promise((r) => setTimeout(r, 250));
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+return;
+}
+const st18 = mockState();
+st18.startAdds = [];
+st18.tasks.push(
+{ id: "tour:1818.1", type: "tour", typeLabel: "面談", title: "🟦" + mdOf(2) + " 作業苑 作業様", datetimeLabel: mdOf(2) + " 10時", elapsedDays: 1, deadlineLabel: "", slackUrl: "https://example.com/sw4", groupKey: "evW4", groupTitle: "作業苑 作業様", member: "", shareKind: "", overdue: false, phase: "①準備", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" }
+);
+st18.cases.push(
+{ eventId: "evW1", facility: "若葉苑", person: "若葉様", owner: "自分", meetingLabel: mdOf(5) + " 10時", meetingIso: daysFromNow(5).toISOString(), currentPhase: "①準備", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備・3日前", status: "notyet", slackUrl: "" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
+]},
+{ eventId: "evW2", facility: "本日苑", person: "本日様", owner: "和田", meetingLabel: mdOf(0) + " 13時", meetingIso: daysFromNow(0).toISOString(), currentPhase: "②内定確認", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備（3日前・前日・当日）", status: "done", slackUrl: "" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
+]},
+{ eventId: "evW3", facility: "明日苑", person: "明日様", owner: "自分", meetingLabel: mdOf(1) + " 10時", meetingIso: daysFromNow(1).toISOString(), currentPhase: "①準備", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備・3日前", status: "done", slackUrl: "" },
+{ phase: "①準備", label: "①準備・前日", status: "done", slackUrl: "" },
+{ phase: "①準備", label: "①準備・当日", status: "notyet", slackUrl: "" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
+]},
+{ eventId: "evW4", facility: "作業苑", person: "作業様", owner: "自分", meetingLabel: mdOf(2) + " 10時", meetingIso: daysFromNow(2).toISOString(), currentPhase: "①準備", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備・3日前", status: "open", slackUrl: "https://example.com/sw4" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
+]},
+{ eventId: "evW5", facility: "書類苑", person: "書類様", owner: "自分", meetingLabel: mdOf(-1) + " 10時", meetingIso: daysFromNow(-1).toISOString(), currentPhase: "③書類回収", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "open", slackUrl: "" }
+]}
+);
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st18) });
+});
+await page18.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page18.click('[data-tab="tour"]');
+await page18.waitForTimeout(200);
+check("面談タブのバッジは面談待ち（①②）の案件数（5件）", await page18.locator('.tab[data-tab="tour"] .bdg').innerText().then((s) => s.trim() === "5"));
+check("面談タブに案件グループが5件出る（バッジと表示件数が一致）", await page18.locator("#list .group-head[data-case-group]").count() === 5);
+check("面談タブが空表示にならない", await page18.locator("#list .empty").count() === 0);
+check("タスク0件の②待ち案件（本日苑）が出る", await page18.locator('[data-group="evW2"]').count() === 1);
+check("本日苑の状態行に「②内定確認は未送信です」", await page18.locator('[data-idle-for="evW2"]').innerText().then((s) => s.includes("未対応のタスクはありません") && s.includes("②内定確認は未送信です")));
+check("本日苑の見出しにフェーズバッジと面談日時", await page18.locator('[data-group="evW2"]').innerText().then((s) => s.includes("②内定確認") && s.includes(mdOf(0))));
+check("本日苑に「内定にする」ボタンが出る", await page18.locator('#list .group-acts [data-offer="evW2"]').count() === 1);
+check("タスク0件の①案件（明日苑）が出て、状態行は当日未送信", await page18.locator('[data-group="evW3"]').count() === 1 && await page18.locator('[data-idle-for="evW3"]').innerText().then((s) => s.includes("①準備・当日は未送信です")));
+check("将来日付で全段階未送信の案件（若葉苑）も出る", await page18.locator('[data-group="evW1"]').count() === 1 && await page18.locator('[data-idle-for="evW1"]').innerText().then((s) => s.includes("未送信です")));
+check("並びは面談日時の昇順（本日苑→明日苑→若葉苑、若葉苑が最後）", await page18.evaluate(() => {
+const names = Array.from(document.querySelectorAll("#list .group-head[data-case-group]")).map((h) => h.textContent);
+const i2 = names.findIndex((t) => t.includes("本日苑"));
+const i3 = names.findIndex((t) => t.includes("明日苑"));
+const i1 = names.findIndex((t) => t.includes("若葉苑"));
+return i2 >= 0 && i3 > i2 && i1 > i3 && i1 === names.length - 1;
+}));
+check("タスク有りの案件（作業苑）は従来どおりカードと件数が出る", await page18.locator('[data-card-id="tour:1818.1"]').count() === 1 && await page18.locator('[data-group="evW4"]').innerText().then((s) => s.includes("1件")));
+check("タスク有りの案件では状態行は隠れている", await page18.evaluate(() => { const el = document.querySelector('[data-idle-for="evW4"]'); return Boolean(el) && el.hidden; }));
+check("③以降の案件（書類苑）はタスク0件でも面談タブに出ない", await page18.locator('[data-group="evW5"]').count() === 0 && await page18.locator("#list").innerText().then((s) => !s.includes("書類苑")));
+await page18.close();
+
 check("コンソールエラー0", errors.length === 0, errors.join(" | ").slice(0, 300));
 
 await page.screenshot({ path: path.resolve(__dirname, "shot-board-all.png")});
