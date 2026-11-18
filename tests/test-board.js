@@ -1523,6 +1523,157 @@ await page15.waitForTimeout(300);
 check("失敗時は入社待ちに失敗苑が出ない", await page15.locator("#dash").innerText().then((s) => !s.includes("失敗苑")));
 await page15.close();
 
+// 「内定まで一括で進める」: ①②の実在タスクを段階順にまとめて完了し、そのまま内定まで進める
+const page16 = await ctx.newPage();
+const bulkPend = new Set();
+await page16.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+if (body.action === "complete") bulkPend.add(body.id);
+await new Promise((r) => setTimeout(r, 250));
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+return;
+}
+const st16 = mockState();
+st16.startAdds = [];
+st16.tasks.push(
+{ id: "tour:1111.1", type: "tour", typeLabel: "面談", title: "🟦" + mdOf(2) + " 一括苑 一括様", datetimeLabel: mdOf(2) + " 10時", elapsedDays: 1, deadlineLabel: "", slackUrl: "https://example.com/sB1", groupKey: "evB1", groupTitle: "一括苑 一括様", member: "", shareKind: "", overdue: false, phase: "①準備", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" },
+{ id: "tour:2222.2", type: "tour", typeLabel: "面談", title: "🟦" + mdOf(2) + " 一括苑 一括様", datetimeLabel: mdOf(2) + " 10時", elapsedDays: 1, deadlineLabel: "", slackUrl: "https://example.com/sB2", groupKey: "evB1", groupTitle: "一括苑 一括様", member: "", shareKind: "", overdue: false, phase: "①準備", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" },
+{ id: "tour:3333.3", type: "tour", typeLabel: "面談", title: "🟨実在苑 実在様", datetimeLabel: mdOf(1) + " 10時", elapsedDays: 1, deadlineLabel: "", slackUrl: "https://example.com/sB3", groupKey: "evB2", groupTitle: "実在苑 実在様", member: "", shareKind: "", overdue: false, phase: "②内定確認", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" },
+{ id: "tour:4444.9", type: "tour", typeLabel: "面談", title: "🟨保留苑 保留様", datetimeLabel: mdOf(1) + " 10時", elapsedDays: 1, deadlineLabel: "", slackUrl: "https://example.com/sB4", groupKey: "evB4", groupTitle: "保留苑 保留様", member: "", shareKind: "", overdue: false, phase: "②内定確認", owner: "自分", dueToday: false, eventIso: "", pending: true, metaDue: "", memo: "" },
+{ id: "tour:5555.9", type: "tour", typeLabel: "面談", title: "🟧確定苑 確定様", datetimeLabel: mdOf(-2) + " 10時", elapsedDays: 3, deadlineLabel: "", slackUrl: "https://example.com/sB5", groupKey: "evB3", groupTitle: "確定苑 確定様", member: "", shareKind: "", overdue: false, phase: "③書類回収", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" }
+);
+st16.tasks.forEach((x) => { if (bulkPend.has(x.id)) x.pending = true; });
+st16.cases.push(
+{ eventId: "evB1", facility: "一括苑", person: "一括様", owner: "自分", meetingLabel: mdOf(2) + " 10時", meetingIso: daysFromNow(2).toISOString(), currentPhase: "①準備", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備・前日", status: "open", slackUrl: "https://example.com/sB1" },
+{ phase: "①準備", label: "①準備・当日", status: "open", slackUrl: "https://example.com/sB2" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
+]},
+{ eventId: "evB2", facility: "実在苑", person: "実在様", owner: "自分", meetingLabel: mdOf(1) + " 10時", meetingIso: daysFromNow(1).toISOString(), currentPhase: "②内定確認", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備", status: "done", slackUrl: "" },
+{ phase: "②内定確認", label: "②内定確認", status: "open", slackUrl: "https://example.com/sB3" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
+]},
+{ eventId: "evB4", facility: "保留苑", person: "保留様", owner: "自分", meetingLabel: mdOf(1) + " 10時", meetingIso: daysFromNow(1).toISOString(), currentPhase: "②内定確認", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備", status: "done", slackUrl: "" },
+{ phase: "②内定確認", label: "②内定確認", status: "open", slackUrl: "https://example.com/sB4" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
+]},
+{ eventId: "evB3", facility: "確定苑", person: "確定様", owner: "自分", meetingLabel: mdOf(-2) + " 10時", meetingIso: daysFromNow(-2).toISOString(), currentPhase: "③書類回収", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備", status: "done", slackUrl: "" },
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "open", slackUrl: "https://example.com/sB5" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
+]}
+);
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st16) });
+});
+await page16.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page16.click('[data-tab="tour"]');
+await page16.waitForTimeout(200);
+check("一括前: 面談タブに一括苑のグループが出る", await page16.locator('[data-group="evB1"]').count() === 1);
+check("グループヘッダーに「内定まで一括で進める」と「内定にする」が併置される（一括苑）", await page16.locator('#list .group-acts [data-bulk="evB1"]').count() === 1 && await page16.locator('#list .group-acts [data-offer="evB1"]').count() === 1);
+check("②タスクが実在する案件には一括ボタンだけ出る（実在苑）", await page16.locator('#list .group-acts [data-bulk="evB2"]').count() === 1 && await page16.locator('[data-offer="evB2"]').count() === 0);
+check("②タスクが反映待ちの案件には一括も内定にするも出ない（保留苑）", await page16.locator('[data-bulk="evB4"]').count() === 0 && await page16.locator('[data-offer="evB4"]').count() === 0);
+check("①タスクしか無い案件には一括ボタンが出ない（清和苑）", await page16.locator('[data-bulk="ev2"]').count() === 0);
+await page16.click('[data-group="evB1"]');
+await page16.waitForTimeout(200);
+check("案件詳細にも「内定まで一括で進める」が出る（一括苑）", await page16.locator('#case-evB1 [data-bulk="evB1"]').count() === 1);
+const before16 = posts.length;
+await page16.evaluate(() => { const b = document.querySelector('#list .group-acts [data-bulk="evB1"]'); if (b) { b.click(); b.click(); } });
+await page16.waitForTimeout(2200);
+const ids16 = posts.slice(before16).filter((p) => p.action === "complete").map((p) => p.id);
+check("一括で①タスクが段階順にPOSTされ、最後にofferがPOSTされる", JSON.stringify(ids16) === JSON.stringify(["tour:1111.1", "tour:2222.2", "tour:pending:evB1:offer"]), ids16.join(","));
+check("二重タップでも一括のPOSTは1回分だけ（offerは1回）", ids16.filter((x) => x === "tour:pending:evB1:offer").length === 1 && ids16.length === 3);
+check("一括完了で面談タブから一括苑が消える", await page16.locator('[data-group="evB1"]').count() === 0);
+await page16.click('[data-tab="onboarding"]');
+await page16.waitForTimeout(300);
+check("一括完了で入社待ちへ即移動（一括苑・入社日未登録の行）", await page16.locator("#dash").innerText().then((s) => s.includes("一括苑") && s.includes("入社日を入れてください")));
+check("一括苑の入社待ちで回収進捗が即表示（0/6）", await page16.locator("[data-start-collect='evB1']").innerText().then((s) => s.includes("回収 0/6")));
+await page16.click('[data-tab="tour"]');
+await page16.waitForTimeout(200);
+const before16b = posts.length;
+await page16.click('#list .group-acts [data-bulk="evB2"]');
+await page16.waitForTimeout(1200);
+const ids16b = posts.slice(before16b).filter((p) => p.action === "complete").map((p) => p.id);
+check("②タスクが実在する案件の一括は、そのタスクの完了だけがPOSTされる", JSON.stringify(ids16b) === JSON.stringify(["tour:3333.3"]), ids16b.join(","));
+check("②タスクが実在する案件ではofferはPOSTされない", !posts.some((p) => p.action === "complete" && p.id === "tour:pending:evB2:offer"));
+check("実在苑も一括完了で面談タブから消える", await page16.locator('[data-group="evB2"]').count() === 0);
+await page16.click('[data-tab="onboarding"]');
+await page16.waitForTimeout(300);
+check("実在苑も入社待ちへ即移動（入社日未登録の行）", await page16.locator("#dash").innerText().then((s) => s.includes("実在苑") && s.includes("入社日を入れてください")));
+await page16.click('#dash [data-gocase="evB3"]');
+await page16.waitForTimeout(300);
+check("内定確定済みの案件の詳細には一括も内定にするも出ない（確定苑）", await page16.locator('#case-evB3').count() === 1 && await page16.locator('#case-evB3 [data-bulk]').count() === 0 && await page16.locator('#case-evB3 [data-offer]').count() === 0);
+await page16.close();
+
+// 「内定まで一括で進める」の途中失敗: 失敗した時点で中断し、完了済みは残し、内定までは進めない
+const page17 = await ctx.newPage();
+const failPend = new Set();
+await page17.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+let resp17 = { ok: true };
+if (body.action === "complete" && body.id === "tour:5555.5") resp17 = { ok: false, error: "error" };
+else if (body.action === "complete") failPend.add(body.id);
+await new Promise((r) => setTimeout(r, 250));
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(resp17) });
+return;
+}
+const st17 = mockState();
+st17.startAdds = [];
+st17.tasks.push(
+{ id: "tour:4444.4", type: "tour", typeLabel: "面談", title: "🟦" + mdOf(2) + " 途中苑 途中様", datetimeLabel: mdOf(2) + " 10時", elapsedDays: 1, deadlineLabel: "", slackUrl: "https://example.com/sF1", groupKey: "evF1", groupTitle: "途中苑 途中様", member: "", shareKind: "", overdue: false, phase: "①準備", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" },
+{ id: "tour:5555.5", type: "tour", typeLabel: "面談", title: "🟦" + mdOf(2) + " 途中苑 途中様", datetimeLabel: mdOf(2) + " 10時", elapsedDays: 1, deadlineLabel: "", slackUrl: "https://example.com/sF2", groupKey: "evF1", groupTitle: "途中苑 途中様", member: "", shareKind: "", overdue: false, phase: "①準備", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" }
+);
+st17.tasks.forEach((x) => { if (failPend.has(x.id)) x.pending = true; });
+st17.cases.push(
+{ eventId: "evF1", facility: "途中苑", person: "途中様", owner: "自分", meetingLabel: mdOf(2) + " 10時", meetingIso: daysFromNow(2).toISOString(), currentPhase: "①準備", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備・前日", status: "open", slackUrl: "https://example.com/sF1" },
+{ phase: "①準備", label: "①準備・当日", status: "open", slackUrl: "https://example.com/sF2" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
+]}
+);
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st17) });
+});
+await page17.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page17.click('[data-tab="tour"]');
+await page17.waitForTimeout(200);
+check("途中失敗テスト前: 途中苑のグループと一括ボタンが出る", await page17.locator('[data-group="evF1"]').count() === 1 && await page17.locator('#list .group-acts [data-bulk="evF1"]').count() === 1);
+const before17 = posts.length;
+await page17.click('#list .group-acts [data-bulk="evF1"]');
+await page17.waitForTimeout(1800);
+const ids17 = posts.slice(before17).filter((p) => p.action === "complete").map((p) => p.id);
+check("途中失敗: 2件目のPOSTで止まり、offerはPOSTされない", JSON.stringify(ids17) === JSON.stringify(["tour:4444.4", "tour:5555.5"]), ids17.join(","));
+check("途中失敗: 中断の理由が表示される（完了済み1件の経過つき）", await page17.locator("#errBar").innerText().then((s) => s.includes("一括処理を中断しました") && s.includes("1件")));
+check("途中失敗: 失敗したタスクのカードは一覧に戻る", await page17.locator('[data-card-id="tour:5555.5"]').count() === 1);
+check("途中失敗: 完了済みのタスクのカードは消えたまま", await page17.locator('[data-card-id="tour:4444.4"]').count() === 0);
+await page17.click('[data-tab="onboarding"]');
+await page17.waitForTimeout(300);
+check("途中失敗: 内定までは進まず入社待ちに出ない（途中苑）", await page17.locator("#dash").innerText().then((s) => !s.includes("途中苑")));
+await page17.close();
+
 check("コンソールエラー0", errors.length === 0, errors.join(" | ").slice(0, 300));
 
 await page.screenshot({ path: path.resolve(__dirname, "shot-board-all.png")});
