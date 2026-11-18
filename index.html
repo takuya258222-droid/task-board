@@ -132,6 +132,8 @@ button.collect-toggle{ font-size:13px; font-weight:700; padding:9px 12px; min-he
 button.warn-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px solid #fecaca; background:var(--danger-bg); color:var(--danger); cursor:pointer;}
 button.offer-btn{ width:100%; font-size:16px; font-weight:700; padding:13px; min-height:54px; border:0; border-radius:10px; background:var(--ok); color:#fff; cursor:pointer;}
 button.mini-offer{ font-size:13px; font-weight:700; padding:11px 13px; min-height:44px; border-radius:8px; border:0; background:var(--ok); color:#fff; cursor:pointer;}
+button.bulk-btn{ width:100%; font-size:16px; font-weight:700; padding:13px; min-height:54px; border:0; border-radius:10px; background:#6d28d9; color:#fff; cursor:pointer; margin-bottom:8px;}
+button.bulk-btn:disabled{ opacity:.55; cursor:default;}
 .group-acts{ margin:6px 0 2px;}
 .offer-zone{ margin-top:12px;}
 .offer-note{ font-size:12.5px; color:var(--sub); margin-top:6px; line-height:1.5;}
@@ -311,6 +313,7 @@ button.cancel-opt-btn{ flex:0 0 auto; font-size:13.5px; font-weight:700; padding
 ・入社日を登録すると次の同期でカレンダーに&#x3010;入社&#x3011;予定が作られ、入社準備タスクが流れます。結果（入社済み/キャンセル）は当月末まで表示されます。<br>
 ・入社待ちの回収チェックリストでは、まだSlackに送られていない段階（書類回収・入力/申請・入職フォロー）も先にチェックできます。その段階が実際に送られた時点で、そのまま完了として消し込まれます（チェックを外せば取り消せます）。<br>
 ・面談待ちの案件は「内定にする」ボタンで、内定確認タスクの送信を待たずに内定として進められます（表示は即時、状態記録への反映は次の同期です）。反映待ちの間は入社待ちの行や案件詳細から取り消せます。<br>
+・「内定まで一括で進める」ボタンは、残っている準備・内定確認タスクを段階順にまとめて完了し、そのまま内定まで進めます。途中で失敗した場合は、完了した分だけが記録され、内定までは進みません。<br>
 ・このボードのURLは共有しないでください（あなた専用です）。
 </footer>
 <script>
@@ -1031,11 +1034,14 @@ async function cancelStagePending(ev, pid) {
 
 // 「内定にする」: 確認は挟まず即POSTし、押した瞬間に案件を内定確定済みとして扱って入社待ちへ即移動させる。
 // POST が ok:false（API v9 未デプロイ時の bad_pending_id 等）なら楽観反映を巻き戻して理由を表示する。
-async function decideOffer(eventId) {
+// 戻り値: 成功したら true、失敗・対象外なら false。「内定まで一括で進める」から呼ぶ場合は
+// opts.quietOk で成功メッセージを抑え、呼び出し側がまとめて表示する（失敗時の理由表示は従来どおり）。
+async function decideOffer(eventId, opts) {
+  opts = opts || {};
   const pid = offerPid(eventId);
-  if (sending[pid]) return;
+  if (sending[pid]) return false;
   const c = cases.find((x) => x.eventId === eventId);
-  if (!c || !canOffer(c)) return;
+  if (!c || !canOffer(c)) return false;
   sending[pid] = true;
   optDecided[eventId] = applyOfferDecided(c);
   optStageDone[pid] = { eventId: eventId, stageKey: "offer" };
@@ -1053,9 +1059,10 @@ async function decideOffer(eventId) {
     showErr(r.error === "bad_pending_id"
       ? "内定を記録できませんでした: この操作はまだ有効化されていません（APIの更新待ちです）。時間をおいてもう一度試してください。"
       : "内定を記録できませんでした。通信を確認して、もう一度試してください。");
-    return;
+    return false;
   }
-  showOk("「" + c.facility + " " + c.person + "」を内定にしました（反映待ち・" + nextSyncLabel() + "）。入社待ちへ移動しました。");
+  if (!opts.quietOk) showOk("「" + c.facility + " " + c.person + "」を内定にしました（反映待ち・" + nextSyncLabel() + "）。入社待ちへ移動しました。");
+  return true;
 }
 
 // 「内定にする」の取り消し: 楽観分はその場で巻き戻し、サーバ側の未適用行は cancelAction で取り消す
@@ -1082,6 +1089,96 @@ async function cancelOffer(eventId) {
     }
   }, "内定にする");
   if (done) showOk("「内定にする」を取り消しました。案件は面談待ちに戻っています。");
+}
+
+// ---- 「内定まで一括で進める」（準備①②の実在タスクをまとめて完了し、そのまま内定まで進める） ----
+// 段階タスクを1つずつ完了しなくても、ワンタップで内定まで進めたいというユーザー要望（2026-11-18）への対応。
+// 動作: その案件の①準備・②内定確認の段階タスクのうち未完了で実在する（open な）ものを段階順に
+// 全て complete POST する。②タスクが実在した場合はその完了が内定確定になる（offer は送らない）。
+// ②タスクが未送信の場合は、最後に offer の先行確定（decideOffer）で内定にする。
+// 途中の POST が失敗したらその時点で中断して理由を表示する。完了済みのタスクは正規の操作として
+// そのまま残し（巻き戻さない）、内定確定ステップまで成功していない場合は optDecided を適用しない
+// （optDecided は内定確定の POST が成功した後に初めて付ける）。
+const bulkRunning = {};   // eventId -> true（実行中の二重タップ防止。sending とは別にボタン単位で管理）
+
+// 一括で完了する対象: ①準備→②内定確認の順で、実在する未完了タスク（反映待ちのものは除く）
+function bulkTargets(c) {
+  const out = [];
+  for (const ph of ["①準備", "②内定確認"]) {
+    for (const t of tasks) {
+      if (t.type === "tour" && t.groupKey === c.eventId && t.phase === ph && !t.pending) out.push(t);
+    }
+  }
+  return out;
+}
+
+// ボタンの表示条件: 未確定（内定前）でフェーズが①準備または②内定確認の案件で、内定までの
+// 道筋があるものだけ。道筋 = ②未送信で offer の先行確定ができる（canOffer）、または実在する
+// ②タスクを完了できる。①タスクしか無い案件は内定まで届かないので出さない。
+// ③以降の段階は回収チェックリストの役割なので、このボタンでは進めない。
+function canBulk(c) {
+  if (!c || c.pending || caseDecided(c)) return false;
+  if (!c.currentPhase || (c.currentPhase.indexOf("①") !== 0 && c.currentPhase.indexOf("②") !== 0)) return false;
+  if (offerPending(c)) return false;
+  if (canOffer(c)) return true;
+  return bulkTargets(c).some((t) => t.phase === "②内定確認");
+}
+
+// 段階タスク1件の楽観完了（complete() と同じ表示処理。ただし optDecided には触らない）。
+// 成功したら true。失敗したらそのタスクだけ optFail で巻き戻して false を返す
+// （先に成功したタスクの optTasks は残るので、完了済みの表示は維持される）。
+async function bulkCompleteOne(t) {
+  if (sending[t.id]) return false;
+  sending[t.id] = true;
+  optTasks[t.id] = { kind: "complete", task: t, row: histRowFromTask(t, "✅で完了", "complete") };
+  tasks = tasks.filter((x) => x.id !== t.id);
+  history = history.concat(optTasks[t.id].row);
+  stableView(() => { removeTaskDom(t.id); refreshChrome(); refreshOpenPeople(); });
+  const r = await postRaw({ action: "complete", id: t.id });
+  delete sending[t.id];
+  if (!r.ok) { await optFail(optTasks, t.id, "記録できませんでした。通信を確認して、もう一度試してください。"); return false; }
+  return true;
+}
+
+async function bulkDecide(eventId) {
+  if (bulkRunning[eventId]) return;
+  const c = cases.find((x) => x.eventId === eventId);
+  if (!c || !canBulk(c)) return;
+  bulkRunning[eventId] = true;
+  document.querySelectorAll("[data-bulk=" + attrQ(eventId) + "]").forEach((b) => { b.disabled = true; b.textContent = "進めています…"; });
+  const targets = bulkTargets(c);
+  const offerTask = targets.find((t) => t.phase === "②内定確認");
+  let doneCount = 0;
+  let failed = false;
+  for (const t of targets) {
+    if (!(await bulkCompleteOne(t))) { failed = true; break; }
+    doneCount++;
+  }
+  if (failed) {
+    delete bulkRunning[eventId];
+    // optFail が読み戻しと理由表示を行う。完了済みがある場合は途中経過も上書きで伝える
+    if (doneCount > 0) showErr("一括処理を中断しました: " + doneCount + "件のタスクは完了として記録しましたが、内定までは進めていません。残りのタスクから個別に進めてください。");
+    return;
+  }
+  if (offerTask) {
+    // 実在の②タスクの完了が内定確定。ここで初めて optDecided を適用して入社待ちへ即移動させる
+    const cc = cases.find((x) => x.eventId === eventId) || c;
+    if (!caseDecided(cc)) optDecided[eventId] = applyCaseDecided(cc);
+    delete openCases[eventId];
+    delete bulkRunning[eventId];
+    stableView(() => { renderDash(); bindEvents($("dash")); render(); });
+    showOk("「" + cc.facility + " " + cc.person + "」を内定まで進めました（" + targets.length + "件のタスクを完了・反映待ち）。入社待ちへ移動しました。");
+    return;
+  }
+  // ②タスクが未送信の場合は offer の先行確定で内定にする（成功メッセージは下でまとめて出す）
+  const okOffer = await decideOffer(eventId, { quietOk: true });
+  delete bulkRunning[eventId];
+  if (!okOffer) {
+    if (doneCount > 0) showErr("一括処理を中断しました: " + doneCount + "件のタスクは完了として記録しましたが、内定の記録に失敗しました。時間をおいて「内定にする」から進めてください。");
+    return;
+  }
+  const cc2 = cases.find((x) => x.eventId === eventId) || c;
+  showOk("「" + cc2.facility + " " + cc2.person + "」を内定まで進めました（反映待ち・" + nextSyncLabel() + "）。入社待ちへ移動しました。");
 }
 
 async function setStartDate(eventId) {
@@ -1723,17 +1820,22 @@ function startBoxHtml(c) {
   return h;
 }
 
-// 案件詳細内の「内定にする」ゾーン: 未送信の間は大きなボタン、反映待ちの間はチップ＋取り消しを出す
+// 案件詳細内の「内定にする」ゾーン: 未送信の間は大きなボタン、反映待ちの間はチップ＋取り消しを出す。
+// 「内定まで一括で進める」が使える案件では、上位互換として一括ボタンを併置する（canBulk）。
 function offerZoneHtml(c) {
-  if (canOffer(c)) {
-    return '<div class="offer-zone"><button class="offer-btn" data-offer="' + esc(c.eventId) + '">✅ 内定にする</button>' +
-      '<div class="offer-note">内定確認タスクの送信を待たずに、内定として進めます。表示は即時、状態記録への反映は次の同期です。</div></div>';
-  }
   if (offerPending(c)) {
     return '<div class="actions"><span class="pend-chip">内定 反映待ち（' + esc(nextSyncLabel()) + "）</span>" +
       '<button class="cancel-opt-btn" data-cancel-offer="' + esc(c.eventId) + '">取り消す</button></div>';
   }
-  return "";
+  const canOff = canOffer(c), canBlk = canBulk(c);
+  if (!canOff && !canBlk) return "";
+  let h = '<div class="offer-zone">';
+  if (canBlk) h += '<button class="bulk-btn" data-bulk="' + esc(c.eventId) + '">⏩ 内定まで一括で進める</button>';
+  if (canOff) h += '<button class="offer-btn" data-offer="' + esc(c.eventId) + '">✅ 内定にする</button>';
+  h += '<div class="offer-note">' + (canBlk
+    ? "「内定まで一括で進める」は、残っている準備・内定確認タスクをまとめて完了して内定まで進めます。「内定にする」は、内定確認タスクの送信を待たずに内定として進めます。表示は即時、状態記録への反映は次の同期です。"
+    : "内定確認タスクの送信を待たずに、内定として進めます。表示は即時、状態記録への反映は次の同期です。") + "</div></div>";
+  return h;
 }
 
 function caseDetailHtml(c) {
@@ -1797,8 +1899,11 @@ function groupHtml(visible, groupTitleOf) {
       if (cItems.length) chipHtml = '<span class="collect-chip" data-collect-chip="' + esc(g.key) + '">回収 ' + collectProgress(cItems).done + "/" + cItems.length + "</span>";
     }
     h += '<button class="group-head" data-group="' + esc(g.key) + '"><span class="gt">' + esc(g.title) + "</span>" + chipHtml + '<span class="gn">' + g.items.length + '件</span><span class="chev">' + (openCases[g.key] ? "▲" : "▼") + "</span></button>";
-    if (cc && canOffer(cc)) {
-      h += '<div class="group-acts" data-offer-row="' + esc(g.key) + '"><button class="offer-btn" data-offer="' + esc(g.key) + '">✅ 内定にする</button></div>';
+    if (cc && (canOffer(cc) || canBulk(cc))) {
+      h += '<div class="group-acts" data-offer-row="' + esc(g.key) + '">' +
+        (canBulk(cc) ? '<button class="bulk-btn" data-bulk="' + esc(g.key) + '">⏩ 内定まで一括で進める</button>' : "") +
+        (canOffer(cc) ? '<button class="offer-btn" data-offer="' + esc(g.key) + '">✅ 内定にする</button>' : "") +
+        "</div>";
     }
     if (activeTab === "tour" && openCases[g.key]) {
       const c = cases.find((x) => x.eventId === g.key);
@@ -2302,6 +2407,7 @@ function bindEvents(root) {
   root.querySelectorAll("[data-lost]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-lost"), "lost")));
   root.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-close"), "close")));
   root.querySelectorAll("[data-offer]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); decideOffer(b.getAttribute("data-offer")); }));
+  root.querySelectorAll("[data-bulk]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); bulkDecide(b.getAttribute("data-bulk")); }));
   root.querySelectorAll("[data-cancel-offer]").forEach((b) => b.addEventListener("click", () => cancelOffer(b.getAttribute("data-cancel-offer"))));
   root.querySelectorAll("[data-start-save]").forEach((b) => b.addEventListener("click", () => setStartDate(b.getAttribute("data-start-save"))));
   root.querySelectorAll("[data-start-save-panel]").forEach((b) => b.addEventListener("click", () => setStartDatePanel(b.getAttribute("data-start-save-panel"))));
