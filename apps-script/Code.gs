@@ -1,10 +1,12 @@
 /**
 * タスクボード連携スクリプト
+* バージョン v8（2026-11-18）: complete に tour:pending: 特例（未送信ステージの先行完了）を追加
 * 公開ページ（GitHub Pages）から Googleシート「タスクボード」を読み書きするための受け口。
 * 合言葉なし＝オープンモード（URLを知っている人だけが使える、家事/西STリストと同じ方式。ボードはユーザー専用）。
 * - 状態取得: GET?action=state
 * - 書き込み: POST (Content-Type: text/plain, JSONボディ)
 * {action:"complete", id:"<taskId>"} // 完了チェック（冪等）
+* {action:"complete", id:"tour:pending:<eventId>:<stageKey>"} // 未送信ステージの先行完了（stageKey: docs/duo/sesio/contract/formrun/followup。まだタスクが存在しない段階のため、タスクシート照合なしで処理待ちへ記録する。実際の消込は同期が行う）
 * {action:"addTask", title:"...", datetime:"..."} // タスク追加（datetime任意）
 * {action:"caseClose", eventId:"...", kind:"lost"|"close"} // 面談案件の失注/終了（冪等）
 * {action:"reopen", id:"<完了履歴のid>"} // 完了の取り消し（戻す。冪等。完了履歴タブ G列=id / H列=reopenable の行だけ受け付ける）
@@ -368,6 +370,21 @@ const id = String(body.id || "");
 if (!id) return { ok: false, error: "missing_id"};
 if (findPendingAction_(id, "complete")) {
 return { ok: true, id: id, pending: true, already: true};
+}
+// 未送信ステージの先行完了（tour:pending:<eventId>:<stageKey>）: まだタスクが送信されて
+// いない段階への完了操作。タスクシートには行が無いので照合をスキップし、channel/ts は
+// 空のまま通常の complete と同じ形式で処理待ちへ積む（消込は同期が案件記録側で行う）。
+if (id.indexOf("tour:pending:") === 0) {
+const parts = id.slice("tour:pending:".length).split(":");
+const stageKeys = ["docs", "duo", "sesio", "contract", "formrun", "followup"];
+if (parts.length !== 2 || !parts[0] || stageKeys.indexOf(parts[1]) < 0) {
+return { ok: false, error: "bad_pending_id", id: id };
+}
+const ssP = SpreadsheetApp.openById(SPREADSHEET_ID);
+const actionIdP = "a" + new Date().getTime() + "-" + Math.floor(Math.random() * 100000);
+ssP.getSheetByName(SHEET_ACTIONS).appendRow(
+[actionIdP, id, "complete", new Date().toISOString(), "未適用", "", "", "", "", "", ""]);
+return { ok: true, id: id, pending: true };
 }
 const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
 const taskValues = ss.getSheetByName(SHEET_TASKS).getDataRange().getValues();
