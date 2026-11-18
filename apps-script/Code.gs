@@ -1,12 +1,13 @@
 /**
 * タスクボード連携スクリプト
 * バージョン v8（2026-11-18）: complete に tour:pending: 特例（未送信ステージの先行完了）を追加
+* バージョン v9（2026-11-18）: tour:pending: の stageKey に offer（内定確認の先行確定）を追加
 * 公開ページ（GitHub Pages）から Googleシート「タスクボード」を読み書きするための受け口。
 * 合言葉なし＝オープンモード（URLを知っている人だけが使える、家事/西STリストと同じ方式。ボードはユーザー専用）。
 * - 状態取得: GET?action=state
 * - 書き込み: POST (Content-Type: text/plain, JSONボディ)
 * {action:"complete", id:"<taskId>"} // 完了チェック（冪等）
-* {action:"complete", id:"tour:pending:<eventId>:<stageKey>"} // 未送信ステージの先行完了（stageKey: docs/duo/sesio/contract/formrun/followup。まだタスクが存在しない段階のため、タスクシート照合なしで処理待ちへ記録する。実際の消込は同期が行う）
+* {action:"complete", id:"tour:pending:<eventId>:<stageKey>"} // 未送信ステージの先行完了（stageKey: offer/docs/duo/sesio/contract/formrun/followup。まだタスクが存在しない段階のため、タスクシート照合なしで処理待ちへ記録する。実際の消込は同期が行う）
 * {action:"addTask", title:"...", datetime:"..."} // タスク追加（datetime任意）
 * {action:"caseClose", eventId:"...", kind:"lost"|"close"} // 面談案件の失注/終了（冪等）
 * {action:"reopen", id:"<完了履歴のid>"} // 完了の取り消し（戻す。冪等。完了履歴タブ G列=id / H列=reopenable の行だけ受け付ける）
@@ -376,7 +377,7 @@ return { ok: true, id: id, pending: true, already: true};
 // 空のまま通常の complete と同じ形式で処理待ちへ積む（消込は同期が案件記録側で行う）。
 if (id.indexOf("tour:pending:") === 0) {
 const parts = id.slice("tour:pending:".length).split(":");
-const stageKeys = ["docs", "duo", "sesio", "contract", "formrun", "followup"];
+const stageKeys = ["offer", "docs", "duo", "sesio", "contract", "formrun", "followup"];
 if (parts.length !== 2 || !parts[0] || stageKeys.indexOf(parts[1]) < 0) {
 return { ok: false, error: "bad_pending_id", id: id };
 }
