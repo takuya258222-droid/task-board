@@ -1426,6 +1426,16 @@ stages: [
 { phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "" },
 { phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
 { phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
+]},
+{ eventId: "evR", facility: "待機苑", person: "待機様", owner: "和田", meetingLabel: mdOf(0) + " 13時", meetingIso: daysFromNow(0).toISOString(), currentPhase: "②内定確認", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備・3日前", status: "done", slackUrl: "" },
+{ phase: "①準備", label: "①準備・前日", status: "done", slackUrl: "" },
+{ phase: "①準備", label: "①準備・当日", status: "done", slackUrl: "" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "" }
 ]}
 );
 await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st14) });
@@ -1460,6 +1470,18 @@ check("取り消しで cancelAction がPOSTされる（tour:pending:evO:offer）
 await page14.click('[data-tab="tour"]');
 await page14.waitForTimeout(300);
 check("取り消すと面談タブに内定苑が戻り、ボタンも戻る", await page14.locator('[data-group="evO"]').count() === 1 && await page14.locator('#list .group-acts [data-offer="evO"]').count() === 1);
+// フェーズ②＋②未送信（①が全て完了し、②タスクの送信を待っている状態）の案件にも「内定にする」が出る
+await page14.click('[data-tab="all"]');
+await page14.waitForTimeout(200);
+check("フェーズ②で②未送信の案件にも「内定にする」が出る（待機苑・面談実施待ち）", await page14.locator('#dash .meet-row [data-offer="evR"]').count() === 1);
+await page14.click('#dash .meet-row [data-offer="evR"]');
+await page14.waitForTimeout(700);
+check("待機苑の「内定にする」で complete がPOSTされる（tour:pending:evR:offer）", posts.some((p) => p.action === "complete" && p.id === "tour:pending:evR:offer"));
+await page14.click('[data-tab="onboarding"]');
+await page14.waitForTimeout(300);
+check("フェーズ②からでも押した瞬間に入社待ちへ移動（待機苑・入社日未登録の行）", await page14.locator("#dash").innerText().then((s) => s.includes("待機苑") && s.includes("入社日を入れてください")));
+check("待機苑の入社待ちで回収進捗が即表示（0/6: 先行チェック行が使える）", await page14.locator("[data-start-collect='evR']").innerText().then((s) => s.includes("回収 0/6")));
+check("待機苑の入社待ちの行に「内定 反映待ち」と取り消しが出る", await page14.locator("#dash").innerText().then((s) => s.includes("内定 反映待ち")) && await page14.locator('#dash [data-cancel-offer="evR"]').count() === 1);
 await page14.close();
 
 // 「内定にする」の失敗時: API が ok:false（v9未デプロイの bad_pending_id 等）を返したら巻き戻して理由を表示する
