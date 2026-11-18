@@ -83,6 +83,8 @@ button.add-start-btn{ width:100%; font-size:15px; font-weight:700; padding:12px;
 button.mini-warn{ font-size:13px; font-weight:700; padding:11px 13px; min-height:44px; border-radius:8px; border:1px solid #fecaca; background:#fff; color:var(--danger); cursor:pointer;}
 button.mini-ghost{ font-size:13px; font-weight:700; padding:11px 13px; min-height:44px; border-radius:8px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
 .start-row{ display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:7px;}
+.start-row.age3{ background:#fffbeb;}
+.start-row.age5{ background:#ffedd5; border-color:#fdba74;}
 .start-row.soon{ border-color:#fde68a; background:#fffdf5;}
 .start-row.past{ border-color:#fecaca; background:#fff8f8;}
 .start-row.today{ border-color:#fdba74; border-left:5px solid var(--today); background:var(--today-bg);}
@@ -98,7 +100,10 @@ button.res-btn.red{ border-color:#fecaca; background:#fff; color:var(--danger);}
 .days-badge.red{ background:var(--danger-bg); color:var(--danger); border-color:#fecaca;}
 .days-badge.amber{ background:var(--pend-bg); color:var(--pend); border-color:#fde68a;}
 .days-badge.today{ background:var(--today); color:#fff; border-color:var(--today); font-size:14px; padding:3px 10px;}
+.days-badge.ready{ background:var(--ok); color:#fff; border-color:var(--ok);}
 .group-head{ display:flex; align-items:center; gap:8px; width:100%; text-align:left; background:#eef2ff; border:1px solid #c7d2fe; border-radius:12px; padding:13px; margin:14px 0 8px; cursor:pointer; min-height:52px;}
+.group-head.age3{ background:#fffbeb; border-color:#fde68a;}
+.group-head.age5{ background:#ffedd5; border-color:#fdba74;}
 .group-head .gt{ font-size:15.5px; font-weight:700; flex:1; line-height:1.4;}
 .group-head .gn{ font-size:13px; color:var(--sub); font-weight:700;}
 .group-head .chev{ color:var(--sub); font-size:14px;}
@@ -113,6 +118,13 @@ button.res-btn.red{ border-color:#fecaca; background:#fff; color:var(--danger);}
 .stage-row .st{ flex:0 0 auto; font-size:12px; font-weight:700; border-radius:999px; padding:2px 8px;}
 .st.done{ background:#dcfce7; color:var(--ok);} .st.open{ background:#dbeafe; color:var(--accent);} .st.yet{ background:#eef0f3; color:var(--sub);}
 .stage-row .sl{ flex:1;}
+.stage-note{ display:block; font-size:12.5px; color:var(--sub); margin-top:2px;}
+button.prep-done-btn{ flex:0 0 auto; font-size:13.5px; font-weight:700; padding:10px 12px; min-height:44px; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer;}
+.steps-mini{ display:flex; gap:4px; align-items:center; flex-wrap:wrap; font-size:11.5px; margin:0 0 8px;}
+.steps-mini .sm{ padding:2px 9px; border-radius:999px; background:#eef0f3; color:var(--sub); font-weight:700;}
+.steps-mini .sm.done{ background:#dcfce7; color:var(--ok);}
+.steps-mini .sm.now{ background:#dbeafe; color:var(--accent); border:1px solid var(--accent);}
+.steps-mini .sm-arrow{ color:#b6bfcc; font-weight:700;}
 .collect-box{ margin-top:12px; border:1px solid #bbf7d0; background:#f7fef9; border-radius:10px; padding:11px 12px;}
 .collect-head{ font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px;}
 .collect-prog{ font-size:12.5px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:2px 9px;}
@@ -138,7 +150,10 @@ button.offer-btn{ width:100%; font-size:16px; font-weight:700; padding:13px; min
 button.mini-offer{ font-size:13px; font-weight:700; padding:11px 13px; min-height:44px; border-radius:8px; border:0; background:var(--ok); color:#fff; cursor:pointer;}
 button.bulk-btn{ width:100%; font-size:16px; font-weight:700; padding:13px; min-height:54px; border:0; border-radius:10px; background:#6d28d9; color:#fff; cursor:pointer; margin-bottom:8px;}
 button.bulk-btn:disabled{ opacity:.55; cursor:default;}
-.group-acts{ margin:6px 0 2px;}
+.group-acts{ display:flex; gap:8px; margin:6px 0 2px;}
+.group-acts button{ flex:1; min-height:44px; font-size:14.5px; font-weight:700; border-radius:9px; cursor:pointer; padding:10px;}
+button.mini-bulk{ border:1px solid #ddd6fe; background:#ede9fe; color:#6d28d9;}
+button.mini-bulk:disabled{ opacity:.55; cursor:default;}
 .offer-zone{ margin-top:12px;}
 .offer-note{ font-size:12.5px; color:var(--sub); margin-top:6px; line-height:1.5;}
 button.ghost-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
@@ -155,9 +170,12 @@ button.ghost-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-hei
 .start-btns button{ flex:1; min-width:96px;}
 button.sb-save{ font-size:15px; font-weight:700; padding:12px; min-height:52px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer;}
 .card{ background:var(--card); border:1px solid var(--line); border-left:5px solid var(--line); border-radius:12px; padding:13px 14px; margin-bottom:10px;}
-.card.overdue{ border-left-color:var(--danger); background:#fff8f8;}
+.card.overdue{ border-left-color:var(--danger); background:#fee2e2;}
 .card.dueToday{ border-left-color:var(--amber); background:#fffdf5;}
 .card.pending{ border-style:dashed; opacity:.82;}
+.card.age3{ background:#fffbeb;}
+.card.age5{ background:#ffedd5;}
+.card.age5:not(.ph1):not(.ph2):not(.ph3):not(.ph4):not(.ph5){ border-left-color:#ea580c;}
 .card.ph1{ border-left-color:#2563eb;} .card.ph2{ border-left-color:#d97706;} .card.ph3{ border-left-color:#ea580c;} .card.ph4{ border-left-color:#7c3aed;} .card.ph5{ border-left-color:#0e7a3d;}
 .card.overdue.ph1,.card.overdue.ph2,.card.overdue.ph3,.card.overdue.ph4,.card.overdue.ph5{ border-left-color:var(--danger);}
 .row1{ display:flex; align-items:flex-start; gap:8px;}
@@ -165,6 +183,7 @@ button.sb-save{ font-size:15px; font-weight:700; padding:12px; min-height:52px; 
 .chip{ flex:0 0 auto; font-size:12px; font-weight:700; color:#fff; border-radius:999px; padding:3px 10px; margin-top:2px;}
 .chip.mail{ background:#0369a1;} .chip.slack{ background:#611f69;} .chip.calendar{ background:#0e7a3d;}
 .chip.tour{ background:#7c3aed;} .chip.onboarding{ background:#0f766e;} .chip.member{ background:#b45309;}
+.chip.leak{ background:#ea580c;}
 .flags{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px;}
 .flag{ font-size:12px; font-weight:700; border-radius:999px; padding:3px 9px;}
 .flag.red{ background:var(--danger-bg); color:var(--danger); border:1px solid #fecaca;}
@@ -357,6 +376,8 @@ let optHistory = {}; // taskId -> { task: 未対応側に出す仮のタスク }
 let optCases = {};   // eventId -> { kind: "lost"|"close", case: 仮に消した案件 }
 let optDecided = {};   // eventId -> { flipped: [stageIdx...], prevPhase }（②内定確認の楽観完了で案件を内定確定済みに見せる記録。実データが追いついたら畳む）
 let optStageDone = {}; // "tour:pending:<eventId>:<stageKey>" -> { eventId, stageKey }（未送信ステージの先行完了。段階が実在化したら実項目へ引き継ぐ）
+let serverPendingIds = {}; // サーバから返る未適用アクションの対象ID（state.pendingActionIds）。先行チェック等の反映待ちを再読み込み後も復元するための「正」
+let optPrep = {};    // eventId -> true（①準備の開いているタスクをまとめて完了した記録。実データが追いつくまで①段階を完了として見せる。optDecided と同じ流儀）
 let optStarts = [];  // 入社待ち追加の楽観表示 { text, date, assignee, docsCollected }（サーバ側 startAdds か実案件に着地したら消す）
 let summaryPendingLocal = {}; // person -> true（送信予約の即時表示）
 let openPeople = {};   // person -> true（人カードのタスク展開状態）
@@ -486,6 +507,8 @@ async function fetchState() {
   const rawTasks = data.tasks || [], rawHistory = data.history || [], rawCases = data.cases || [];
   failures = {};
   (data.failures || []).forEach((f) => { failures[f.taskId] = f; });
+  serverPendingIds = {};
+  (data.pendingActionIds || []).forEach((id) => { serverPendingIds[id] = true; });
   hideErr();
   pruneOpts(rawTasks, rawHistory, rawCases);
   tasks = rawTasks.filter((t) => !optTasks[t.id] && !(t.groupKey && optCases[t.groupKey]))
@@ -518,11 +541,26 @@ async function fetchState() {
     if (!rc || !cc || caseDecided(rc)) { delete optDecided[ev]; continue; }
     optDecided[ev] = optDecided[ev].offer ? applyOfferDecided(cc) : applyCaseDecided(cc);
   }
-  // 未送信ステージの先行完了（optStageDone）: 段階が実在化（open/done）したら実項目側へ引き継ぐ
+  // 未送信ステージの先行完了（optStageDone）: 段階が実在化（open/done）したら実項目側へ引き継ぐ。
+  // 同期で「失敗」になった先行チェックは、サーバ側の未適用からも消えているので記録を畳んで失敗を surface する
+  // （offer は optDecided と一体で扱うため、ここでは畳まない）
+  const stageFailNotes = [];
   for (const pid of Object.keys(optStageDone)) {
     const rec = optStageDone[pid];
     const rc = rawCases.find((c) => c.eventId === rec.eventId);
-    if (!rc || !stageStillNotyet(rc, rec.stageKey)) delete optStageDone[pid];
+    if (!rc || !stageStillNotyet(rc, rec.stageKey)) { delete optStageDone[pid]; continue; }
+    if (rec.stageKey !== "offer" && failures[pid] && !serverPendingIds[pid]) {
+      delete optStageDone[pid];
+      stageFailNotes.push(failures[pid].note || "理由不明");
+    }
+  }
+  if (stageFailNotes.length) showErr("先行チェックの反映に失敗しました: " + stageFailNotes[0] + "（もう一度チェックできます）");
+  // ①準備の一括完了（optPrep）: 実データ側の①に open が残っている間だけ先行反映し、追いついたら畳む
+  for (const ev of Object.keys(optPrep)) {
+    const rc = rawCases.find((c) => c.eventId === ev);
+    const cc = cases.find((c) => c.eventId === ev);
+    if (!rc || !cc || stageStateOf(rc, "①準備") !== "open") { delete optPrep[ev]; continue; }
+    applyPrepDone(cc);
   }
   members = data.members || [];
   alerts = data.alerts || [];
@@ -969,6 +1007,14 @@ function syncCollectDom(ev) {
   if (chip && total) chip.textContent = "回収 " + done + "/" + total;
   const startChip = document.querySelector("[data-start-collect=" + attrQ(ev) + "]");
   if (startChip && total) startChip.textContent = done === total ? "全て回収済み" : "回収 " + done + "/" + total;
+  // 段階バーと入社待ち行の「準備完了」バッジも、再構築を待たずにその場で合わせる
+  const cc = cases.find((x) => x.eventId === ev);
+  if (cc) {
+    const stepsEl = document.querySelector("[data-steps-for=" + attrQ(ev) + "]");
+    if (stepsEl) stepsEl.replaceWith(htmlToNode(stepsHtml(cc)));
+    const slot = document.querySelector("[data-ready-slot=" + attrQ(ev) + "]");
+    if (slot) slot.innerHTML = caseReady(cc) ? readyBadgeHtml() : "";
+  }
 }
 
 // 入社タブの入社待ちパネルだけを作り直す（入社待ち行の回収チェックリストの帳尻合わせ用）
@@ -1116,6 +1162,7 @@ async function completeStagePending(ev, pid) {
     showErr("記録できませんでした。通信を確認して、もう一度試してください。");
     return;
   }
+  serverPendingIds[pid] = true; // 再取得後もサーバ側の未適用として同じ状態が返る前提で保持する
   showOk("先行チェックしました（この段階が送られた時点で、そのまま完了として消し込まれます）");
 }
 
@@ -1125,7 +1172,9 @@ async function cancelStagePending(ev, pid) {
   if (sending[key]) return;
   sending[key] = true;
   const saved = optStageDone[pid];
+  const wasServer = !!serverPendingIds[pid];
   delete optStageDone[pid];
+  if (wasServer) delete serverPendingIds[pid];
   document.querySelectorAll("input[data-collect-check=" + attrQ(pid) + "]").forEach((inp) => {
     inp.checked = false;
     const row = inp.closest(".collect-row");
@@ -1134,7 +1183,10 @@ async function cancelStagePending(ev, pid) {
   syncCollectDom(ev);
   const r = await postRaw({ action: "cancelAction", id: pid });
   delete sending[key];
-  const done = await cancelSettled(r, () => { if (saved) optStageDone[pid] = saved; }, "先行チェック");
+  const done = await cancelSettled(r, () => {
+    if (saved) optStageDone[pid] = saved;
+    if (wasServer) serverPendingIds[pid] = true;
+  }, "先行チェック");
   if (done) showOk("先行チェックを取り消しました");
 }
 
@@ -1168,6 +1220,7 @@ async function decideOffer(eventId, opts) {
     return false;
   }
   if (!opts.quietOk) showOk("「" + c.facility + " " + c.person + "」を内定にしました（反映待ち・" + nextSyncLabel() + "）。入社待ちへ移動しました。");
+  serverPendingIds[pid] = true;
   return true;
 }
 
@@ -1181,14 +1234,17 @@ async function cancelOffer(eventId) {
   sending[key] = true;
   const savedDecided = optDecided[eventId];
   const savedStage = optStageDone[pid];
+  const wasServer = !!serverPendingIds[pid];
   delete optDecided[eventId];
   delete optStageDone[pid];
+  if (wasServer) delete serverPendingIds[pid];
   if (savedDecided) rollbackOfferDecided(c, savedDecided);
   stableView(() => { renderDash(); bindEvents($("dash")); render(); });
   const r = await postRaw({ action: "cancelAction", id: pid });
   delete sending[key];
   const done = await cancelSettled(r, () => {
     if (savedStage) optStageDone[pid] = savedStage;
+    if (wasServer) serverPendingIds[pid] = true;
     if (savedDecided) {
       const cc = cases.find((x) => x.eventId === eventId);
       if (cc) optDecided[eventId] = applyOfferDecided(cc);
@@ -1598,6 +1654,9 @@ function flagsHtml(t) {
   let h = "";
   if (effOverdue(t)) h += '<span class="flag red">期限超過</span>';
   else if (effDueToday(t)) h += '<span class="flag amber">今日が期限</span>';
+  if (!effOverdue(t) && !t.pending && (t.elapsedDays || 0) >= 3) {
+    h += '<span class="flag ' + (t.elapsedDays >= 5 ? "red" : "amber") + '">未対応' + t.elapsedDays + "日</span>";
+  }
   if (t.optReopen) h += '<span class="flag opt">戻し 反映待ち</span>';
   if (failures[t.id]) h += '<span class="flag fail">反映失敗</span>';
   return h ? '<div class="flags">' + h + "</div>" : "";
@@ -1607,6 +1666,7 @@ function cardHtml(t) {
   const cls = ["card"];
   if (effOverdue(t)) cls.push("overdue");
   else if (effDueToday(t)) cls.push("dueToday");
+  else { const ac = ageCls(t.pending ? 0 : (t.elapsedDays || 0)); if (ac) cls.push(ac); }
   if (t.pending) cls.push("pending");
   const phIdx = PHASES.indexOf(t.phase);
   if (t.type === "tour" && phIdx >= 0) cls.push("ph" + (phIdx + 1));
@@ -1704,7 +1764,7 @@ function offerPid(ev) { return "tour:pending:" + ev + ":offer"; }
 function offerPending(c) {
   if (!c) return false;
   const pid = offerPid(c.eventId);
-  if (optStageDone[pid]) return true;
+  if (optStageDone[pid] || serverPendingIds[pid]) return true;
   return tasks.some((t) => t.id === pid && t.pending);
 }
 
@@ -1735,6 +1795,156 @@ function rollbackOfferDecided(c, rec) {
   if (!c || !rec) return;
   for (const f of rec.flipped) { if (c.stages[f.i]) c.stages[f.i].status = f.was; }
   c.currentPhase = rec.prevPhase;
+}
+
+// ---- 段階表示（準備 → 内定 → 回収 → 準備完了）と「準備完了」判定 ----
+// ユーザーの見せ方の指示（2026-11-18）: 案件は段階で進む見せ方にし、前の段階が完了すると
+// 次の段階の操作が出てくる。①準備の「3日前・前日・当日」はボード上では1つの「準備」として扱う。
+function caseReady(c) {
+  if (!c) return false;
+  if (c.status === "準備完了") return true; // 同期側が確定させた状態（全段階完了・入社日登録済み・結果未登録）
+  if (c.startResult) return false;
+  if (!caseDecided(c)) return false;
+  const items = collectItems(c);
+  if (!items.length) return false;
+  const p = collectProgress(items);
+  return p.done === p.total; // 楽観表示: 回収が全部チェックされたら再構築を待たず準備完了相当に見せる
+}
+
+function readyBadgeHtml() { return '<span class="days-badge ready">準備完了</span>'; }
+
+function caseSteps(c) {
+  const prepState = stageStateOf(c, "①準備");
+  const decided = caseDecided(c);
+  const items = decided ? collectItems(c) : [];
+  const prog = items.length ? collectProgress(items) : { done: 0, total: 0 };
+  const allCollected = decided && items.length > 0 && prog.done === prog.total;
+  const ready = caseReady(c);
+  return [
+    { key: "prep", label: "準備", state: prepState === "done" ? "done" : prepState === "open" ? "now" : "yet",
+      sub: prepState === "done" ? "完了" : prepState === "open" ? "対応中" : "未送信" },
+    { key: "offer", label: "内定", state: decided ? "done" : (prepState === "done" ? "now" : "yet"),
+      sub: decided ? "確定" : (prepState === "done" ? "次は内定" : "準備の後") },
+    { key: "collect", label: "回収", state: !decided ? "yet" : allCollected ? "done" : "now",
+      sub: !decided ? "内定の後" : items.length ? prog.done + "/" + prog.total : "—" },
+    { key: "ready", label: "準備完了", state: ready ? "done" : "yet", sub: ready ? "完了" : "回収の後" }
+  ];
+}
+
+function stepsHtml(c) {
+  let h = '<div class="progress" data-steps-for="' + esc(c.eventId) + '">';
+  for (const s of caseSteps(c)) {
+    h += '<div class="seg ' + (s.state === "done" ? "done" : s.state === "now" ? "now" : "") + '">' + esc(s.label) + "<br>" + esc(s.sub) + "</div>";
+  }
+  return h + "</div>";
+}
+
+function stepsMiniHtml(c) {
+  return '<div class="steps-mini">' + caseSteps(c).map((s, i) =>
+    (i ? '<span class="sm-arrow">›</span>' : "") +
+    '<span class="sm ' + (s.state === "done" ? "done" : s.state === "now" ? "now" : "") + '">' + esc(s.label) + "</span>").join("") + "</div>";
+}
+
+// ---- 未対応の日数による色付け（期限ベースの色と矛盾しないよう、期限系が優先） ----
+// 3日以上: 薄い amber（age3）／5日以上: 薄い orange＋左帯（age5。人ビューの「停滞5日以上」と同じ閾値）
+function ageCls(days) { return days >= 5 ? "age5" : days >= 3 ? "age3" : ""; }
+
+function caseAgeDays(c) {
+  let m = 0;
+  for (const t of tasks) if (t.groupKey === c.eventId && !t.pending) m = Math.max(m, t.elapsedDays || 0);
+  return m;
+}
+
+// ---- 回収漏れ（内定済みなのに回収が残っている案件）: 人ビューの未完了に浮かせる ----
+// 対象は③④⑤の未完了項目（未送信＝送信待ちの段階も含む）。その段階の実タスクが通常タスクとしても
+// 出る場合は、回収漏れ側を優先して二重に出さない（personStats で taskIds を差し引く）。
+function caseLeaks(c) {
+  if (!c || !caseDecided(c)) return null;
+  if (c.startResult === "started" || c.startResult === "cancelled") return null;
+  const items = collectItems(c);
+  const remain = items.filter((it) => it.state === "open" || it.state === "notyet" || it.state === "nolink");
+  if (!remain.length) return null;
+  const taskIds = remain.filter((it) => it.taskId && it.taskId.indexOf("tour:pending:") !== 0).map((it) => it.taskId);
+  return { case: c, items: remain, taskIds: taskIds };
+}
+
+function personLeaks(person) {
+  return cases.filter((c) => (c.owner || "自分") === person).map(caseLeaks).filter(Boolean);
+}
+
+function leakCardHtml(lk) {
+  const c = lk.case;
+  const d = c.daysToStart;
+  const dTxt = c.startDate
+    ? "入社日: " + fmtMD(c.startDate) + (d === null || d === undefined ? "" : d < 0 ? "（" + Math.abs(d) + "日経過）" : d === 0 ? "（本日入社）" : "（あと" + d + "日）")
+    : "入社日: 未登録";
+  let h = '<div class="card leak" data-leak-case="' + esc(c.eventId) + '"><div class="row1"><span class="chip leak">回収漏れ</span>' +
+    '<span class="title">' + esc(c.facility) + " " + esc(c.person) + "</span></div>";
+  h += '<div class="line">残り: ' + esc(lk.items.map((it) => it.name).join("、")) + "</div>";
+  h += '<div class="line">' + esc(dTxt) + " ｜ 担当: " + esc(c.owner || "自分") + "</div>";
+  h += '<div class="actions"><button class="edit-btn" data-gocase="' + esc(c.eventId) + '">案件を開く</button></div></div>';
+  return h;
+}
+
+// ---- ①準備の集約（段階行＋まとめて完了） ----
+function applyPrepDone(c) {
+  c.stages.forEach((s) => { if (s.phase === "①準備" && s.status === "open") s.status = "done"; });
+}
+
+// 案件詳細の①準備の段階行: 3日前・前日・当日をバラバラに出さず1行に集約する。
+// 開いている①タスクがあれば「準備をまとめて完了」で1回の操作で全て完了できる。
+// 未送信の①段階がある場合はその旨を1行で示す（例: 当日分は未送信です）。
+function prepStageRowHtml(c) {
+  const sts = c.stages.filter((s) => s.phase === "①準備");
+  if (!sts.length) return "";
+  const anyOpen = sts.some((s) => s.status === "open");
+  const allDone = sts.every((s) => s.status === "done");
+  const allYet = sts.every((s) => s.status === "notyet");
+  const cls = allDone ? "done" : anyOpen ? "open" : "yet";
+  const txt = allDone ? "完了" : anyOpen ? "対応中" : allYet ? "未送信" : "一部完了";
+  const label = sts.length === 1 ? sts[0].label : "①準備（3日前・前日・当日）";
+  let h = '<div class="stage-row" data-prep-row="' + esc(c.eventId) + '"><span class="st ' + cls + '">' + txt + '</span><span class="sl">' + esc(label);
+  const yetNames = sts.filter((s) => s.status === "notyet")
+    .map((s) => (s.label || "").replace(/^①準備[・（]?/, "").replace(/）$/, "")).filter(Boolean);
+  if (yetNames.length && !allYet) h += '<span class="stage-note">' + esc(yetNames.join("・")) + "分は未送信です</span>";
+  h += "</span>";
+  // 段階行→メモ・期日: ①が1段階だけの場合は従来どおり一意に対応付く場合のみ付ける
+  if (sts.length === 1 && sts[0].status === "open") {
+    const phaseTasks = tasks.filter((t) => t.groupKey === c.eventId && t.phase === "①準備");
+    if (phaseTasks.length === 1 && !phaseTasks[0].pending) {
+      h += '<button class="stage-edit" data-stage-edit="' + esc(phaseTasks[0].id) + '">メモ・期日</button>';
+    }
+  }
+  const openTasks = tasks.filter((t) => t.groupKey === c.eventId && t.phase === "①準備" && !t.pending);
+  if (openTasks.length) {
+    h += '<button class="prep-done-btn" data-prep-done="' + esc(c.eventId) + '">準備をまとめて完了（' + openTasks.length + "件）</button>";
+  }
+  const withUrl = sts.find((s) => s.slackUrl);
+  if (withUrl) h += '<a class="slack-link" href="' + esc(withUrl.slackUrl) + '" target="_blank" rel="noopener">Slack</a>';
+  h += "</div>";
+  return h;
+}
+
+// 「準備をまとめて完了」: 開いている①タスクへ通常の complete を順に送る。
+// 全部成功したら optPrep に記録し、実データが追いつくまで①段階を完了として見せる
+// （fetchState が再適用する。途中で失敗したらそのタスクの表示は optFail が戻し、記録は付けない）。
+async function prepDone(eventId) {
+  const key = "prepdone:" + eventId;
+  if (sending[key]) return;
+  const targets = tasks.filter((t) => t.groupKey === eventId && t.phase === "①準備" && !t.pending);
+  if (!targets.length) return;
+  sending[key] = true;
+  let allOk = true;
+  for (const t of targets) {
+    await complete(t.id);
+    if (!optTasks[t.id]) { allOk = false; break; }
+  }
+  delete sending[key];
+  if (!allOk) return;
+  optPrep[eventId] = true;
+  const cc = cases.find((x) => x.eventId === eventId);
+  if (cc) { applyPrepDone(cc); refreshCaseDetail(eventId); }
+  showOk("準備をまとめて完了しました（反映待ち・" + nextSyncLabel() + "）");
 }
 
 // ---- 内定後の回収チェックリスト ----
@@ -1775,7 +1985,7 @@ function stageKeyOf4(name) {
 }
 
 function isStagePending(pid) {
-  if (optStageDone[pid]) return true;
+  if (optStageDone[pid] || serverPendingIds[pid]) return true;
   return tasks.some((t) => t.id === pid && t.pending);
 }
 
@@ -1959,15 +2169,18 @@ function offerZoneHtml(c) {
 function caseDetailHtml(c) {
   let h = '<div class="case-detail" id="case-' + esc(c.eventId) + '">';
   h += '<div class="line" style="margin-top:0;">面談: <b>' + esc(c.meetingLabel) + "</b> ｜ 担当: " + esc(c.owner || "自分") + " ｜ 現在: " + esc(c.currentPhase) + "</div>";
-  h += '<div class="progress">';
-  for (const ph of PHASES) {
-    const st = stageStateOf(c, ph);
-    h += '<div class="seg ' + (st === "done" ? "done" : st === "open" ? "now" : "") + '">' + esc(ph) + "<br>" + (st === "done" ? "完了" : st === "open" ? "対応中" : "未送信") + "</div>";
-  }
-  h += "</div>";
+  h += stepsHtml(c);
   // 段階行→メモ・期日編集の導線: そのフェーズの段階行数とタスク数が一致して一意に対応付く場合のみ、順序で対応付けてボタンを付ける
+  // ①準備の段階行は1行に集約する（prepStageRowHtml）
   const phaseSeen = {};
+  let prepEmitted = false;
   for (const s of c.stages) {
+    if (s.phase === "①準備") {
+      if (prepEmitted) continue;
+      prepEmitted = true;
+      h += prepStageRowHtml(c);
+      continue;
+    }
     const idx = phaseSeen[s.phase] || 0;
     phaseSeen[s.phase] = idx + 1;
     let editBtn = "";
@@ -2058,17 +2271,19 @@ function tourCaseGroupHtml(c, tourTasks) {
   if (cItems.length) chipHtml = '<span class="collect-chip" data-collect-chip="' + esc(c.eventId) + '">回収 ' + collectProgress(cItems).done + "/" + cItems.length + "</span>";
   const phIdx = PHASES.indexOf(c.currentPhase);
   const badge = '<span class="ph-badge' + (phIdx >= 0 ? " ph" + (phIdx + 1) : "") + '">' + esc(c.currentPhase) + "</span>";
-  let h = '<button class="group-head" data-group="' + esc(c.eventId) + '" data-case-group="1"><span class="gt">' +
+  const age = ageCls(caseAgeDays(c));
+  let h = '<button class="group-head' + (age ? " " + age : "") + '" data-group="' + esc(c.eventId) + '" data-case-group="1"><span class="gt">' +
     esc(c.facility) + " " + esc(c.person) + "</span>" + chipHtml + badge +
     '<span class="gn">' + esc(c.meetingLabel || "") + "</span>" +
     (items.length ? '<span class="gn gcnt">' + items.length + "件</span>" : "") +
     '<span class="chev">' + (openCases[c.eventId] ? "▲" : "▼") + "</span></button>";
   if (canOffer(c) || canBulk(c)) {
     h += '<div class="group-acts" data-offer-row="' + esc(c.eventId) + '">' +
-      (canBulk(c) ? '<button class="bulk-btn" data-bulk="' + esc(c.eventId) + '">⏩ 内定まで一括で進める</button>' : "") +
-      (canOffer(c) ? '<button class="offer-btn" data-offer="' + esc(c.eventId) + '">✅ 内定にする</button>' : "") +
+      (canBulk(c) ? '<button class="mini-bulk" data-bulk="' + esc(c.eventId) + '">⏩ 一括で進める</button>' : "") +
+      (canOffer(c) ? '<button class="mini-offer" data-offer="' + esc(c.eventId) + '">✅ 内定にする</button>' : "") +
       "</div>";
   }
+  h += stepsMiniHtml(c);
   if (openCases[c.eventId]) h += caseDetailHtml(c);
   h += items.map(cardHtml).join("");
   h += caseIdleHtml(c, items.length > 0);
@@ -2098,11 +2313,12 @@ function groupHtml(visible, groupTitleOf) {
       const cItems = collectItems(cc);
       if (cItems.length) chipHtml = '<span class="collect-chip" data-collect-chip="' + esc(g.key) + '">回収 ' + collectProgress(cItems).done + "/" + cItems.length + "</span>";
     }
-    h += '<button class="group-head" data-group="' + esc(g.key) + '"><span class="gt">' + esc(g.title) + "</span>" + chipHtml + '<span class="gn">' + g.items.length + '件</span><span class="chev">' + (openCases[g.key] ? "▲" : "▼") + "</span></button>";
+    const gAge = cc ? ageCls(caseAgeDays(cc)) : "";
+    h += '<button class="group-head' + (gAge ? " " + gAge : "") + '" data-group="' + esc(g.key) + '"><span class="gt">' + esc(g.title) + "</span>" + chipHtml + '<span class="gn">' + g.items.length + '件</span><span class="chev">' + (openCases[g.key] ? "▲" : "▼") + "</span></button>";
     if (cc && (canOffer(cc) || canBulk(cc))) {
       h += '<div class="group-acts" data-offer-row="' + esc(g.key) + '">' +
-        (canBulk(cc) ? '<button class="bulk-btn" data-bulk="' + esc(g.key) + '">⏩ 内定まで一括で進める</button>' : "") +
-        (canOffer(cc) ? '<button class="offer-btn" data-offer="' + esc(g.key) + '">✅ 内定にする</button>' : "") +
+        (canBulk(cc) ? '<button class="mini-bulk" data-bulk="' + esc(g.key) + '">⏩ 一括で進める</button>' : "") +
+        (canOffer(cc) ? '<button class="mini-offer" data-offer="' + esc(g.key) + '">✅ 内定にする</button>' : "") +
         "</div>";
     }
     if (activeTab === "tour" && openCases[g.key]) {
@@ -2197,10 +2413,15 @@ async function copySummary(person) {
 }
 
 function personStats(person) {
-  const list = personOpenTasks(person);
+  // 回収漏れ（内定済みなのに回収が残っている案件）は未完了として数える。その段階の実タスクが
+  // 通常タスクとしても出る場合は、回収漏れ側を優先してリストから差し引き、二重に出さない
+  const leaks = personLeaks(person);
+  const leakIds = {};
+  leaks.forEach((l) => l.taskIds.forEach((id) => { leakIds[id] = true; }));
+  const list = personOpenTasks(person).filter((t) => !leakIds[t.id]);
   const over = list.filter((t) => effOverdue(t)).length;
   const oldest = list.reduce((m, t) => Math.max(m, t.elapsedDays || 0), 0);
-  const bd = { mail: 0, slack: 0, calendar: 0, tour: 0, onboarding: 0, req: 0, mention: 0, assign: 0, share: 0 };
+  const bd = { mail: 0, slack: 0, calendar: 0, tour: 0, onboarding: 0, req: 0, mention: 0, assign: 0, share: 0, leak: leaks.length };
   for (const t of list) {
     if (t.type === "tour") bd.tour++;
     else if (t.type === "mail") bd.mail++;
@@ -2213,11 +2434,12 @@ function personStats(person) {
     else bd.share++;
   }
   const stuck = list.filter((t) => (t.elapsedDays || 0) >= 5).length;
-  return { list: list, over: over, oldest: oldest, bd: bd, stuck: stuck };
+  return { list: list, leaks: leaks, total: list.length + leaks.length, over: over, oldest: oldest, bd: bd, stuck: stuck };
 }
 
 function personStatsHtml(s) {
-  return '<span class="stat-chip">未対応 <b>' + s.list.length + "</b>件</span>" +
+  const total = s.total !== undefined ? s.total : s.list.length;
+  return '<span class="stat-chip">未対応 <b>' + total + "</b>件</span>" +
     (s.over ? '<span class="stat-chip red">期限超過 <b>' + s.over + "</b>件</span>" : '<span class="stat-chip">期限超過 0件</span>') +
     '<span class="stat-chip' + (s.oldest >= 5 ? " amber" : "") + '">最古 <b>' + s.oldest + "</b>日</span>";
 }
@@ -2225,19 +2447,20 @@ function personStatsHtml(s) {
 function personBdHtml(s) {
   const parts = [];
   const add = (n, label) => { if (n) parts.push(label + " " + n + "件"); };
-  add(s.bd.tour, "面談"); add(s.bd.mail, "メール"); add(s.bd.slack, "Slack"); add(s.bd.calendar, "カレンダー"); add(s.bd.onboarding, "入社");
+  add(s.bd.tour, "面談"); add(s.bd.leak, "回収漏れ"); add(s.bd.mail, "メール"); add(s.bd.slack, "Slack"); add(s.bd.calendar, "カレンダー"); add(s.bd.onboarding, "入社");
   add(s.bd.req, "依頼"); add(s.bd.mention, "メンション"); add(s.bd.assign, "割当"); add(s.bd.share, "共有");
   return "内訳: " + parts.join(" ｜ ");
 }
 
 function personPactsHtml(p, s) {
   const pend = (summaryPending || []).indexOf(p) >= 0 || summaryPendingLocal[p];
+  const total = s.total !== undefined ? s.total : s.list.length;
   let h = "";
-  if (s.list.length) h += '<button class="copy-btn" data-ptoggle="' + esc(p) + '">' + (openPeople[p] ? "タスクを閉じる" : "タスクを見る") + "</button>";
+  if (total) h += '<button class="copy-btn" data-ptoggle="' + esc(p) + '">' + (openPeople[p] ? "タスクを閉じる" : "タスクを見る") + "</button>";
   if (s.list.length) h += '<button class="copy-btn" data-copy="' + esc(p) + '">まとめをコピー</button>';
   if (pend) h += '<button class="send-btn" disabled>送信待ち（' + esc(nextSyncLabel()) + "）</button>";
   else if (s.list.length) h += '<button class="send-btn" data-send="' + esc(p) + '">Slackで送る</button>';
-  if (!s.list.length) h += '<span style="font-size:13.5px; color:var(--sub); font-weight:700;">未対応なし</span>';
+  if (!total) h += '<span style="font-size:13.5px; color:var(--sub); font-weight:700;">未対応なし</span>';
   return h;
 }
 
@@ -2263,8 +2486,8 @@ function renderPeople() {
     h += '<div class="stats">' + personStatsHtml(s) + "</div>";
     h += '<div class="bd">' + personBdHtml(s) + "</div>";
     h += '<div class="pacts">' + personPactsHtml(p, s) + "</div>";
-    if (openPeople[p] && s.list.length) {
-      h += '<div class="person-tasks">' + s.list.map(cardHtml).join("") + "</div>";
+    if (openPeople[p] && (s.list.length || (s.leaks && s.leaks.length))) {
+      h += '<div class="person-tasks">' + s.list.map(cardHtml).join("") + (s.leaks || []).map(leakCardHtml).join("") + "</div>";
     }
     if (sentAt) h += '<div class="sent-line">最終送信: ' + esc(fmtIsoMdHm(sentAt)) + "</div>";
     h += "</div>";
@@ -2378,10 +2601,11 @@ function startRowHtml(c) {
   const badge = (d === null || d === undefined) ? "" :
     '<span class="days-badge' + (d < 0 ? " red" : d === 0 ? " today" : d <= 3 ? " amber" : "") + '">' +
     (d < 0 ? Math.abs(d) + "日経過" : d === 0 ? "本日入社" : "あと" + d + "日") + "</span>";
-  const cls = d !== null && d !== undefined && d === 0 ? " today" : (d !== null && d !== undefined && d < 0 ? " past" : (d !== null && d !== undefined && d <= 3 ? " soon" : ""));
+  let cls = d !== null && d !== undefined && d === 0 ? " today" : (d !== null && d !== undefined && d < 0 ? " past" : (d !== null && d !== undefined && d <= 3 ? " soon" : ""));
+  if (!cls) { const ac = ageCls(caseAgeDays(c)); if (ac) cls = " " + ac; }
   let h = '<div class="start-row' + cls + '"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + "</div>" +
           '<div style="font-size:13px; color:var(--sub); margin-top:2px;">入社日: ' + esc(fmtMD(c.startDate)) + " ｜ 担当: " + esc(c.owner || "自分") + "</div>" +
-          '<div style="margin-top:4px;">' + badge + "</div>";
+          '<div style="margin-top:4px;">' + badge + ' <span data-ready-slot="' + esc(c.eventId) + '">' + (caseReady(c) ? readyBadgeHtml() : "") + "</span></div>";
   if (startDateSaved[c.eventId] && startDateSaved[c.eventId].date === c.startDate) {
     h += '<div style="margin-top:4px;"><span class="hist-pend" style="margin-top:0;">反映待ち（' + esc(nextSyncLabel()) + "）</span></div>";
   }
@@ -2606,6 +2830,7 @@ function bindEvents(root) {
   root.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-close"), "close")));
   root.querySelectorAll("[data-offer]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); decideOffer(b.getAttribute("data-offer")); }));
   root.querySelectorAll("[data-bulk]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); bulkDecide(b.getAttribute("data-bulk")); }));
+  root.querySelectorAll("[data-prep-done]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); prepDone(b.getAttribute("data-prep-done")); }));
   root.querySelectorAll("[data-cancel-offer]").forEach((b) => b.addEventListener("click", () => cancelOffer(b.getAttribute("data-cancel-offer"))));
   root.querySelectorAll("[data-start-save]").forEach((b) => b.addEventListener("click", () => setStartDate(b.getAttribute("data-start-save"))));
   root.querySelectorAll("[data-start-save-panel]").forEach((b) => b.addEventListener("click", () => setStartDatePanel(b.getAttribute("data-start-save-panel"))));
