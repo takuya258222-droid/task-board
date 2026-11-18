@@ -2625,66 +2625,80 @@ function personOpenTasks(person) {
   return sortSummaryTasks(list);
 }
 
-// まとめのコピー用テキスト（2026-11-18: 同期がDM送信する「まとめ送信」と同内容・同形式に格上げ。
+// まとめのコピー用テキスト（同期がDM送信する「まとめ送信」と同内容・同形式。
 // ユーザーがそのままSlack/LINE等へ貼って即送信できるようにするため）。
-// 整形ルールは送信版に合わせる: 1行目「【タスクボード】未対応まとめ ｜ **<呼び名>さん** ｜ 全○件」
-// （自分は「**自分の分**」）、2行目「<M/D H時>時点」、種別ごとの■見出しブロック（空は出さない）、
-// 期限超過は行頭「⚠️期限超過 」、ボード設定の期日がある項目はその期日を締切として表示（📌行は出さない）、
-// メモ・投稿リンクは子行、末尾は✅依頼の1行。クライアント側の state から生成できる範囲で送信版に寄せる
-// （面談のフェーズバッジは phase まで。送信版の「・前日」等の細分は状態ファイル側の情報のため含めない）。
-// 回収漏れ（personStats の leaks）は種別ブロックの最後に「■ 回収漏れ（内定済み・未回収）」として寄せ、
-// 1行目の総件数にも含める（人カードの未対応件数と一致させる）。回収漏れ案件に属する通常タスクは
-// personStats 側で差し引かれているため、通常ブロックには出ない（二重計上回避）。
+// 書式（2026-11-18 改修: Slackに貼ると ** が太字にならず生表示になり、回収漏れの
+// 1行が長くて折り返して見にくい、という実地報告への対応）:
+// ・文面全体で ** は使わない。1行目「【タスクボード】未対応まとめ ｜ <呼び名>さん ｜ 全○件」
+// （自分は「自分の分」）、2行目「<M/D H時>時点」、種別ごとの■見出しブロック（空は出さない）。
+// ・各項目は「・タイトル」の行＋全角スペース1つで字下げしたサブ行に分ける:
+//   メール/Slack/カレンダー/入社: サブ行=「　締切: <ボード期日があればそのM/D、無ければ deadlineLabel>」
+//   面談: 1行目=「・<施設> <相手>様」、サブ行=「　【<フェーズ>】<日時>」＋項目名＋ボード期日の締切
+//   共有（依頼/メンション/割当）: サブ行=「　<種別> ｜ 締切: <表示>」（締切が無ければ「 ｜ <日時>」）
+//   期限超過はタイトル行の「・」の直後に「⚠️期限超過 」を付ける。メモ・投稿リンクも字下げサブ行。
+// ・回収漏れ（personStats の leaks）は種別ブロックの最後に「■ 回収漏れ（内定済み・未回収）」として寄せ、
+//   案件ごとに「・<相手>様（<施設>）／　残り: <項目を「・」で連結>／　入社日: <M/D>（ある場合のみ）」の
+//   行構成にし、案件同士の間には空行を入れる。1行目の総件数にも含める（人カードの未対応件数と一致）。
+//   回収漏れ案件に属する通常タスクは personStats 側で差し引かれているため、通常ブロックには
+//   出ない（二重計上回避）。末尾は✅依頼の1行（前に空行）。
+// 収集・除外ルール（アプリで完了した項目は数えない等）は従来どおりで、ここは書式だけを担う。
 function buildSummaryText(person, list, leaks) {
   const now = new Date();
   const total = list.length + (leaks ? leaks.length : 0);
   const head = [
-    "【タスクボード】未対応まとめ ｜ **" + (person === "自分" ? "自分の分" : person + "さん") + "** ｜ 全" + total + "件",
+    "【タスクボード】未対応まとめ ｜ " + (person === "自分" ? "自分の分" : person + "さん") + " ｜ 全" + total + "件",
     (now.getMonth() + 1) + "/" + now.getDate() + " " + now.getHours() + "時時点"
   ];
   const cats = person === "自分"
     ? [["■ メール", (t) => t.type === "mail"], ["■ Slack", (t) => t.type === "slack"], ["■ カレンダー", (t) => t.type === "calendar"], ["■ 面談", (t) => t.type === "tour"], ["■ 入社", (t) => t.type === "onboarding"]]
     : [["■ 面談", (t) => t.type === "tour"], ["■ 依頼", (t) => t.type === "member" && t.shareKind === "依頼共有"], ["■ メンション共有", (t) => t.type === "member" && t.shareKind === "メンション共有"], ["■ 割当タスク", (t) => t.type === "member" && t.shareKind === "割当タスク"]];
+  const dueOf = (t) => t.metaDue ? fmtMD(t.metaDue) : (t.deadlineLabel || "");
   const blocks = [];
   for (const pair of cats) {
     const items = list.filter(pair[1]);
     if (!items.length) continue;
     const lines = [pair[0]];
     for (const t of items) {
-      let line;
+      const od = effOverdue(t) ? "⚠️期限超過 " : "";
       if (t.type === "tour") {
-        line = "・**" + (t.groupTitle || t.title) + "** ｜ 【" + (t.phase || "面談") + "】" + (t.datetimeLabel || "");
-        if (t.metaDue) line += " ｜ 締切: " + fmtMD(t.metaDue);
-        // 段階ラベルに「／<項目名>」があるタスク（④の各項目など）は、行末に項目名を付けて
+        lines.push("・" + od + (t.groupTitle || t.title));
+        let sub = "　【" + (t.phase || "面談") + "】" + (t.datetimeLabel || "");
+        // 段階ラベルに「／<項目名>」があるタスク（④の各項目など）は項目名を付けて
         // 同じ案件の行同士を判別できるようにする（タイトル内の【段階ラベル】から取る）
         const itm = String(t.title || "").match(/【([^】]*)】/);
         const itmName = itm && itm[1].indexOf("／") >= 0 ? itm[1].split("／").pop().trim() : "";
-        if (itmName) line += " ｜ " + itmName;
+        if (itmName) sub += " ｜ " + itmName;
+        if (t.metaDue) sub += " ｜ 締切: " + fmtMD(t.metaDue);
+        lines.push(sub);
+      } else if (t.type === "member") {
+        lines.push("・" + od + t.title);
+        const parts = [];
+        const kind = t.shareKind || t.typeLabel || "";
+        if (kind) parts.push(kind);
+        const due = dueOf(t);
+        if (due) parts.push("締切: " + due);
+        else if (t.datetimeLabel) parts.push(t.datetimeLabel);
+        if (parts.length) lines.push("　" + parts.join(" ｜ "));
       } else {
-        const mid = t.type === "member" ? (t.shareKind || t.typeLabel || "") : (t.typeLabel || "");
-        let when;
-        if (t.metaDue) when = "締切: " + fmtMD(t.metaDue);
-        else if (t.deadlineLabel) when = "締切: " + t.deadlineLabel;
-        else when = t.datetimeLabel || "";
-        line = "・**" + t.title + "**" + (mid ? " ｜ " + mid : "") + (when ? " ｜ " + when : "");
+        lines.push("・" + od + t.title);
+        const due = dueOf(t);
+        if (due) lines.push("　締切: " + due);
       }
-      if (effOverdue(t)) line = "⚠️期限超過 " + line;
-      lines.push(line);
-      if (t.memo) lines.push("・📝 メモ: " + t.memo);
-      if (t.slackUrl) lines.push("・<" + t.slackUrl + "|投稿を開く>");
+      if (t.memo) lines.push("　📝 メモ: " + t.memo);
+      if (t.slackUrl) lines.push("　<" + t.slackUrl + "|投稿を開く>");
     }
     blocks.push(lines.join("\n"));
   }
   if (leaks && leaks.length) {
-    const lines = ["■ 回収漏れ（内定済み・未回収）"];
-    for (const lk of leaks) {
+    const caseBlocks = leaks.map((lk) => {
       const c = lk.case;
       const nm = String(c.person || "").replace(/(様|さん)$/, "");
-      let line = "・" + (c.facility || "") + " × **" + nm + "様** ｜ 残り: " + lk.items.map((it) => it.name).join("・");
-      if (c.startDate) line += " ｜ 入社日: " + fmtMD(c.startDate);
-      lines.push(line);
-    }
-    blocks.push(lines.join("\n"));
+      const ls = ["・" + nm + "様（" + (c.facility || "") + "）",
+        "　残り: " + lk.items.map((it) => it.name).join("・")];
+      if (c.startDate) ls.push("　入社日: " + fmtMD(c.startDate));
+      return ls.join("\n");
+    });
+    blocks.push("■ 回収漏れ（内定済み・未回収）\n" + caseBlocks.join("\n\n"));
   }
   return head.join("\n") + "\n\n" + blocks.join("\n\n") + "\n\n対応したら元のメッセージに✅をお願いします";
 }
