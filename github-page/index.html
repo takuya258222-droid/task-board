@@ -533,6 +533,18 @@ async function fetchState() {
     if (rawCases.some((c) => c.startDate === o.date && (o.text.includes(c.facility) || (c.person && o.text.includes(c.person))))) return false;
     return true;
   });
+  // サーバ側に未適用の offer（tour:pending:<eventId>:offer）が残っているのにセッション内の
+  // optDecided が無い案件は、再読み込み後も内定確定扱いになるようサーバ正から復元する。
+  // 復元した記録は直後の再適用ループで applyOfferDecided に置き換わるため、ここでは
+  // offer フラグ付きの雛形と optStageDone を置く（記録形式は decideOffer が作るものと揃える）。
+  // 実データが内定確定に追いついた案件は対象外（従来どおり実データ側へ畳まれる）。
+  // 失敗扱いになった offer は pendingActionIds に残らないので復元されず、従来の流儀どおりに戻る。
+  for (const rc of rawCases) {
+    const pid = offerPid(rc.eventId);
+    if (!serverPendingIds[pid] || optDecided[rc.eventId] || caseDecided(rc)) continue;
+    optDecided[rc.eventId] = { flipped: [], prevPhase: rc.currentPhase, offer: true };
+    optStageDone[pid] = { eventId: rc.eventId, stageKey: "offer" };
+  }
   // ②内定確認の楽観完了（optDecided）: 実データが内定確定に追いつくまで、案件へ先行反映する。
   // 実データ側が内定確定済みになった・案件が消えたら記録を畳む（自然に実データへ置き換わる）。
   for (const ev of Object.keys(optDecided)) {

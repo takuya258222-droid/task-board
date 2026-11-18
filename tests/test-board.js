@@ -2247,6 +2247,98 @@ return Boolean(el) && el.textContent.includes("漏れ苑") && el.textContent.inc
 check("人ビュー: 回収漏れに統合された段階タスクは通常カードとして二重に出ない", await page23.locator(".person-card[data-person='和田'] .person-tasks [data-card-id='tour:888.1']").count() === 0);
 await page23.close();
 
+// ---- v25: 再読み込み後も、サーバ側の未適用 offer から内定確定扱い（optDecided）が復元され、入社待ちで書類管理できる ----
+const srvPend24 = new Set(["tour:pending:evR1:offer"]);
+const page24 = await ctx.newPage();
+await page24.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+let resp24 = { ok: true };
+if (body.action === "complete") srvPend24.add(body.id);
+if (body.action === "cancelAction") {
+if (srvPend24.delete(body.id)) resp24 = { ok: true };
+else resp24 = { ok: false, error: "no_pending_action" };
+}
+await new Promise((r) => setTimeout(r, 250));
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(resp24) });
+return;
+}
+const st24 = mockState();
+st24.startAdds = [];
+st24.pendingActionIds = Array.from(srvPend24);
+st24.cases.push({ eventId: "evR1", facility: "復内苑", person: "復内様", owner: "自分", meetingLabel: mdOf(-1) + " 13時", meetingIso: daysFromNow(-1).toISOString(), currentPhase: "②内定確認", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備（3日前・前日・当日）", status: "done", slackUrl: "", ts: "810.0" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]});
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st24) });
+});
+await page24.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page24.click('[data-tab="onboarding"]');
+await page24.waitForTimeout(300);
+check("再読み込み相当: 未適用 offer の案件が内定確定扱いで入社待ち（入社日未登録）に出る", await page24.locator("[data-start-save-panel='evR1']").count() === 1);
+check("再読み込み相当: caseDecided が true で現在フェーズが③書類回収になっている", await page24.evaluate(() => {
+const c = cases.find((x) => x.eventId === "evR1");
+return Boolean(c) && caseDecided(c) && c.currentPhase === "③書類回収";
+}));
+check("再読み込み相当: 「内定 反映待ち」チップと「内定を取り消す」が出る", await page24.locator("[data-cancel-offer='evR1']").count() === 1 && await page24.locator("#dash").innerText().then((s) => s.includes("内定 反映待ち")));
+await page24.click("[data-collect-toggle='evR1']");
+await page24.waitForTimeout(200);
+check("再読み込み相当: 回収チェックリストが開けて送信待ち6行（書類・duo・セシオ・契約・フォームラン・入職フォロー）が出る", await page24.evaluate(() => {
+const keys = ["docs", "duo", "sesio", "contract", "formrun", "followup"];
+return keys.every((k) => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evR1:" + k + "']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && !inp.checked && row && row.getAttribute("data-cstate") === "notyet";
+});
+}));
+await page24.click("#dash [data-collect-check='tour:pending:evR1:docs']");
+await page24.waitForTimeout(700);
+check("復元された案件でも書類の先行チェックが complete でPOSTされ「送信され次第完了」になる", posts.some((p) => p.action === "complete" && p.id === "tour:pending:evR1:docs") && await page24.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evR1:docs']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && inp.checked && row && row.getAttribute("data-cstate") === "stagePending";
+}));
+await page24.click("[data-cancel-offer='evR1']");
+await page24.waitForTimeout(700);
+check("復元された案件でも「内定を取り消す」が cancelAction でPOSTされ、入社待ちから面談待ちに戻る", posts.some((p) => p.action === "cancelAction" && p.id === "tour:pending:evR1:offer") && await page24.evaluate(() => {
+const c = cases.find((x) => x.eventId === "evR1");
+return Boolean(c) && !caseDecided(c) && !document.querySelector("[data-start-save-panel='evR1']");
+}));
+await page24.close();
+// 実データが内定確定に追いついた後は、未適用 offer が無ければ復元は起きず実データの表示になる
+const page24b = await ctx.newPage();
+await page24b.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") { await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); return; }
+const st24b = mockState();
+st24b.startAdds = [];
+st24b.pendingActionIds = [];
+st24b.cases.push({ eventId: "evR1", facility: "復内苑", person: "復内様", owner: "自分", meetingLabel: mdOf(-1) + " 13時", meetingIso: daysFromNow(-1).toISOString(), currentPhase: "③書類回収", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(9)), daysToStart: 9, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備（3日前・前日・当日）", status: "done", slackUrl: "", ts: "810.0" },
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "810.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]});
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st24b) });
+});
+await page24b.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page24b.click('[data-tab="onboarding"]');
+await page24b.waitForTimeout(300);
+check("実データが追いついた後は復元に頼らず入社待ちに出て、「内定 反映待ち」は付かない", await page24b.evaluate(() => {
+const c = cases.find((x) => x.eventId === "evR1");
+const slot = document.querySelector("[data-start-collect='evR1']");
+return Boolean(c) && caseDecided(c) && !optDecided["evR1"] && Boolean(slot) && !document.querySelector("[data-cancel-offer='evR1']");
+}));
+await page24b.close();
+
 check("コンソールエラー0", errors.length === 0, errors.join(" | ").slice(0, 300));
 
 await page.screenshot({ path: path.resolve(__dirname, "shot-board-all.png")});
