@@ -355,7 +355,7 @@ const r = rows.find((x) => x.textContent.includes("書類回収"));
 const inp = r && r.querySelector("input[type=checkbox]");
 return Boolean(inp) && inp.checked && inp.disabled && r.textContent.includes("回収済み");
 }));
-check("反映済み項目に「完了済みタブから戻す」注記がある", await page.locator("#case-ev1 .collect-note").innerText().then((s) => s.includes("完了済み")));
+check("反映済み項目に「その場で戻せる」注記がある", await page.locator("#case-ev1 .collect-note").innerText().then((s) => s.includes("その場で未対応に戻せます")));
 check("セシオ入力のチェック先は tour:222.2", await page.locator("#case-ev1 [data-collect-check='tour:222.2']").count() === 1);
 check("契約申請のチェック先は tour:333.3", await page.locator("#case-ev1 [data-collect-check='tour:333.3']").count() === 1);
 check("案件カード（グループ見出し）に「回収 1/4」チップ", await page.locator(".group-head[data-group='ev1']").innerText().then((s) => s.includes("回収 1/4")));
@@ -1756,6 +1756,145 @@ check("タスク有りの案件（作業苑）は従来どおりカードと件�
 check("タスク有りの案件では状態行は隠れている", await page18.evaluate(() => { const el = document.querySelector('[data-idle-for="evW4"]'); return Boolean(el) && el.hidden; }));
 check("③以降の案件（書類苑）はタスク0件でも面談タブに出ない", await page18.locator('[data-group="evW5"]').count() === 0 && await page18.locator("#list").innerText().then((s) => !s.includes("書類苑")));
 await page18.close();
+
+// 回収チェックリスト: 反映済み項目をその場で外す（reopen）と、チェック操作でのレイアウトシフト解消
+// evR1: ③書類回収は完了済みだが次の段階（④）が送信済みのため戻せない（履歴 reopenable:false）、
+// ④セシオ入力は完了済みで戻せる（reopenable:true）、④契約申請は対応中、⑤は未送信。
+const page19 = await ctx.newPage();
+await page19.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+if (body.action === "complete") pending.add(body.id);
+if (body.action === "reopen") reopenPending.add(body.id);
+let resp19 = { ok: true };
+if (body.action === "cancelAction") {
+const hit = pending.delete(body.id) || deletePending.delete(body.id) || reopenPending.delete(body.id) || casePendSet.delete(body.id);
+if (!hit) resp19 = { ok: false, error: "no_pending_action" };
+}
+await new Promise((r) => setTimeout(r, 250));
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(resp19) });
+return;
+}
+const st19 = mockState();
+st19.startAdds = [];
+const ev1fix19 = st19.cases.find((c) => c.eventId === "ev1");
+if (ev1fix19) { ev1fix19.startDate = ymdOf(daysFromNow(7)); ev1fix19.daysToStart = 7; ev1fix19.startResult = ""; ev1fix19.startResultDate = ""; }
+st19.cases.push({ eventId: "evR1", facility: "戻し苑", person: "戻し様", owner: "自分", meetingLabel: mdOf(-6) + " 10時", meetingIso: daysFromNow(-6).toISOString(), currentPhase: "④入力・申請", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(5)), daysToStart: 5, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備", status: "done", slackUrl: "", ts: "900.0" },
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "900.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "done", slackUrl: "https://example.com/r3", ts: "911.1" },
+{ phase: "④入力・申請", label: "④入力・申請／セシオ入力", status: "done", slackUrl: "https://example.com/r4", ts: "912.2" },
+{ phase: "④入力・申請", label: "④入力・申請／契約申請", status: "open", slackUrl: "https://example.com/r5", ts: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]});
+st19.tasks.push({ id: "tour:913.3", type: "tour", typeLabel: "面談", title: "🟪戻し苑 戻し様", datetimeLabel: mdOf(-6) + " 10時", elapsedDays: 6, deadlineLabel: "", slackUrl: "https://example.com/r5", groupKey: "evR1", groupTitle: "戻し苑 戻し様", member: "", shareKind: "", overdue: false, phase: "④入力・申請", owner: "自分", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" });
+st19.history.push(
+{ closedAt: "2026-11-17", type: "tour", typeLabel: "面談", title: "③書類回収 戻し苑 戻し様", howLabel: "✅で完了", owner: "自分", id: "tour:911.1", reopenable: false, pending: false },
+{ closedAt: "2026-11-17", type: "tour", typeLabel: "面談", title: "④入力・申請 戻し苑 戻し様", howLabel: "✅で完了", owner: "自分", id: "tour:912.2", reopenable: true, pending: false }
+);
+st19.history.forEach((h) => { h.pending = reopenPending.has(h.id); });
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st19) });
+});
+await page19.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page19.click('[data-tab="tour"]');
+await page19.waitForTimeout(200);
+await page19.evaluate(() => { openCases["evR1"] = true; render(); });
+await page19.waitForTimeout(200);
+check("戻し苑: 回収チェックリストは4行・進捗2/4", await page19.locator("#case-evR1 .collect-row").count() === 4 && await page19.locator("#case-evR1 [data-collect-prog]").innerText().then((s) => s.includes("2/4")));
+check("反映済み（③書類回収）はタスクID付きで操作可能（ロックされない）", await page19.evaluate(() => {
+const inp = document.querySelector("#case-evR1 [data-collect-check='tour:911.1']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && inp.checked && !inp.disabled && row && row.getAttribute("data-cstate") === "done" && row.textContent.includes("回収済み");
+}));
+check("反映済み（④セシオ入力）もタスクID付きで操作可能", await page19.evaluate(() => {
+const inp = document.querySelector("#case-evR1 [data-collect-check='tour:912.2']");
+return Boolean(inp) && inp.checked && !inp.disabled;
+}));
+// 戻せない項目（③: 次の段階が送信済み）: 外してもPOSTされず、チェックが戻って理由がその場に出る
+await page19.click("#case-evR1 [data-collect-check='tour:911.1']");
+await page19.waitForTimeout(500);
+check("戻せない項目では reopen はPOSTされない", !posts.some((p) => p.action === "reopen" && p.id === "tour:911.1"));
+check("戻せない理由が行のその場に表示される", await page19.evaluate(() => {
+const inp = document.querySelector("#case-evR1 [data-collect-check='tour:911.1']");
+const row = inp && inp.closest(".collect-row");
+const why = row && row.nextElementSibling;
+return Boolean(why) && why.classList.contains("cl-why") && why.textContent.includes("戻せません");
+}));
+check("戻せない項目はチェック済みのまま・進捗も変わらない", await page19.evaluate(() => {
+const inp = document.querySelector("#case-evR1 [data-collect-check='tour:911.1']");
+const prog = document.querySelector("#case-evR1 [data-collect-prog]");
+return Boolean(inp) && inp.checked && Boolean(prog) && prog.textContent.includes("2/4");
+}));
+// 戻せる項目（④セシオ入力）: 外すと reopen がPOSTされ、行が未チェック＋反映待ちになる
+await page19.click("#case-evR1 [data-collect-check='tour:912.2']");
+await page19.waitForTimeout(700);
+check("外すと reopen がPOSTされた（tour:912.2）", posts.some((p) => p.action === "reopen" && p.id === "tour:912.2"));
+check("外した行は未チェック・反映待ち表示になる", await page19.evaluate(() => {
+const inp = document.querySelector("#case-evR1 [data-collect-check='tour:912.2']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && !inp.checked && !inp.disabled && row && row.getAttribute("data-cstate") === "reopenPending" && row.textContent.includes("反映待ち");
+}));
+check("進捗が 1/4 に下がる", await page19.locator("#case-evR1 [data-collect-prog]").innerText().then((s) => s.includes("1/4")));
+// 再チェックで戻しを取り消す（cancelAction）と、行が回収済みに復帰する
+await page19.click("#case-evR1 [data-collect-check='tour:912.2']");
+await page19.waitForTimeout(700);
+check("再チェックで cancelAction がPOSTされた（tour:912.2）", posts.some((p) => p.action === "cancelAction" && p.id === "tour:912.2"));
+check("取り消すと行がチェック済み・回収済みに復帰する", await page19.evaluate(() => {
+const inp = document.querySelector("#case-evR1 [data-collect-check='tour:912.2']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && inp.checked && row && row.getAttribute("data-cstate") === "done" && row.textContent.includes("回収済み");
+}));
+check("進捗が 2/4 に戻る", await page19.locator("#case-evR1 [data-collect-prog]").innerText().then((s) => s.includes("2/4")));
+// 入社待ち行のチェックリストでも同じ状態が見える（組み立て・操作経路は共通）
+await page19.click('[data-tab="onboarding"]');
+await page19.waitForTimeout(300);
+await page19.click("[data-collect-toggle='evR1']");
+await page19.waitForTimeout(200);
+check("入社待ち行のチェックリストにも反映済み項目がタスクID付きで出る", await page19.evaluate(() => {
+const box = document.querySelector("#dash .collect-box[data-collect-ev='evR1']");
+const inp = box && box.querySelector("[data-collect-check='tour:912.2']");
+return Boolean(inp) && inp.checked && !inp.disabled && box.querySelectorAll(".collect-row").length === 4;
+}));
+// レイアウトシフト対策: 全行にタグ枠（幅一定）があり、チェックしても行の位置・高さが動かない
+check("全ての回収行にタグ枠が1つずつある（ラベル無しの行は空枠）", await page19.evaluate(() => {
+const rows = Array.from(document.querySelectorAll("#dash .collect-box[data-collect-ev='evR1'] .collect-row"));
+if (rows.length !== 4) return false;
+if (!rows.every((r) => r.querySelectorAll(".cl-tag").length === 1)) return false;
+const open = rows.find((r) => r.getAttribute("data-cstate") === "open");
+return Boolean(open) && open.querySelector(".cl-tag").classList.contains("none");
+}));
+check("タグ枠の幅が状態によらず一定", await page19.evaluate(() => {
+const ws = Array.from(document.querySelectorAll("#dash .collect-box[data-collect-ev='evR1'] .cl-tag")).map((t) => t.getBoundingClientRect().width);
+return ws.length === 4 && Math.max(...ws) - Math.min(...ws) <= 1;
+}));
+check("完了済み行の名前は太さ700のまま（状態で文字幅が変わらない）", await page19.evaluate(() => {
+const rows = Array.from(document.querySelectorAll("#dash .collect-box[data-collect-ev='evR1'] .collect-row"));
+const r = rows.find((x) => x.getAttribute("data-cstate") === "done");
+return Boolean(r) && getComputedStyle(r.querySelector(".cl-name")).fontWeight === "700";
+}));
+const geom19 = () => {
+const box = document.querySelector("#dash .collect-box[data-collect-ev='evR1']");
+if (!box) return null;
+const bt = box.getBoundingClientRect().top;
+return { boxH: box.offsetHeight, rows: Array.from(box.querySelectorAll(".collect-row")).map((r) => {
+const b = r.getBoundingClientRect();
+return { rel: Math.round((b.top - bt) * 10) / 10, h: Math.round(b.height * 10) / 10 };
+}) };
+};
+const gBefore19 = await page19.evaluate(geom19);
+await page19.click("#dash [data-collect-check='tour:913.3']");
+await page19.waitForTimeout(700);
+check("チェックで complete がPOSTされた（tour:913.3）", posts.some((p) => p.action === "complete" && p.id === "tour:913.3"));
+const gAfter19 = await page19.evaluate(geom19);
+check("チェックしても各行の位置・高さとボックスの高さが動かない", Boolean(gBefore19) && Boolean(gAfter19) &&
+gBefore19.rows.length === gAfter19.rows.length &&
+gBefore19.rows.every((r, i) => Math.abs(r.rel - gAfter19.rows[i].rel) <= 1 && Math.abs(r.h - gAfter19.rows[i].h) <= 1) &&
+Math.abs(gBefore19.boxH - gAfter19.boxH) <= 1,
+JSON.stringify({ before: gBefore19, after: gAfter19 }));
+await page19.close();
 
 check("コンソールエラー0", errors.length === 0, errors.join(" | ").slice(0, 300));
 

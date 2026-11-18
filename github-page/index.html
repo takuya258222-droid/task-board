@@ -118,13 +118,15 @@ button.res-btn.red{ border-color:#fecaca; background:#fff; color:var(--danger);}
 .collect-prog{ font-size:12.5px; font-weight:700; background:#eef2ff; color:var(--accent); border-radius:999px; padding:2px 9px;}
 .collect-prog.ok{ background:#dcfce7; color:var(--ok);}
 .collect-row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid #e7f6ec; min-height:44px; cursor:pointer;}
-.collect-row input[type="checkbox"]{ flex:0 0 auto; width:24px; height:24px; accent-color:var(--accent); margin:0; cursor:pointer;}
+.collect-row input[type="checkbox"]{ flex:0 0 24px; width:24px; height:24px; accent-color:var(--accent); margin:0; cursor:pointer;}
 .collect-row input[type="checkbox"]:disabled{ cursor:default;}
-.collect-row .cl-name{ flex:1; font-size:15px; font-weight:700;}
-.collect-row.done{ cursor:default;}
-.collect-row.done .cl-name{ color:var(--sub); font-weight:400; text-decoration:line-through;}
-.collect-row .cl-tag{ flex:0 0 auto; font-size:12px; font-weight:700; color:var(--pend); border:1px dashed var(--pend); border-radius:999px; padding:2px 8px;}
+.collect-row .cl-name{ flex:1; font-size:15px; font-weight:700; line-height:24px;}
+.collect-row.done:has(> input:disabled){ cursor:default;}
+.collect-row.done .cl-name{ color:var(--sub); text-decoration:line-through;}
+.collect-row .cl-tag{ flex:0 0 118px; width:118px; box-sizing:border-box; text-align:center; font-size:12px; font-weight:700; line-height:20px; color:var(--pend); border:1px dashed var(--pend); border-radius:999px; padding:2px 8px;}
 .collect-row .cl-tag.done{ color:var(--ok); border:1px solid #bbf7d0; background:var(--ok-bg);}
+.collect-row .cl-tag.none{ border-color:transparent; background:transparent; color:transparent;}
+.cl-why{ font-size:12.5px; color:var(--danger); line-height:1.5; padding:5px 0 1px;}
 .collect-note{ font-size:12.5px; color:var(--sub); margin-top:7px; line-height:1.55;}
 .collect-chip{ flex:0 0 auto; font-size:12px; font-weight:700; background:#dcfce7; color:var(--ok); border-radius:999px; padding:2px 8px;}
 .start-collect{ margin-top:7px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
@@ -910,22 +912,39 @@ async function cancelCasePending(eventId) {
 // ---- 内定後の回収チェックリスト（案件詳細内）の操作 ----
 // チェック＝既存の完了ハンドラ complete() と同経路。反映待ちの間の解除は、楽観分は cancelOptTask、
 // サーバ側で反映待ちになっている分は cancelPending と同経路（どちらも cancelAction）。
+// 反映済み（done）の項目も、その場でチェックを外して reopen できる（履歴タブの「未対応に戻す」と同経路）。
+// 行の構造は状態によらず同一に保つ（タグの表示枠は常時確保し、名前の太さも変えない）ことで、
+// チェックの付け外しで行の高さ・文字位置が動かないようにしている（レイアウトシフト対策）。
+function clearCollectRowWhy(row) {
+  if (!row) return;
+  const n = row.nextElementSibling;
+  if (n && n.classList && n.classList.contains("cl-why")) n.remove();
+}
+
+function showCollectRowWhy(row, msg) {
+  if (!row) return;
+  clearCollectRowWhy(row);
+  const d = document.createElement("div");
+  d.className = "cl-why";
+  d.textContent = "⚠️ " + msg;
+  row.after(d);
+}
+
 function setCollectRowState(row, state) {
   row.setAttribute("data-cstate", state);
+  row.classList.toggle("done", state === "done");
+  clearCollectRowWhy(row);
   let tag = row.querySelector(".cl-tag");
-  const label = state === "pending" || state === "pendingOpt" ? "反映待ち"
-    : state === "stagePending" ? "送信され次第完了"
-    : state === "notyet" ? "送信待ち" : "";
-  if (label) {
-    if (!tag) {
-      tag = document.createElement("span");
-      row.appendChild(tag);
-    }
-    tag.className = "cl-tag";
-    tag.textContent = label;
-  } else if (tag) {
-    tag.remove();
+  if (!tag) {
+    tag = document.createElement("span");
+    row.appendChild(tag);
   }
+  const label = state === "pending" || state === "pendingOpt" || state === "reopenPending" ? "反映待ち"
+    : state === "stagePending" ? "送信され次第完了"
+    : state === "notyet" ? "送信待ち"
+    : state === "done" ? "回収済み" : "";
+  tag.textContent = label;
+  tag.className = "cl-tag" + (state === "done" ? " done" : label ? "" : " none");
 }
 
 // セクション見出しの進捗と、一覧の案件カード（グループ見出し）の「回収 n/m」チップを、行の状態から合わせ直す
@@ -999,7 +1018,81 @@ async function onCollectToggle(input) {
     await cancelPending(taskId);
     refreshCaseDetail(ev);
     refreshStartPanel();
+  } else if (!input.checked && state === "done") {
+    // 反映済みの項目をその場で外す＝未対応に戻す（reopen）
+    await uncheckDoneCollect(ev, taskId, input);
+  } else if (input.checked && state === "reopenPending") {
+    // 戻しの反映待ち中に再チェック＝戻しの取り消し
+    await cancelCollectReopen(ev, taskId);
   }
+}
+
+// チェックリストの1行を、現在のデータ（collectItems の組み立て結果）に合わせて表示し直す。
+// 反映済み項目の外し・戻しの取り消しでは、行だけを差分更新して全体再描画による文字の跳ねを避ける。
+function syncCollectRowDom(ev, taskId) {
+  const c = cases.find((x) => x.eventId === ev);
+  if (!c) return;
+  const it = collectItems(c).find((x) => x.taskId === taskId);
+  document.querySelectorAll("input[data-collect-check=" + attrQ(taskId) + "]").forEach((inp) => {
+    const row = inp.closest(".collect-row");
+    if (!row || !it) return;
+    inp.checked = it.state === "done" || it.state === "pending" || it.state === "pendingOpt" || it.state === "stagePending";
+    inp.disabled = it.state === "nolink" || (it.state === "done" && !it.taskId);
+    setCollectRowState(row, it.state);
+  });
+  syncCollectDom(ev);
+}
+
+// 反映済み（回収済み）の項目のチェックを外す＝その段階を未対応に戻す（reopen）。
+// 履歴側で「戻せない」（次の段階が送信済み等）と判定されている項目は POST せず、理由を行のその場に出してチェックを戻す。
+// 履歴に項目が無い場合は、段階と案件から履歴行を合成して既存の reopen 経路に乗せる
+// （着地しなかった場合は pruneOpts の消失・失敗検出が拾う）。
+async function uncheckDoneCollect(ev, taskId, input) {
+  const row = input.closest(".collect-row");
+  const h = history.find((x) => x.id === taskId);
+  if (h && !h.reopenable) {
+    input.checked = true;
+    if (row) showCollectRowWhy(row, "次の段階が送信済みのため、この項目は戻せません");
+    return;
+  }
+  if (!h) {
+    const c = cases.find((x) => x.eventId === ev);
+    const it = c ? collectItems(c).find((x) => x.taskId === taskId) : null;
+    history = history.concat({ closedAt: "", type: "tour", typeLabel: "面談",
+      title: ((it && it.stage && it.stage.label) || "") + (c ? " " + c.facility + " " + c.person : ""),
+      howLabel: "✅で完了", owner: c ? (c.owner || "自分") : "自分", id: taskId, reopenable: true, pending: false });
+  }
+  await reopen(taskId);
+  if (!optHistory[taskId]) {
+    // reopen が対象外で戻らなかった場合は表示を元に戻す
+    input.checked = true;
+    if (row) setCollectRowState(row, "done");
+    return;
+  }
+  syncCollectRowDom(ev, taskId);
+  showOk("チェックを外しました（未対応に戻す・" + nextSyncLabel() + "）");
+}
+
+// 戻し（reopen）の反映待ち中に再チェックする＝戻しの取り消し。
+// 楽観分は cancelReopen、サーバ側で反映待ちになっている分（再読み込み後）は cancelAction で取り消す。
+async function cancelCollectReopen(ev, taskId) {
+  if (optHistory[taskId]) {
+    await cancelReopen(taskId);
+    syncCollectRowDom(ev, taskId);
+    return;
+  }
+  const key = "cancel:" + taskId;
+  if (sending[key]) return;
+  const h = history.find((x) => x.id === taskId);
+  if (!h || !h.pending) { syncCollectRowDom(ev, taskId); return; }
+  sending[key] = true;
+  h.pending = false;
+  syncCollectRowDom(ev, taskId);
+  const r = await postRaw({ action: "cancelAction", id: taskId });
+  delete sending[key];
+  const done = await cancelSettled(r, () => { h.pending = true; }, h.title);
+  if (done) showOk("「未対応に戻す」を取り消しました。");
+  else syncCollectRowDom(ev, taskId);
 }
 
 // 未送信ステージの先行完了: チェックした瞬間にアプリ内では完了扱いにし、POST {action:"complete", id:"tour:pending:..."}
@@ -1665,7 +1758,7 @@ function tsKey(id) {
 // 実データでは段階とタスクの slackUrl が一致するので、それがあれば確定的に優先する。
 // 楽観完了で tasks から外れたタスク（optTasks）も候補に含めるため、1件チェックした直後でも
 // 残りの項目の対応付けが壊れない。状態: done（反映済み）/ open / pending（サーバ側で反映待ち）/
-// pendingOpt（楽観完了で反映待ち）/ nolink（対応タスクが特定できない）
+// pendingOpt（楽観完了で反映待ち）/ reopenPending（反映済みを外して戻しの反映待ち）/ nolink（対応タスクが特定できない）
 // ---- 未送信ステージの先行完了（tour:pending:<eventId>:<stageKey>） ----
 // 内定確定済みの案件では、まだ送信されていない段階もチェックリストに「送信待ち」行として出し、
 // 先にチェックできるようにする。チェックは API v8 の受け口（complete + tour:pending: 形式のID）へ送り、
@@ -1725,7 +1818,16 @@ function collectItems(c) {
       }
       continue;
     }
-    items.push({ stage: s, name: collectName(s), state: s.status === "done" ? "done" : "nolink", taskId: "" });
+    if (s.status === "done") {
+      // 反映済みの段階は ts から元のタスクIDを復元し、その場でチェックを外して戻せるようにする。
+      // 戻しが反映待ち（楽観分 optHistory／サーバ側で履歴が pending）の間は reopenPending として出す
+      const tid = s.ts ? "tour:" + s.ts : "";
+      let st = "done";
+      if (tid && (optHistory[tid] || history.some((x) => x.id === tid && x.pending))) st = "reopenPending";
+      items.push({ stage: s, name: collectName(s), state: st, taskId: tid });
+    } else {
+      items.push({ stage: s, name: collectName(s), state: "nolink", taskId: "" });
+    }
   }
   for (const ph of COLLECT_PHASES) {
     const openItems = items.filter((it) => it.stage.phase === ph && it.stage.status === "open");
@@ -1767,19 +1869,20 @@ function collectBoxHtml(c) {
        (p.done === p.total ? "全て回収済み" : p.done + "/" + p.total) + "</span></div>";
   for (const it of items) {
     const checked = it.state === "done" || it.state === "pending" || it.state === "pendingOpt" || it.state === "stagePending";
-    const disabled = it.state === "done" || it.state === "nolink";
+    // 反映済みでもタスクIDが分かる項目は外せる（その場で戻す）。タグ枠は状態によらず常に出し、行の構造を一定に保つ
+    const disabled = it.state === "nolink" || (it.state === "done" && !it.taskId);
     const tag = it.state === "done" ? '<span class="cl-tag done">回収済み</span>'
-      : (it.state === "pending" || it.state === "pendingOpt") ? '<span class="cl-tag">反映待ち</span>'
+      : (it.state === "pending" || it.state === "pendingOpt" || it.state === "reopenPending") ? '<span class="cl-tag">反映待ち</span>'
       : it.state === "stagePending" ? '<span class="cl-tag">送信され次第完了</span>'
-      : it.state === "notyet" ? '<span class="cl-tag">送信待ち</span>' : "";
+      : it.state === "notyet" ? '<span class="cl-tag">送信待ち</span>' : '<span class="cl-tag none"></span>';
     h += '<label class="collect-row' + (it.state === "done" ? " done" : "") + '" data-cstate="' + it.state + '">' +
          '<input type="checkbox" data-collect-check="' + esc(it.taskId) + '" data-collect-ev="' + esc(c.eventId) + '"' +
          (checked ? " checked" : "") + (disabled ? " disabled" : "") + ">" +
          '<span class="cl-name">' + esc(it.name) + "</span>" + tag +
          "</label>";
   }
-  if (items.some((i) => i.state === "done")) {
-    h += '<div class="collect-note">※ 反映済みの項目を戻す場合は「完了済み」タブから戻してください。</div>';
+  if (items.some((i) => i.state === "done" || i.state === "reopenPending")) {
+    h += '<div class="collect-note">※ 反映済みの項目も、チェックを外せばその場で未対応に戻せます（次の段階が進んでいる項目は戻せません）。</div>';
   }
   h += "</div>";
   return h;
