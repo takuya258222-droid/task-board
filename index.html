@@ -130,6 +130,11 @@ button.collect-toggle{ font-size:13px; font-weight:700; padding:9px 12px; min-he
 .start-row .collect-box{ margin-top:9px;}
 .case-actions{ display:flex; gap:8px; margin-top:10px;}
 button.warn-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px solid #fecaca; background:var(--danger-bg); color:var(--danger); cursor:pointer;}
+button.offer-btn{ width:100%; font-size:16px; font-weight:700; padding:13px; min-height:54px; border:0; border-radius:10px; background:var(--ok); color:#fff; cursor:pointer;}
+button.mini-offer{ font-size:13px; font-weight:700; padding:11px 13px; min-height:44px; border-radius:8px; border:0; background:var(--ok); color:#fff; cursor:pointer;}
+.group-acts{ margin:6px 0 2px;}
+.offer-zone{ margin-top:12px;}
+.offer-note{ font-size:12.5px; color:var(--sub); margin-top:6px; line-height:1.5;}
 button.ghost-btn{ flex:1; font-size:15px; font-weight:700; padding:12px; min-height:52px; border-radius:10px; border:1px solid var(--line); background:#fff; color:var(--txt); cursor:pointer;}
 .close-zone{ margin-top:12px; border-top:1px dashed #fecaca; padding-top:9px;}
 .close-zone .cz-t{ font-size:13px; font-weight:700; color:var(--danger); margin-bottom:6px;}
@@ -305,6 +310,7 @@ button.cancel-opt-btn{ flex:0 0 auto; font-size:13.5px; font-weight:700; padding
 ・完了済みタブの「未対応に戻す」は、次回同期で台帳（状態ファイル）に再開を記録して未対応に戻します。元のメッセージの✅は残りますが、再開記録が優先され、リマインドも再開日から再開します（面談は次の段階のタスクが送信済みだと戻せません）。<br>
 ・入社日を登録すると次の同期でカレンダーに&#x3010;入社&#x3011;予定が作られ、入社準備タスクが流れます。結果（入社済み/キャンセル）は当月末まで表示されます。<br>
 ・入社待ちの回収チェックリストでは、まだSlackに送られていない段階（書類回収・入力/申請・入職フォロー）も先にチェックできます。その段階が実際に送られた時点で、そのまま完了として消し込まれます（チェックを外せば取り消せます）。<br>
+・面談待ちの案件は「内定にする」ボタンで、内定確認タスクの送信を待たずに内定として進められます（表示は即時、状態記録への反映は次の同期です）。反映待ちの間は入社待ちの行や案件詳細から取り消せます。<br>
 ・このボードのURLは共有しないでください（あなた専用です）。
 </footer>
 <script>
@@ -503,7 +509,7 @@ async function fetchState() {
     const rc = rawCases.find((c) => c.eventId === ev);
     const cc = cases.find((c) => c.eventId === ev);
     if (!rc || !cc || caseDecided(rc)) { delete optDecided[ev]; continue; }
-    optDecided[ev] = applyCaseDecided(cc);
+    optDecided[ev] = optDecided[ev].offer ? applyOfferDecided(cc) : applyCaseDecided(cc);
   }
   // 未送信ステージの先行完了（optStageDone）: 段階が実在化（open/done）したら実項目側へ引き継ぐ
   for (const pid of Object.keys(optStageDone)) {
@@ -587,6 +593,8 @@ function removeTaskDom(id) {
     if (rest === 0) {
       const det = document.getElementById("case-" + key);
       if (det) det.remove();
+      const orow = document.querySelector("#list [data-offer-row=" + attrQ(key) + "]");
+      if (orow) orow.remove();
       gh.remove();
     } else {
       const gn = gh.querySelector(".gn");
@@ -756,6 +764,7 @@ async function caseClose(eventId, kind) {
     renderDash();
     bindEvents($("dash"));
     document.querySelectorAll("#list [data-group-key=" + attrQ(eventId) + "]").forEach((el) => el.remove());
+    document.querySelectorAll("#list [data-offer-row=" + attrQ(eventId) + "]").forEach((el) => el.remove());
     const gh = document.querySelector("#list .group-head[data-group=" + attrQ(eventId) + "]");
     if (gh) gh.remove();
     const det = document.getElementById("case-" + eventId);
@@ -1018,6 +1027,61 @@ async function cancelStagePending(ev, pid) {
   delete sending[key];
   const done = await cancelSettled(r, () => { if (saved) optStageDone[pid] = saved; }, "先行チェック");
   if (done) showOk("先行チェックを取り消しました");
+}
+
+// 「内定にする」: 確認は挟まず即POSTし、押した瞬間に案件を内定確定済みとして扱って入社待ちへ即移動させる。
+// POST が ok:false（API v9 未デプロイ時の bad_pending_id 等）なら楽観反映を巻き戻して理由を表示する。
+async function decideOffer(eventId) {
+  const pid = offerPid(eventId);
+  if (sending[pid]) return;
+  const c = cases.find((x) => x.eventId === eventId);
+  if (!c || !canOffer(c)) return;
+  sending[pid] = true;
+  optDecided[eventId] = applyOfferDecided(c);
+  optStageDone[pid] = { eventId: eventId, stageKey: "offer" };
+  delete openCases[eventId]; // 詳細を開いたまま面談タブに残さず、入社待ちへ移動したことを見せる
+  stableView(() => { renderDash(); bindEvents($("dash")); render(); });
+  const r = await postRaw({ action: "complete", id: pid });
+  delete sending[pid];
+  if (!r.ok) {
+    delete optStageDone[pid];
+    if (optDecided[eventId]) {
+      rollbackOfferDecided(cases.find((x) => x.eventId === eventId), optDecided[eventId]);
+      delete optDecided[eventId];
+    }
+    try { await fetchState(); } catch (_) { render(); }
+    showErr(r.error === "bad_pending_id"
+      ? "内定を記録できませんでした: この操作はまだ有効化されていません（APIの更新待ちです）。時間をおいてもう一度試してください。"
+      : "内定を記録できませんでした。通信を確認して、もう一度試してください。");
+    return;
+  }
+  showOk("「" + c.facility + " " + c.person + "」を内定にしました（反映待ち・" + nextSyncLabel() + "）。入社待ちへ移動しました。");
+}
+
+// 「内定にする」の取り消し: 楽観分はその場で巻き戻し、サーバ側の未適用行は cancelAction で取り消す
+async function cancelOffer(eventId) {
+  const pid = offerPid(eventId);
+  const key = "cancel:" + pid;
+  if (sending[key]) return;
+  const c = cases.find((x) => x.eventId === eventId);
+  if (!c || !offerPending(c)) return;
+  sending[key] = true;
+  const savedDecided = optDecided[eventId];
+  const savedStage = optStageDone[pid];
+  delete optDecided[eventId];
+  delete optStageDone[pid];
+  if (savedDecided) rollbackOfferDecided(c, savedDecided);
+  stableView(() => { renderDash(); bindEvents($("dash")); render(); });
+  const r = await postRaw({ action: "cancelAction", id: pid });
+  delete sending[key];
+  const done = await cancelSettled(r, () => {
+    if (savedStage) optStageDone[pid] = savedStage;
+    if (savedDecided) {
+      const cc = cases.find((x) => x.eventId === eventId);
+      if (cc) optDecided[eventId] = applyOfferDecided(cc);
+    }
+  }, "内定にする");
+  if (done) showOk("「内定にする」を取り消しました。案件は面談待ちに戻っています。");
 }
 
 async function setStartDate(eventId) {
@@ -1425,6 +1489,47 @@ function rollbackCaseDecided(c, rec) {
   c.currentPhase = rec.prevPhase;
 }
 
+// ---- 「内定にする」（②内定確認の先行確定: まだ②タスクが送信されていない案件を内定として進める） ----
+// POST は先行チェックと同じ受け口（complete + tour:pending:<eventId>:offer。API v9）を使い、
+// 楽観反映は②完了時と同じ optDecided に offer フラグ付きで記録する（fetchState の再適用で分岐）。
+// ②の段階は未送信（notyet）を完了扱いに反転するため、通常の applyCaseDecided（open→done）とは
+// 別にし、巻き戻しで元の状態（notyet / open）へ戻せるよう反転前の状態も記録する。
+function offerPid(ev) { return "tour:pending:" + ev + ":offer"; }
+
+function offerPending(c) {
+  if (!c) return false;
+  const pid = offerPid(c.eventId);
+  if (optStageDone[pid]) return true;
+  return tasks.some((t) => t.id === pid && t.pending);
+}
+
+// ボタンの表示条件: 現在フェーズが①準備で、②内定確認の段階が全て未送信（notyet）の案件だけ。
+// ②タスクが実在（open）する案件は通常のタスク完了で処理するので出さない。内定確定済み・
+// 案件アクション反映中・先行確定の反映待ちの案件にも出さない。
+function canOffer(c) {
+  if (!c || c.pending || caseDecided(c)) return false;
+  if (!c.currentPhase || c.currentPhase.indexOf("①") !== 0) return false;
+  if (offerPending(c)) return false;
+  const sts = c.stages.filter((s) => s.phase === "②内定確認");
+  if (!sts.length) return false;
+  return sts.every((s) => s.status === "notyet");
+}
+
+function applyOfferDecided(c) {
+  const rec = { flipped: [], prevPhase: c.currentPhase, offer: true };
+  c.stages.forEach((s, i) => {
+    if (s.phase === "②内定確認" && (s.status === "notyet" || s.status === "open")) { rec.flipped.push({ i: i, was: s.status }); s.status = "done"; }
+  });
+  c.currentPhase = "③書類回収";
+  return rec;
+}
+
+function rollbackOfferDecided(c, rec) {
+  if (!c || !rec) return;
+  for (const f of rec.flipped) { if (c.stages[f.i]) c.stages[f.i].status = f.was; }
+  c.currentPhase = rec.prevPhase;
+}
+
 // ---- 内定後の回収チェックリスト ----
 // 対象は段階タスク（③書類回収＋④の全タスク＋⑤入職フォロー）。送信済みの段階は実タスクで、
 // 内定確定済みの案件では未送信（notyet）の段階も「送信待ち」行として先にチェックできる（後述）。
@@ -1451,7 +1556,7 @@ function tsKey(id) {
 // 内定確定済みの案件では、まだ送信されていない段階もチェックリストに「送信待ち」行として出し、
 // 先にチェックできるようにする。チェックは API v8 の受け口（complete + tour:pending: 形式のID）へ送り、
 // 段階が実際に送信された時点で同期がそのまま完了として消し込む。送信済みの段階は従来どおり実タスクで扱う。
-const STAGEKEY_PHASE = { docs: "③書類回収", duo: "④入力・申請", sesio: "④入力・申請", contract: "④入力・申請", formrun: "④入力・申請", followup: "⑤入職フォロー" };
+const STAGEKEY_PHASE = { offer: "②内定確認", docs: "③書類回収", duo: "④入力・申請", sesio: "④入力・申請", contract: "④入力・申請", formrun: "④入力・申請", followup: "⑤入職フォロー" };
 const STAGE4_SET = [["duo", "duo登録"], ["sesio", "セシオ登録"], ["contract", "契約申請"], ["formrun", "フォームラン回収"]];
 
 function stageKeyOf4(name) {
@@ -1616,6 +1721,19 @@ function startBoxHtml(c) {
   return h;
 }
 
+// 案件詳細内の「内定にする」ゾーン: 未送信の間は大きなボタン、反映待ちの間はチップ＋取り消しを出す
+function offerZoneHtml(c) {
+  if (canOffer(c)) {
+    return '<div class="offer-zone"><button class="offer-btn" data-offer="' + esc(c.eventId) + '">✅ 内定にする</button>' +
+      '<div class="offer-note">内定確認タスクの送信を待たずに、内定として進めます。表示は即時、状態記録への反映は次の同期です。</div></div>';
+  }
+  if (offerPending(c)) {
+    return '<div class="actions"><span class="pend-chip">内定 反映待ち（' + esc(nextSyncLabel()) + "）</span>" +
+      '<button class="cancel-opt-btn" data-cancel-offer="' + esc(c.eventId) + '">取り消す</button></div>';
+  }
+  return "";
+}
+
 function caseDetailHtml(c) {
   let h = '<div class="case-detail" id="case-' + esc(c.eventId) + '">';
   h += '<div class="line" style="margin-top:0;">面談: <b>' + esc(c.meetingLabel) + "</b> ｜ 担当: " + esc(c.owner || "自分") + " ｜ 現在: " + esc(c.currentPhase) + "</div>";
@@ -1648,6 +1766,7 @@ function caseDetailHtml(c) {
   if (f) h += '<div class="fail-note">案件アクションの反映に失敗しました: ' + esc(f.note || "理由不明") + "</div>";
   h += collectBoxHtml(c);
   h += startBoxHtml(c);
+  h += offerZoneHtml(c);
   if (c.pending) {
     h += '<div class="actions"><span class="pend-chip">案件アクション反映待ち（' + esc(nextSyncLabel()) + "）</span>" +
          '<button class="cancel-opt-btn" data-cancel-casepend="' + esc(c.eventId) + '">取り消す</button></div>';
@@ -1676,6 +1795,9 @@ function groupHtml(visible, groupTitleOf) {
       if (cItems.length) chipHtml = '<span class="collect-chip" data-collect-chip="' + esc(g.key) + '">回収 ' + collectProgress(cItems).done + "/" + cItems.length + "</span>";
     }
     h += '<button class="group-head" data-group="' + esc(g.key) + '"><span class="gt">' + esc(g.title) + "</span>" + chipHtml + '<span class="gn">' + g.items.length + '件</span><span class="chev">' + (openCases[g.key] ? "▲" : "▼") + "</span></button>";
+    if (cc && canOffer(cc)) {
+      h += '<div class="group-acts" data-offer-row="' + esc(g.key) + '"><button class="offer-btn" data-offer="' + esc(g.key) + '">✅ 内定にする</button></div>';
+    }
     if (activeTab === "tour" && openCases[g.key]) {
       const c = cases.find((x) => x.eventId === g.key);
       if (c) h += caseDetailHtml(c);
@@ -1936,7 +2058,8 @@ function meetRowHtml(c) {
     h += '<div class="acts"><span class="hist-pend">反映待ち</span>' +
          '<button class="cancel-opt-btn" data-cancel-casepend="' + esc(c.eventId) + '">取り消す</button></div>';
   } else {
-    h += '<div class="acts"><button class="mini-warn" data-lost="' + esc(c.eventId) + '">失注</button>' +
+    h += '<div class="acts">' + (canOffer(c) ? '<button class="mini-offer" data-offer="' + esc(c.eventId) + '">内定にする</button>' : "") +
+         '<button class="mini-warn" data-lost="' + esc(c.eventId) + '">失注</button>' +
          '<button class="mini-ghost" data-close="' + esc(c.eventId) + '">終了</button></div>';
   }
   h += "</div>";
@@ -2017,12 +2140,16 @@ function renderDash() {
 
 // 入社日未登録（要対応）の行: 警告文＋その場で登録できるピッカー＋回収チェックリスト
 function needDateRowHtml(c) {
+  const offerChip = offerPending(c)
+    ? '<div style="margin-top:4px;"><span class="hist-pend" style="margin-top:0;">内定 反映待ち（' + esc(nextSyncLabel()) + "）</span></div>" : "";
+  const offerCancel = offerPending(c)
+    ? '<button class="cancel-opt-btn" data-cancel-offer="' + esc(c.eventId) + '">内定を取り消す</button>' : "";
   return '<div class="start-row past"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + '</div>' +
-       '<div style="font-size:13px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div>' +
+       '<div style="font-size:13px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div>' + offerChip +
        '<div class="panel-start-form"><input type="date" id="panelStartDate-' + esc(c.eventId) + '" data-panel-start-input="' + esc(c.eventId) + '" value="' + esc(panelStartDateVals[c.eventId] || "") + '">' +
        '<button class="sb-save" data-start-save-panel="' + esc(c.eventId) + '">入社日を登録</button></div>' +
        startCollectHtml(c) + '</div>' +
-       '<div class="acts"><button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
+       '<div class="acts">' + offerCancel + '<button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
 }
 
 // 入社待ちセクション（2026-11-18: 「すべて」タブ上部から入社タブの先頭へ移設。内容は従来どおり）
@@ -2172,6 +2299,8 @@ function bindEvents(root) {
   }));
   root.querySelectorAll("[data-lost]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-lost"), "lost")));
   root.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => caseClose(b.getAttribute("data-close"), "close")));
+  root.querySelectorAll("[data-offer]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); decideOffer(b.getAttribute("data-offer")); }));
+  root.querySelectorAll("[data-cancel-offer]").forEach((b) => b.addEventListener("click", () => cancelOffer(b.getAttribute("data-cancel-offer"))));
   root.querySelectorAll("[data-start-save]").forEach((b) => b.addEventListener("click", () => setStartDate(b.getAttribute("data-start-save"))));
   root.querySelectorAll("[data-start-save-panel]").forEach((b) => b.addEventListener("click", () => setStartDatePanel(b.getAttribute("data-start-save-panel"))));
   root.querySelectorAll("[data-panel-start-input]").forEach((inp) => inp.addEventListener("change", () => { panelStartDateVals[inp.getAttribute("data-panel-start-input")] = inp.value; }));
