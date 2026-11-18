@@ -116,6 +116,8 @@ const port = server.address().port;
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844}, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"});
+// アウトボックス（localStorage）はページ遷移ごとに初期化してテスト間を分離する
+await ctx.addInitScript(() => { try { localStorage.removeItem("tb_outbox_v1"); } catch (e) {} });
 const page = await ctx.newPage();
 const errors = [];
 page.on("console", (m) => { if (m.type() === "error") errors.push(m.text());});
@@ -508,19 +510,24 @@ await page.click("[data-copy='和田']");
 await page.waitForTimeout(300);
 const wadaText = await page.evaluate(() => window.__copied);
 const wadaLines = (wadaText || "").split("\n");
-check("和田まとめ1行目（件数・時点）", /^【和田さん】未対応 2件（\d{1,2}\/\d{1,2}時点）$/.test(wadaLines[0] || ""), wadaLines[0]);
-check("和田まとめ期限超過行が先頭（⚠️+締切）", (wadaLines[1] || "").startsWith("⚠️期限超過 ") && wadaLines[1].includes("福井様SOの実施待ち連絡") && wadaLines[1].includes("締切: 11/16 18時"), wadaLines[1]);
-check("和田まとめ面談行（締切なし=日経過）", (wadaLines[2] || "").startsWith("・") && wadaLines[2].includes("清和苑 黒木さん") && wadaLines[2].includes("1日経過"), wadaLines[2]);
+check("和田まとめ1行目（送信版と同じ見出し）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全2件$/.test(wadaLines[0] || ""), wadaLines[0]);
+check("和田まとめ2行目（M/D H時時点）", /^\d{1,2}\/\d{1,2} \d{1,2}時時点$/.test(wadaLines[1] || ""), wadaLines[1]);
+check("和田まとめは種別ブロック順（■ 面談→■ 依頼）", (wadaText || "").indexOf("■ 面談") >= 0 && (wadaText || "").indexOf("■ 面談") < (wadaText || "").indexOf("■ 依頼"), wadaText);
+check("和田まとめ期限超過行（⚠️+太字+締切）", wadaLines.some((l) => l.startsWith("⚠️期限超過 ・**福井様SOの実施待ち連絡**") && l.includes("締切: 11/16 18時")), wadaText);
+check("和田まとめ面談行（太字+フェーズバッジ+日時）", wadaLines.some((l) => l.startsWith("・**清和苑 黒木さん**") && l.includes("【①準備】") && l.includes(mdOf(2) + " 10時")), wadaText);
+check("和田まとめに投稿リンクの子行がある", wadaLines.some((l) => l.startsWith("・<https://") && l.includes("|投稿を開く>")), wadaText);
 check("和田まとめ末尾に✅依頼の1行", wadaLines[wadaLines.length - 1] === "対応したら元のメッセージに✅をお願いします");
-check("和田まとめは全4行", wadaLines.length === 4, "lines=" + wadaLines.length);
+check("和田まとめは全12行（見出し2+空行+面談3+空行+依頼3+空行+末尾）", wadaLines.length === 12, "lines=" + wadaLines.length);
 check("コピー成功フィードバック表示", await page.locator("#okBar").isVisible() && await page.locator("#okBar").innerText().then((s) => s.includes("コピーしました")));
 await page.click("[data-copy='自分']");
 await page.waitForTimeout(300);
 const selfText = await page.evaluate(() => window.__copied);
 const selfLines = (selfText || "").split("\n");
-check("自分まとめ1行目は【自分の分】", /^【自分の分】未対応 5件（\d{1,2}\/\d{1,2}時点）$/.test(selfLines[0] || ""), selfLines[0]);
-check("自分まとめに✅依頼の行はない", !(selfText || "").includes("お願いします"));
-check("自分まとめは全6行（見出し+5件）", selfLines.length === 6, "lines=" + selfLines.length);
+check("自分まとめ1行目（送信版と同じ見出し）", /^【タスクボード】未対応まとめ ｜ \*\*自分の分\*\* ｜ 全5件$/.test(selfLines[0] || ""), selfLines[0]);
+check("自分まとめにも✅依頼の行がある（送信版と同内容）", selfLines[selfLines.length - 1] === "対応したら元のメッセージに✅をお願いします");
+check("自分まとめは種別ブロック順（■ Slack→■ カレンダー→■ 面談→■ 入社）", ["■ Slack", "■ カレンダー", "■ 面談", "■ 入社"].every((h, i, a) => (selfText || "").indexOf(h) >= 0 && (i === 0 || (selfText || "").indexOf(a[i - 1]) < (selfText || "").indexOf(h))), selfText);
+check("自分まとめカレンダー行は期日が締切表示+メモ子行", selfLines.some((l) => l.includes("**コンサルタントプロフィール記入**") && l.includes("締切: " + mdOf(3))) && selfLines.some((l) => l === "・📝 メモ: プロフィール写真も用意する"), selfText);
+check("自分まとめSlack行は期日（過去）が締切表示", selfLines.some((l) => l.includes("**河添大地｜週2日アテンドNG・譲渡基準の統一判断**") && l.includes("締切: " + mdOf(-1))), selfText);
 check("自分まとめに全種別が混在（面談・Slack・カレンダー・入社）", (selfText || "").includes("深堀香織") && (selfText || "").includes("河添大地") && (selfText || "").includes("コンサルタントプロフィール記入") && (selfText || "").includes("伊藤奈美"));
 // フォールバック: clipboard が失敗したらテキストエリア表示
 await page.evaluate(() => {
@@ -528,7 +535,7 @@ Object.defineProperty(navigator, "clipboard", { configurable: true, value: { wri
 });
 await page.click("[data-copy='和田']");
 await page.waitForTimeout(300);
-check("コピー失敗時はテキストエリアにフォールバック表示", await page.locator("#copyText").isVisible() && await page.locator("#copyText").inputValue().then((v) => v.includes("【和田さん】")));
+check("コピー失敗時はテキストエリアにフォールバック表示", await page.locator("#copyText").isVisible() && await page.locator("#copyText").inputValue().then((v) => v.includes("和田さん")));
 // 0件: 和田のタスクを消した状態で再描画するとボタンなし・未対応なし表示
 await page.evaluate(() => {
 tasks = tasks.filter((t) => (t.owner || "自分") !== "和田" && t.member !== "和田");
@@ -688,7 +695,7 @@ check("API失敗時にエラーバー表示", await page2.locator("#errBar").isV
 check("API失敗時もタブが描画される", await page2.locator(".tab").count() === 8);
 await page2.close();
 
-// POST失敗時: エラーバーが出て固まらない（GETは成功、POSTだけ abort）
+// POST失敗時: アウトボックス方式では表示を巻き戻さず、未送信としてステータス表示に留める（GETは成功、POSTだけ abort）
 const page3 = await ctx.newPage();
 await page3.route("https://script.google.com/**", async (route) => {
 if (route.request().method() === "POST") { await route.abort(); return;}
@@ -698,7 +705,9 @@ await page3.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "netwo
 await page3.click('[data-tab="onboarding"]');
 await page3.click("[data-done='onboarding:888.8']");
 await page3.waitForTimeout(600);
-check("POST失敗時にエラーバー表示", await page3.locator("#errBar").isVisible());
+check("POST失敗時もチェック表示は保持される（行は戻らない）", await page3.locator("[data-done='onboarding:888.8']").count() === 0);
+check("POST失敗時はアウトボックスのステータス表示（未送信）が出る", await page3.locator("#outboxNote").isVisible() && await page3.locator("#outboxNote").innerText().then((s) => s.includes("未送信の操作")));
+check("POST失敗分はlocalStorageに未送信として残る", await page3.evaluate(() => (JSON.parse(localStorage.getItem("tb_outbox_v1") || "[]")).some((e) => e.payload.action === "complete" && e.payload.id === "onboarding:888.8" && !e.sent)));
 await page3.close();
 
 // 消失検出: 痕跡のない楽観操作は警告して表示を戻す（黙って成功扱いにしない）
@@ -747,7 +756,8 @@ check("cancelAction がPOSTされた（削除の取り消し）", posts.some((p)
 await page.click('[data-tab="calendar"]');
 check("削除を取り消したタスクが未対応に戻る", await page.locator("[data-done='calendar:555.5']").count() === 1);
 
-// 取り消し対象が無い場合（既に反映済みの可能性）: 警告が出て、実状態への読み戻しで帳尻が合う
+// 取り消し対象が無い場合: アウトボックス方式では cancelAction の no_pending_action を「取り消し実質完了」として
+// 警告なく解決する（サーバに反映待ちが無い＝表示はサーバ状態と一致している）。アウトボックスにも未解決分は残らない
 // ※この区間は「サーバ側に痕跡のない楽観行」を植えるため、30秒周期の自動再取得が割り込むと pruneOpts に消されてしまう。区間内だけ自動再取得を止める
 await page.evaluate(() => {
 window.__fetchStateOrig = fetchState;
@@ -761,7 +771,11 @@ render();
 await page.click('[data-tab="history"]');
 await page.click("[data-cancel-opt='onboarding:888.8']");
 await page.waitForTimeout(900);
-check("対象なしの取り消しで「既に反映済みの可能性」警告", await page.locator("#errBar").innerText().then((s) => s.includes("既に反映済みの可能性")));
+check("対象なしの取り消しでも cancelAction は送られる", posts.filter((p) => p.action === "cancelAction" && p.id === "onboarding:888.8").length >= 2);
+// ※送信済みエントリは「次の再取得でサーバ状態と照合して畳む」設計のため localStorage に残り得る。
+// ここで見るべきは「未送信・失敗などの未解決分が残らない」こと（この区間は再取得を止めているので畳み込み自体は起きない）
+check("対象なしの取り消しは警告なく解決し、アウトボックスに未解決分が残らない", await page.evaluate(() => (JSON.parse(localStorage.getItem("tb_outbox_v1") || "[]")).filter((e) => e.payload.id === "onboarding:888.8").every((e) => e.sent && !e.failed)));
+check("対象なしの取り消しでも成功フィードバック表示", await page.locator("#okBar").innerText().then((s) => s.includes("取り消しました")));
 await page.click('[data-tab="onboarding"]');
 check("読み戻し後はタスクが未対応に残る（完了済みに残らない）", await page.locator("[data-done='onboarding:888.8']").count() === 1);
 await page.evaluate(() => { fetchState = window.__fetchStateOrig; return fetchState(); });
@@ -1489,7 +1503,8 @@ check("待機苑の入社待ちで回収進捗が即表示（0/6: 先行チェ�
 check("待機苑の入社待ちの行に「内定 反映待ち」と取り消しが出る", await page14.locator("#dash").innerText().then((s) => s.includes("内定 反映待ち")) && await page14.locator('#dash [data-cancel-offer="evR"]').count() === 1);
 await page14.close();
 
-// 「内定にする」の失敗時: API が ok:false（v9未デプロイの bad_pending_id 等）を返したら巻き戻して理由を表示する
+// 「内定にする」の失敗時: API が ok:false（未有効化の bad_pending_id 等）を返しても、アウトボックス方式では
+// 表示を巻き戻さない。失敗はエラーバー＋アウトボックスのステータスに残り、内定扱いの表示は保持される
 const page15 = await ctx.newPage();
 await page15.route("https://script.google.com/**", async (route) => {
 const req = route.request();
@@ -1522,10 +1537,11 @@ check("失敗テスト前: 失敗苑のグループと「内定にする」が�
 await page15.click('#list .group-acts [data-offer="evQ"]');
 await page15.waitForTimeout(900);
 check("API が ok:false を返したら理由が表示される（未有効化の案内）", await page15.locator("#errBar").innerText().then((s) => s.includes("まだ有効化されていません")));
-check("失敗時は巻き戻って面談タブに失敗苑が残り、ボタンも戻る", await page15.locator('[data-group="evQ"]').count() === 1 && await page15.locator('#list .group-acts [data-offer="evQ"]').count() === 1);
+check("失敗しても表示は巻き戻らない（面談タブに失敗苑は戻らない）", await page15.locator('[data-group="evQ"]').count() === 0 && await page15.locator('#list .group-acts [data-offer="evQ"]').count() === 0);
+check("失敗はアウトボックスのステータス表示に残る", await page15.locator("#outboxNote").isVisible() && await page15.locator("#outboxNote").innerText().then((s) => s.includes("送信できない操作")));
 await page15.click('[data-tab="onboarding"]');
 await page15.waitForTimeout(300);
-check("失敗時は入社待ちに失敗苑が出ない", await page15.locator("#dash").innerText().then((s) => !s.includes("失敗苑")));
+check("失敗しても内定扱いの表示は保持され、入社待ちに失敗苑が出る", await page15.locator("#dash").innerText().then((s) => s.includes("失敗苑")));
 await page15.close();
 
 // 「内定まで一括で進める」: ①②の実在タスクを段階順にまとめて完了し、そのまま内定まで進める
@@ -1627,7 +1643,8 @@ await page16.waitForTimeout(300);
 check("内定確定済みの案件の詳細には一括も内定にするも出ない（確定苑）", await page16.locator('#case-evB3').count() === 1 && await page16.locator('#case-evB3 [data-bulk]').count() === 0 && await page16.locator('#case-evB3 [data-offer]').count() === 0);
 await page16.close();
 
-// 「内定まで一括で進める」の途中失敗: 失敗した時点で中断し、完了済みは残し、内定までは進めない
+// 「内定まで一括で進める」の途中失敗: アウトボックス方式では一括は中断しない。全件をローカルに積み、
+// offerまで進める。送信に失敗した分はアウトボックスのステータスに残り、表示は保持される
 const page17 = await ctx.newPage();
 const failPend = new Set();
 await page17.route("https://script.google.com/**", async (route) => {
@@ -1670,13 +1687,13 @@ const before17 = posts.length;
 await page17.click('#list .group-acts [data-bulk="evF1"]');
 await page17.waitForTimeout(1800);
 const ids17 = posts.slice(before17).filter((p) => p.action === "complete").map((p) => p.id);
-check("途中失敗: 2件目のPOSTで止まり、offerはPOSTされない", JSON.stringify(ids17) === JSON.stringify(["tour:4444.4", "tour:5555.5"]), ids17.join(","));
-check("途中失敗: 中断の理由が表示される（完了済み1件の経過つき）", await page17.locator("#errBar").innerText().then((s) => s.includes("一括処理を中断しました") && s.includes("1件")));
-check("途中失敗: 失敗したタスクのカードは一覧に戻る", await page17.locator('[data-card-id="tour:5555.5"]').count() === 1);
-check("途中失敗: 完了済みのタスクのカードは消えたまま", await page17.locator('[data-card-id="tour:4444.4"]').count() === 0);
+check("一括: 全件がキュー経由でPOSTされる（offer含む）", JSON.stringify(ids17) === JSON.stringify(["tour:4444.4", "tour:5555.5", "tour:pending:evF1:offer"]), ids17.join(","));
+check("一括: 送信失敗はアウトボックスのステータス表示に残る", await page17.locator("#outboxNote").isVisible() && await page17.locator("#outboxNote").innerText().then((s) => s.includes("送信できない操作")));
+check("一括: 送信失敗したタスクのカードも戻らない（表示保持）", await page17.locator('[data-card-id="tour:5555.5"]').count() === 0);
+check("一括: 完了済みのタスクのカードは消えたまま", await page17.locator('[data-card-id="tour:4444.4"]').count() === 0);
 await page17.click('[data-tab="onboarding"]');
 await page17.waitForTimeout(300);
-check("途中失敗: 内定までは進まず入社待ちに出ない（途中苑）", await page17.locator("#dash").innerText().then((s) => !s.includes("途中苑")));
+check("一括: 内定まで進み入社待ちに出る（途中苑）", await page17.locator("#dash").innerText().then((s) => s.includes("途中苑")));
 await page17.close();
 
 // 面談タブの案件母体表示: 未完了タスク0件の①②案件（②送信待ち・当日未送信・将来で全段階未送信）も必ず出る
@@ -2338,6 +2355,128 @@ const slot = document.querySelector("[data-start-collect='evR1']");
 return Boolean(c) && caseDecided(c) && !optDecided["evR1"] && Boolean(slot) && !document.querySelector("[data-cancel-offer='evR1']");
 }));
 await page24b.close();
+
+// アウトボックス（ローカルファースト）: 送信できない間もチェック表示は保持され、再読み込みしても消えない。
+// 送信できるようになったら自動で送られ、サーバ着地が確認できたらアウトボックスから畳まれる。
+// ※専用コンテキスト（localStorage を消す初期化スクリプトなし）で、実アプリと同じ永続化の挙動を検証する
+const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15" });
+const page25 = await ctx2.newPage();
+page25.on("pageerror", (e) => errors.push(String(e)));
+let fail25 = true;
+const srvPend25 = new Set();
+await page25.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+if (fail25) { await route.abort(); return; }
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+if (body.action === "complete") srvPend25.add(body.id);
+if (body.action === "cancelAction") srvPend25.delete(body.id);
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+return;
+}
+const st25 = mockState();
+st25.startAdds = [];
+st25.pendingActionIds = Array.from(srvPend25);
+if (srvPend25.has("tour:pending:evX:docs")) {
+st25.tasks.push({ id: "tour:pending:evX:docs", type: "tour", typeLabel: "面談", title: "🟧永続苑 永続様", datetimeLabel: mdOf(-1) + " 10時", elapsedDays: 1, deadlineLabel: "", slackUrl: "", groupKey: "evX", groupTitle: "永続苑 永続様", member: "", shareKind: "", overdue: false, phase: "③書類回収", owner: "自分", dueToday: false, eventIso: "", pending: true, metaDue: "", memo: "" });
+}
+st25.cases.push({ eventId: "evX", facility: "永続苑", person: "永続様", owner: "自分", meetingLabel: mdOf(-1) + " 10時", meetingIso: daysFromNow(-1).toISOString(), currentPhase: "③書類回収", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(7)), daysToStart: 7, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備（3日前・前日・当日）", status: "done", slackUrl: "", ts: "900.0" },
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "900.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]});
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st25) });
+});
+await page25.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page25.click('[data-tab="onboarding"]');
+await page25.click("[data-collect-toggle='evX']");
+await page25.waitForTimeout(200);
+await page25.click("#dash [data-collect-check='tour:pending:evX:docs']");
+await page25.waitForTimeout(700);
+check("アウトボックス: 送信できない間もチェック表示は保持される", await page25.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evX:docs']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && inp.checked && row && row.getAttribute("data-cstate") === "stagePending";
+}));
+check("アウトボックス: 未送信のステータス表示が出る", await page25.locator("#outboxNote").isVisible() && await page25.locator("#outboxNote").innerText().then((s) => s.includes("未送信の操作が 1件")));
+check("アウトボックス: localStorageに未送信で永続化されている", await page25.evaluate(() => {
+const ob = JSON.parse(localStorage.getItem("tb_outbox_v1") || "[]");
+return ob.length === 1 && ob[0].payload.action === "complete" && ob[0].payload.id === "tour:pending:evX:docs" && ob[0].sent === false;
+}));
+await page25.reload({ waitUntil: "networkidle" });
+await page25.click('[data-tab="onboarding"]');
+await page25.click("[data-collect-toggle='evX']");
+await page25.waitForTimeout(300);
+check("アウトボックス: 再読み込みしてもチェック表示が維持される（localStorageから復元）", await page25.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evX:docs']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && inp.checked && row && row.getAttribute("data-cstate") === "stagePending";
+}));
+fail25 = false;
+await page25.evaluate(() => flushOutbox(false).then(() => fetchState()));
+await page25.waitForTimeout(800);
+check("アウトボックス: 復帰後に一括送信され、着地が確認できたら畳まれる", await page25.evaluate(() => (JSON.parse(localStorage.getItem("tb_outbox_v1") || "[]")).length === 0) && posts.some((p) => p.action === "complete" && p.id === "tour:pending:evX:docs"));
+check("アウトボックス: 着地後もチェック表示はサーバ側の反映待ちとして維持される", await page25.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evX:docs']");
+const row = inp && inp.closest(".collect-row");
+return Boolean(inp) && inp.checked && row && row.getAttribute("data-cstate") === "stagePending";
+}));
+await page25.click("#dash [data-collect-check='tour:pending:evX:docs']");
+await page25.waitForTimeout(800);
+check("アウトボックス: チェックを外すと cancelAction が送られ行が未チェックに戻る", posts.some((p) => p.action === "cancelAction" && p.id === "tour:pending:evX:docs") && await page25.evaluate(() => {
+const inp = document.querySelector("#dash [data-collect-check='tour:pending:evX:docs']");
+return Boolean(inp) && !inp.checked;
+}));
+await page25.close();
+await ctx2.close();
+
+// 別端末相当: localStorage が空でも、サーバの pendingActionIds だけで同じチェック状態が再現される
+// （PCで押した分がスマホでも出る、の検証。offer 復元もこの経路で効く）
+const ctx3 = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15" });
+const page26 = await ctx3.newPage();
+page26.on("pageerror", (e) => errors.push(String(e)));
+await page26.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+return;
+}
+const st26 = mockState();
+st26.startAdds = [];
+st26.pendingActionIds = ["tour:pending:evY:offer"];
+st26.cases.push({ eventId: "evY", facility: "他端末苑", person: "他端様", owner: "自分", meetingLabel: mdOf(1) + " 10時", meetingIso: daysFromNow(1).toISOString(), currentPhase: "②内定確認", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備（3日前・前日・当日）", status: "done", slackUrl: "", ts: "920.0" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]});
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st26) });
+});
+await page26.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+check("別端末相当: ローカルには何も保存されていない", await page26.evaluate(() => !localStorage.getItem("tb_outbox_v1") || (JSON.parse(localStorage.getItem("tb_outbox_v1") || "[]")).length === 0));
+await page26.click('[data-tab="onboarding"]');
+await page26.waitForTimeout(300);
+check("別端末相当: サーバの未適用 offer だけで内定確定扱い・入社待ちに出る", await page26.evaluate(() => {
+const c = cases.find((x) => x.eventId === "evY");
+return Boolean(c) && caseDecided(c) && Boolean(document.querySelector("[data-start-collect='evY']"));
+}));
+await page26.click("[data-collect-toggle='evY']");
+await page26.waitForTimeout(200);
+check("別端末相当: 回収チェックリストが開けて送信待ち行が出る", await page26.evaluate(() => {
+const slot = document.querySelector("[data-start-collect='evY']");
+const box = slot && slot.closest(".start-row");
+return Boolean(box) && box.querySelectorAll(".collect-row").length === 6;
+}));
+await page26.close();
+await ctx3.close();
 
 check("コンソールエラー0", errors.length === 0, errors.join(" | ").slice(0, 300));
 

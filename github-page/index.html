@@ -246,6 +246,7 @@ button.meta-cancel{ flex:0 0 auto; font-size:15px; font-weight:700; padding:12px
 .opt-strip{ font-size:13.5px; font-weight:700; color:var(--pend); background:var(--pend-bg); border:1px dashed var(--pend); border-radius:10px; padding:9px 11px; margin-bottom:8px; line-height:1.55;}
 #errBar{ display:none; background:#fef2f2; color:var(--danger); border:1px solid #fecaca; border-radius:9px; padding:10px 13px; font-size:14px; margin-bottom:10px; line-height:1.55;}
 #okBar{ display:none; background:#f0fdf4; color:var(--ok); border:1px solid #bbf7d0; border-radius:9px; padding:10px 13px; font-size:14px; margin-bottom:10px; line-height:1.55;}
+#outboxNote{ display:none; background:#fffbeb; color:#92400e; border:1px solid #fde68a; border-radius:9px; padding:8px 13px; font-size:13.5px; margin-bottom:10px; line-height:1.55;}
 .empty{ text-align:center; color:var(--sub); padding:24px 0; font-size:15px;}
 footer{ font-size:12px; color:var(--sub); padding:0 14px 26px; max-width:860px; margin:0 auto; line-height:1.8;}
 button.cancel-opt-btn{ flex:0 0 auto; font-size:13.5px; font-weight:700; padding:11px 14px; min-height:44px; border-radius:9px; border:1px solid var(--pend); background:#fff; color:var(--pend); cursor:pointer;}
@@ -268,6 +269,7 @@ button.cancel-opt-btn{ flex:0 0 auto; font-size:13.5px; font-weight:700; padding
 <main>
 <div id="errBar"></div>
 <div id="okBar"></div>
+<div id="outboxNote"></div>
 
 <div id="dash"></div>
 
@@ -310,7 +312,7 @@ button.cancel-opt-btn{ flex:0 0 auto; font-size:13.5px; font-weight:700; padding
 <h2>人ビュー（未対応の負荷）</h2>
 <div id="copyList"></div>
 <textarea id="copyText" class="hidden" readonly rows="8" aria-label="コピー用テキスト"></textarea>
-<div class="note">「Slackで送る」は次の同期で、その人の未対応（面談の担当分・メンション共有・依頼共有・割当タスク）を整形して本人のDMへ送ります（同日2回は送りません）。平日8:45の同期では、期限超過・本日期限があるメンバーへ自動でも送ります。「まとめをコピー」は従来どおり手動貼り付け用です。</div>
+<div class="note">「Slackで送る」は次の同期で、その人の未対応（面談の担当分・メンション共有・依頼共有・割当タスク）を整形して本人のDMへ送ります（同日2回は送りません）。平日8:45の同期では、期限超過・本日期限があるメンバーへ自動でも送ります。「まとめをコピー」は、送信されるまとめと同内容のテキストをコピーします（そのままSlackやLINEに貼って送れます）。</div>
 </div>
 <div class="panel">
 <h2>メンバー管理</h2>
@@ -377,6 +379,19 @@ let optCases = {};   // eventId -> { kind: "lost"|"close", case: 仮に消した
 let optDecided = {};   // eventId -> { flipped: [stageIdx...], prevPhase }（②内定確認の楽観完了で案件を内定確定済みに見せる記録。実データが追いついたら畳む）
 let optStageDone = {}; // "tour:pending:<eventId>:<stageKey>" -> { eventId, stageKey }（未送信ステージの先行完了。段階が実在化したら実項目へ引き継ぐ）
 let serverPendingIds = {}; // サーバから返る未適用アクションの対象ID（state.pendingActionIds）。先行チェック等の反映待ちを再読み込み後も復元するための「正」
+// アウトボックスの保存キーと読み書きは、初回ロード（この直下）より前に初期化しておく
+// （const の初期化前に loadOutbox を呼ぶと TDZ エラーになり、復元が常に空になってしまうため）
+const OUTBOX_KEY = "tb_outbox_v1";
+function loadOutbox() {
+  try {
+    const v = JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]");
+    return Array.isArray(v) ? v.filter((e) => e && e.payload && e.payload.action) : [];
+  } catch (_) { return []; }
+}
+function saveOutbox() {
+  try { localStorage.setItem(OUTBOX_KEY, JSON.stringify(outbox)); } catch (_) {}
+}
+let outbox = loadOutbox(); // ローカルファーストのアウトボックス（localStorage 永続化）。タップした瞬間に記録し、表示はローカル状態から即時に作る。サーバ（処理待ち）が共有の正で、未送信分はバックグラウンドで即アップロードする
 let optPrep = {};    // eventId -> true（①準備の開いているタスクをまとめて完了した記録。実データが追いつくまで①段階を完了として見せる。optDecided と同じ流儀）
 let optStarts = [];  // 入社待ち追加の楽観表示 { text, date, assignee, docsCollected }（サーバ側 startAdds か実案件に着地したら消す）
 let summaryPendingLocal = {}; // person -> true（送信予約の即時表示）
@@ -450,6 +465,7 @@ function pruneOpts(rawTasks, rawHistory, rawCases) {
   // 痕跡なしが3回の state 取得続いたら消失とみなし、表示を元に戻して警告する（ユーザーはそのまま再操作できる）。
   for (const id of Object.keys(optTasks)) {
     const o = optTasks[id];
+    if (outboxLiveFor(o.kind, id) || outbox.some((e) => e.payload.action === o.kind && e.payload.id === id)) continue; // アウトボックスに残る間は reconcile が畳み込みを担い、pruneOpts は判定しない
     const st = rawTasks.find((t) => t.id === id);
     const sh = rawHistory.find((x) => x.id === id);
     if (st && st.pending) {
@@ -472,6 +488,7 @@ function pruneOpts(rawTasks, rawHistory, rawCases) {
   }
   for (const id of Object.keys(optHistory)) {
     const o = optHistory[id];
+    if (outboxLiveFor("reopen", id) || outbox.some((e) => e.payload.action === "reopen" && e.payload.id === id)) continue; // アウトボックスに残る間は reconcile が担当
     const st = rawTasks.find((t) => t.id === id);
     const sh = rawHistory.find((x) => x.id === id);
     if (st) {
@@ -490,6 +507,7 @@ function pruneOpts(rawTasks, rawHistory, rawCases) {
     }
   }
   for (const eid of Object.keys(optCases)) {
+    if (outbox.some((e) => e.payload.action === "caseClose" && e.payload.eventId === eid)) continue; // アウトボックスに残る間は reconcile が担当
     const sc = rawCases.find((c) => c.eventId === eid);
     if (!sc) delete optCases[eid]; // 適用済み（案件一覧から消えた）
     else if (!sc.pending) {
@@ -509,6 +527,7 @@ async function fetchState() {
   (data.failures || []).forEach((f) => { failures[f.taskId] = f; });
   serverPendingIds = {};
   (data.pendingActionIds || []).forEach((id) => { serverPendingIds[id] = true; });
+  reconcileOutbox(rawTasks, rawHistory, rawCases, data);
   hideErr();
   pruneOpts(rawTasks, rawHistory, rawCases);
   tasks = rawTasks.filter((t) => !optTasks[t.id] && !(t.groupKey && optCases[t.groupKey]))
@@ -541,7 +560,9 @@ async function fetchState() {
   // 失敗扱いになった offer は pendingActionIds に残らないので復元されず、従来の流儀どおりに戻る。
   for (const rc of rawCases) {
     const pid = offerPid(rc.eventId);
-    if (!serverPendingIds[pid] || optDecided[rc.eventId] || caseDecided(rc)) continue;
+    if (optDecided[rc.eventId] || caseDecided(rc)) continue;
+    if (outboxIntentFor(pid) === "cancel") continue; // 取り消しをキュー済みの分は復元しない
+    if (!serverPendingIds[pid] && outboxIntentFor(pid) !== "complete") continue;
     optDecided[rc.eventId] = { flipped: [], prevPhase: rc.currentPhase, offer: true };
     optStageDone[pid] = { eventId: rc.eventId, stageKey: "offer" };
   }
@@ -575,6 +596,12 @@ async function fetchState() {
     applyPrepDone(cc);
   }
   members = data.members || [];
+  // メンバー無効化のアウトボックス分は、サーバ着地まで無効化待ちとして見せる
+  for (const e of outbox) {
+    if (e.payload.action !== "disableMember") continue;
+    const mm = members.find((x) => x.label === e.payload.member);
+    if (mm) mm.pendingOff = true;
+  }
   alerts = data.alerts || [];
   summaryPending = data.summaryPending || [];
   summarySent = data.summarySent || {};
@@ -587,6 +614,7 @@ async function fetchState() {
   }
   $("syncNote").textContent = "最終更新: " + (sheetUpdatedAt ? fmtIsoMdHm(sheetUpdatedAt) : "—") +
     "／" + nextSyncLabel();
+  renderOutboxStatus();
   render();
 }
 
@@ -606,6 +634,259 @@ async function postRaw(payload) {
     if (j && j.ok === false) return { ok: false, error: j.error || "error" };
   } catch (_) { /* 応答が読めない場合は記録できたものとして扱い、state読み戻しで確認する */ }
   return { ok: true };
+}
+
+// ---- ローカルファーストのアウトボックス（2026-11-18 ユーザー指示「いちいちサーバー通さなくていいから
+// チェック外したりを柔軟にして、同期の時にサーバーへ繋ぐ重い動作はやればいい」「PCでもスマホでも端末の保存は
+// 連携できるように」への対応） ----
+// ローカル保存は「表示を即時に・柔軟にするための層」、共有の正はサーバ（シートの処理待ち）。
+// キュー系アクション（complete/delete/reopen/caseClose/先行チェック/offer/sendSummary/追加系）は、
+// タップした瞬間に端末内（localStorage）へ記録し、表示はローカル状態から即時に作る（アップロードを待たない）。
+// サーバへの送信は、アクション直後の短いデバウンス・起動時・画面復帰時に未送信分をまとめて行う
+// （一括受け口は作らず、既存の単発POSTを順番に送ることで互換を維持する。アプリを閉じる/隠す際も
+// keepalive で flush を試みる）。送信成功分は「送信済み（未適用）」として保持し、サーバ状態
+// （pendingActionIds・履歴・追加一覧）への着地が確認できたら畳む。送信に失敗しても表示は巻き戻さず
+// リトライを続け、失敗はステータス表示（outboxNote）に留める。
+// 起動・再取得時の復元は、ローカル分に加えてサーバの pendingActionIds からも行うため、
+// PC・スマホどちらで開いても同じチェック状態が再現される（他端末で押した分の復元もこの経路）。
+function outboxKeyOf(p) {
+  if (p.action === "complete" || p.action === "delete" || p.action === "reopen" || p.action === "cancelAction") return p.action + ":" + p.id;
+  if (p.action === "caseClose") return "caseClose:" + p.eventId;
+  if (p.action === "sendSummary") return "sendSummary:" + p.member;
+  if (p.action === "addTask") return "addTask:" + p.title + "|" + (p.assignee || "");
+  if (p.action === "addMeeting") return "addMeeting:" + p.text;
+  if (p.action === "addStart") return "addStart:" + p.text + "|" + p.date;
+  if (p.action === "addMember") return "addMember:" + p.email;
+  if (p.action === "disableMember") return "disableMember:" + p.member;
+  return p.action + ":" + JSON.stringify(p);
+}
+function queueAction(payload) {
+  const key = outboxKeyOf(payload);
+  // 同一キーの未送信分があれば重ねない（タップの二重記録防止）。送信済み分への追加の意図は別エントリとして積む
+  if (outbox.some((e) => !e.sent && !e.failed && outboxKeyOf(e.payload) === key)) { scheduleFlush(); return; }
+  outbox.push({ payload: payload, sent: false, failed: "", seen: false, misses: 0, attempted: false });
+  saveOutbox();
+  renderOutboxStatus();
+  scheduleFlush();
+}
+function removeOutboxEntry(e) {
+  const i = outbox.indexOf(e);
+  if (i >= 0) outbox.splice(i, 1);
+  saveOutbox();
+  renderOutboxStatus();
+}
+// その id に対する直近のキュー意図（complete/delete/reopen/cancel）。表示の重ね合わせ判定に使う
+function outboxIntentFor(id) {
+  let s = "";
+  for (const e of outbox) {
+    const p = e.payload;
+    if (p.id !== id) continue;
+    if (p.action === "complete" || p.action === "delete" || p.action === "reopen") s = p.action;
+    else if (p.action === "cancelAction") s = "cancel";
+  }
+  return s;
+}
+// 未送信・送信失敗のキューが残っている間は、pruneOpts の消失判定で表示を巻き戻さないためのガード
+function outboxLiveFor(action, id) {
+  return outbox.some((e) => (!e.sent || e.failed) && e.payload.action === action && e.payload.id === id);
+}
+// 取り消し: 対象の操作がまだ未送信ならアウトボックスから除去するだけで成立させる。
+// 送信済み（サーバ側で反映待ち）なら cancelAction をキューに積む。表示は呼び出し側が即時に合わせる
+function queueCancelFor(id) {
+  const i = outbox.findIndex((e) => !e.sent && !e.failed &&
+    (e.payload.action === "complete" || e.payload.action === "delete" || e.payload.action === "reopen") && e.payload.id === id);
+  if (i >= 0) { outbox.splice(i, 1); saveOutbox(); renderOutboxStatus(); scheduleFlush(); return; }
+  queueAction({ action: "cancelAction", id: id });
+}
+function queueCaseCancel(eventId) {
+  const i = outbox.findIndex((e) => !e.sent && !e.failed && e.payload.action === "caseClose" && e.payload.eventId === eventId);
+  if (i >= 0) { outbox.splice(i, 1); saveOutbox(); renderOutboxStatus(); scheduleFlush(); return; }
+  queueAction({ action: "cancelAction", id: "case:" + eventId });
+}
+
+let flushing = false, flushTimer = null;
+function scheduleFlush() {
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => { flushTimer = null; flushOutbox(false); }, 150);
+}
+async function postQueued(payload, keepalive) {
+  let res;
+  try {
+    res = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload), keepalive: !!keepalive });
+  } catch (e) { return { ok: false, error: "network" }; }
+  try {
+    const j = await res.json();
+    if (j && j.ok === false) return { ok: false, error: j.error || "error" };
+  } catch (_) { /* 応答が読めない場合は記録できたものとして扱い、着地は state 読み戻しで確認する */ }
+  return { ok: true };
+}
+async function flushOutbox(keepalive) {
+  if (flushing || !configured()) { renderOutboxStatus(); return; }
+  const todo = outbox.filter((e) => !e.sent && !e.failed);
+  if (!todo.length) { renderOutboxStatus(); return; }
+  flushing = true;
+  let anySent = false, anyResolved = false;
+  try {
+    for (const e of todo) {
+      if (outbox.indexOf(e) < 0) continue; // 送信中に取り消された
+      e.attempted = true; // 送信を試みた印（未送信ステータス表示は「試みて、まだ残っている」分だけに出す）
+      const r = await postQueued(e.payload, keepalive);
+      if (outbox.indexOf(e) < 0) continue;
+      if (r.ok) { e.sent = true; anySent = true; }
+      else if (r.error === "network") { /* 未送信のまま残し、次回トリガー（復帰・周期・次アクション）で再送する */ }
+      else if (e.payload.action === "cancelAction" && r.error === "no_pending_action") {
+        removeOutboxEntry(e); // 取り消し対象がサーバに無い＝取り消しは実質完了。表示はサーバ状態で帳尻を合わせる
+        anyResolved = true;
+        continue;
+      } else {
+        e.failed = r.error || "error";
+        showErr(e.failed === "bad_pending_id"
+          ? "一部の操作がまだ有効化されていません（APIの更新待ちです）。チェック表示はそのまま保持しています。"
+          : "一部の操作を記録できませんでした（" + e.failed + "）。チェック表示はそのまま保持しています。");
+      }
+      saveOutbox();
+    }
+  } finally {
+    flushing = false;
+    renderOutboxStatus();
+    // 送信中に新しくキューされた分（この回で試みていない分）が残っていたら、間隔を置かずに続けて送る
+    // （次の定期トリガまで放置しない。この回で試みて届かなかった分は定期トリガ側のリトライに任せる）
+    if (outbox.some((e) => !e.sent && !e.failed && todo.indexOf(e) < 0)) scheduleFlush();
+  }
+  // 着地の確認はここでは行わない（完了直後の再取得はスクロール・表示のカクつきの原因になるため）。
+  // 送信済みエントリはローカルに保持され、既存の再取得タイミング（30秒周期・画面復帰時）で
+  // サーバ状態と照合して畳まれる（reconcileOutbox）。
+}
+function renderOutboxStatus() {
+  const el = $("outboxNote");
+  if (!el) return;
+  // 未送信の表示は、送信を試みたのに残っている分だけ（通常の送信中の一瞬は出さない＝レイアウトの揺れ防止）
+  const unsent = outbox.filter((e) => !e.sent && !e.failed && e.attempted).length;
+  const failed = outbox.filter((e) => e.failed);
+  if (!unsent && !failed.length) { el.style.display = "none"; el.textContent = ""; return; }
+  let msg = "";
+  if (unsent) msg += "未送信の操作が " + unsent + "件あります（自動で再送します）";
+  if (failed.length) msg += (msg ? "／" : "") + "送信できない操作が " + failed.length + "件あります（" + failed[0].failed + "）。チェック表示は保持しています";
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+// アウトボックスとサーバ状態の帳尻合わせ（fetchState の中で、pruneOpts の前に呼ぶ）。
+// - サーバの処理待ち・履歴・追加一覧に着地した送信済みエントリは畳む。
+// - まだサーバに届いていないエントリは、セッション内と同じ楽観表示になるよう opt* へ合成する。
+// - 他端末で押した分はサーバ側（pendingActionIds 等）が正として表示され、ローカル分と重ね合わさる。
+function reconcileOutbox(rawTasks, rawHistory, rawCases, data) {
+  const rawAdds = data.adds || [], rawMeetingAdds = data.meetingAdds || [], rawStartAdds = data.startAdds || [], rawMemberAdds = data.memberAdds || [];
+  const drop = [];
+  for (const e of outbox) {
+    const p = e.payload;
+    // 同期で「失敗」になった操作は、サーバ側の結論が出ているのでエントリを畳む
+    // （表示の巻き戻しと理由表示は pruneOpts / 先行チェックの失敗畳み込みが担う）
+    const failId = p.action === "caseClose" ? "case:" + p.eventId : p.id;
+    if (failId && failures[failId]) { drop.push(e); continue; }
+    if (p.action === "complete" || p.action === "delete") {
+      const id = p.id;
+      if (id.indexOf("tour:pending:") === 0) {
+        // 先行チェック・offer: サーバの未適用に着地したら畳む。段階の実在化・内定確定・案件消滅でも役目を終える
+        if (outboxIntentFor(id) === "cancel") { drop.push(e); continue; } // 取り消し済みの先行チェックは畳む（取り消し側の着地確認は cancelAction 側が担う）
+        const cut = id.lastIndexOf(":");
+        const ev = id.slice("tour:pending:".length, cut), key = id.slice(cut + 1);
+        const rc = rawCases.find((c) => c.eventId === ev);
+        if (serverPendingIds[id]) drop.push(e);
+        else if (!rc) drop.push(e);
+        else if (key === "offer" ? caseDecided(rc) : !stageStillNotyet(rc, key)) drop.push(e);
+        else if (!optStageDone[id]) optStageDone[id] = { eventId: ev, stageKey: key }; // ローカルに残る先行チェックは、再読み込み後もチェック表示として復元する
+        continue;
+      }
+      const st = rawTasks.find((t) => t.id === id);
+      const sh = rawHistory.find((x) => x.id === id);
+      if (serverPendingIds[id] || (st && st.pending)) { drop.push(e); continue; } // サーバの処理待ちに着地
+      if (!st && sh) { drop.push(e); continue; } // 適用済み（実物の履歴行が出た）
+      if (outboxIntentFor(id) === "cancel") { drop.push(e); continue; } // 取り消し済みの完了・削除を復活させない（取り消し側の着地確認は cancelAction 側が担う）
+      if (st) {
+        if (!optTasks[id]) optTasks[id] = { kind: p.action, task: st, row: histRowFromTask(st, p.action === "delete" ? "削除" : "✅で完了", p.action) };
+        continue;
+      }
+      e.misses = (e.misses || 0) + 1;
+      if (e.misses >= 3) { drop.push(e); showErr("⚠️ 操作の消失を検出しました: 「" + id + "」の操作が記録に見当たりません。もう一度操作してください。"); }
+      continue;
+    }
+    if (p.action === "reopen") {
+      const id = p.id;
+      const st = rawTasks.find((t) => t.id === id);
+      const sh = rawHistory.find((x) => x.id === id);
+      if (serverPendingIds[id] || (sh && sh.pending)) { drop.push(e); continue; }
+      if (st) { drop.push(e); continue; } // 適用済み（未対応に戻った）
+      if (outboxIntentFor(id) === "cancel") { drop.push(e); continue; } // 取り消し済みの戻しを復活させない
+      if (sh) {
+        if (!optHistory[id]) optHistory[id] = { task: taskFromHistory(sh), row: sh };
+        continue;
+      }
+      e.misses = (e.misses || 0) + 1;
+      if (e.misses >= 3) { drop.push(e); showErr("⚠️ 戻し操作の消失を検出しました: 「" + id + "」の操作が記録に見当たりません。もう一度操作してください。"); }
+      continue;
+    }
+    if (p.action === "cancelAction") {
+      const id = p.id;
+      const visible = serverPendingIds[id] ||
+        rawTasks.some((t) => t.id === id && t.pending) ||
+        rawHistory.some((x) => x.id === id && x.pending) ||
+        (id.indexOf("case:") === 0 && rawCases.some((c) => c.eventId === id.slice(5) && c.pending));
+      if (e.sent && !visible) drop.push(e); // 取り消しがサーバに着地した（対象の反映待ちが消えた）
+      continue;
+    }
+    if (p.action === "caseClose") {
+      const rc = rawCases.find((c) => c.eventId === p.eventId);
+      if (outboxIntentFor("case:" + p.eventId) === "cancel") {
+        // 取り消し済みの案件クローズは復活させない。サーバ側の反映待ちが消えたら畳む
+        if (!serverPendingIds["case:" + p.eventId] && !(rc && rc.pending)) drop.push(e);
+        continue;
+      }
+      if (serverPendingIds["case:" + p.eventId] || (rc && rc.pending)) { drop.push(e); continue; }
+      if (!rc) { drop.push(e); continue; } // 適用済み（案件が消えた）
+      if (!optCases[p.eventId]) optCases[p.eventId] = { kind: p.kind, case: rc, tasks: rawTasks.filter((t) => t.groupKey === p.eventId) };
+      continue;
+    }
+    if (p.action === "sendSummary") {
+      if ((data.summaryPending || []).indexOf(p.member) >= 0) { e.seen = true; continue; }
+      if (e.seen) { drop.push(e); delete summaryPendingLocal[p.member]; continue; } // 送信待ちが消えた＝適用済み
+      if (e.sent) {
+        e.misses = (e.misses || 0) + 1;
+        if (e.misses >= 3) { drop.push(e); delete summaryPendingLocal[p.member]; }
+      }
+      continue;
+    }
+    if (p.action === "addTask") {
+      if (rawAdds.some((a) => a.title === p.title && (a.assignee || "") === (p.assignee || ""))) { drop.push(e); continue; }
+      if (!optAdds.some((o) => o.title === p.title && (o.assignee || "") === (p.assignee || "") && (o.datetime || "") === (p.datetime || ""))) {
+        optAdds.push({ title: p.title, datetime: p.datetime, assignee: p.assignee });
+      }
+      continue;
+    }
+    if (p.action === "addMeeting") {
+      if (rawMeetingAdds.some((a) => a.text === p.text)) { drop.push(e); continue; }
+      if (!optMeetings.some((o) => o.text === p.text)) optMeetings.push({ text: p.text, assignee: p.assignee });
+      continue;
+    }
+    if (p.action === "addStart") {
+      if (rawStartAdds.some((a) => a.text === p.text && a.date === p.date && (a.assignee || "自分") === (p.assignee || "自分"))) { drop.push(e); continue; }
+      if (!optStarts.some((o) => o.text === p.text && o.date === p.date)) {
+        optStarts.push({ text: p.text, date: p.date, assignee: p.assignee, docsCollected: p.docsCollected === true });
+      }
+      continue;
+    }
+    if (p.action === "addMember") {
+      if (rawMemberAdds.some((a) => a.email === p.email)) { drop.push(e); continue; }
+      if (!optMemberAdds.some((o) => o.email === p.email)) optMemberAdds.push({ name: p.name, email: p.email });
+      continue;
+    }
+    if (p.action === "disableMember") {
+      const m = (data.members || []).find((x) => x.label === p.member);
+      if (m && (m.pendingOff || m.status === "無効")) drop.push(e);
+      continue;
+    }
+  }
+  for (const e of drop) removeOutboxEntry(e);
 }
 
 async function optFail(optObj, key, msg) {
@@ -719,8 +1000,7 @@ async function complete(id) {
   tasks = tasks.filter((x) => x.id !== id);
   history = history.concat(optTasks[id].row);
   stableView(() => { removeTaskDom(id); refreshChrome(); refreshOpenPeople(); if (decidedEv) { renderDash(); bindEvents($("dash")); } });
-  const r = await postRaw({ action: "complete", id: id });
-  if (!r.ok) { await optFail(optTasks, id, "記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[id]; return; }
+  queueAction({ action: "complete", id: id });
   delete sending[id];
 }
 
@@ -753,8 +1033,7 @@ async function doDelete(id) {
   tasks = tasks.filter((x) => x.id !== id);
   history = history.concat(optTasks[id].row);
   stableView(() => { removeTaskDom(id); refreshChrome(); refreshOpenPeople(); });
-  const r = await postRaw({ action: "delete", id: id });
-  if (!r.ok) { await optFail(optTasks, id, "削除を記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[id]; return; }
+  queueAction({ action: "delete", id: id });
   delete sending[id];
 }
 
@@ -779,8 +1058,7 @@ async function reopen(id) {
     maybeEmptyList();
     refreshChrome();
   });
-  const r = await postRaw({ action: "reopen", id: id });
-  if (!r.ok) { await optFail(optHistory, id, "戻しを記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[key]; return; }
+  queueAction({ action: "reopen", id: id });
   delete sending[key];
 }
 
@@ -849,8 +1127,7 @@ async function caseClose(eventId, kind) {
     refreshChrome();
     refreshOpenPeople();
   });
-  const r = await postRaw({ action: "caseClose", eventId: eventId, kind: kind });
-  if (!r.ok) { await optFail(optCases, eventId, "記録できませんでした。通信を確認して、もう一度試してください。"); delete sending[key]; return; }
+  queueAction({ action: "caseClose", eventId: eventId, kind: kind });
   delete sending[key];
 }
 
@@ -887,10 +1164,9 @@ async function cancelOptTask(id) {
   history = history.filter((x) => !(x.id === id && x.opt));
   tasks = tasks.filter((x) => x.id !== id).concat(o.task);
   stableView(() => render());
-  const r = await postRaw({ action: "cancelAction", id: id });
+  queueCancelFor(id);
   delete sending[key];
-  const done = await cancelSettled(r, () => { optTasks[id] = o; }, o.row.title);
-  if (done) showOk((o.kind === "delete" ? "削除" : "完了") + "を取り消しました。タスクは未対応に戻っています。");
+  showOk((o.kind === "delete" ? "削除" : "完了") + "を取り消しました。タスクは未対応に戻っています。");
 }
 
 // 「未対応に戻す」の取り消し（未対応側に出ている楽観タスクから）
@@ -904,10 +1180,9 @@ async function cancelReopen(id) {
   tasks = tasks.filter((x) => x.id !== id);
   if (o.row) history = history.filter((x) => x.id !== id).concat(o.row);
   stableView(() => render());
-  const r = await postRaw({ action: "cancelAction", id: id });
+  queueCancelFor(id);
   delete sending[key];
-  const done = await cancelSettled(r, () => { optHistory[id] = o; }, o.task.title);
-  if (done) showOk("「未対応に戻す」を取り消しました。");
+  showOk("「未対応に戻す」を取り消しました。");
 }
 
 // サーバ側で反映待ちになっているタスクカードの取り消し（再読み込み後など、楽観記録が手元に無い場合）
@@ -921,10 +1196,9 @@ async function cancelPending(id) {
   replaceCardDom(t);
   refreshChrome();
   refreshOpenPeople();
-  const r = await postRaw({ action: "cancelAction", id: id });
+  queueCancelFor(id);
   delete sending[key];
-  const done = await cancelSettled(r, null, t.title);
-  if (done) showOk("操作を取り消しました。タスクはそのまま操作できます。");
+  showOk("操作を取り消しました。タスクはそのまま操作できます。");
 }
 
 // 案件クローズ（失注/終了）の取り消し（楽観的に消した案件を戻す）
@@ -938,10 +1212,9 @@ async function cancelCaseClose(eventId) {
   cases = cases.filter((x) => x.eventId !== eventId).concat(o.case);
   if (o.tasks && o.tasks.length) tasks = tasks.concat(o.tasks.filter((t) => !tasks.some((x) => x.id === t.id)));
   stableView(() => render());
-  const r = await postRaw({ action: "cancelAction", id: "case:" + eventId });
+  queueCaseCancel(eventId);
   delete sending[key];
-  const done = await cancelSettled(r, () => { optCases[eventId] = o; }, o.case.facility + " " + o.case.person);
-  if (done) showOk("案件の「" + (o.kind === "lost" ? "失注" : "終了") + "」を取り消しました。");
+  showOk("案件の「" + (o.kind === "lost" ? "失注" : "終了") + "」を取り消しました。");
 }
 
 // サーバ側で反映待ちになっている案件の取り消し（再読み込み後など）
@@ -953,10 +1226,9 @@ async function cancelCasePending(eventId) {
   sending[key] = true;
   c.pending = false;
   stableView(() => render());
-  const r = await postRaw({ action: "cancelAction", id: "case:" + eventId });
+  queueCaseCancel(eventId);
   delete sending[key];
-  const done = await cancelSettled(r, null, c.facility + " " + c.person);
-  if (done) showOk("案件の操作を取り消しました。");
+  showOk("案件の操作を取り消しました。");
 }
 
 // ---- 内定後の回収チェックリスト（案件詳細内）の操作 ----
@@ -1146,11 +1418,9 @@ async function cancelCollectReopen(ev, taskId) {
   sending[key] = true;
   h.pending = false;
   syncCollectRowDom(ev, taskId);
-  const r = await postRaw({ action: "cancelAction", id: taskId });
+  queueCancelFor(taskId);
   delete sending[key];
-  const done = await cancelSettled(r, () => { h.pending = true; }, h.title);
-  if (done) showOk("「未対応に戻す」を取り消しました。");
-  else syncCollectRowDom(ev, taskId);
+  showOk("「未対応に戻す」を取り消しました。");
 }
 
 // 未送信ステージの先行完了: チェックした瞬間にアプリ内では完了扱いにし、POST {action:"complete", id:"tour:pending:..."}
@@ -1166,15 +1436,8 @@ async function completeStagePending(ev, pid) {
     if (row) setCollectRowState(row, "stagePending");
   });
   syncCollectDom(ev);
-  const r = await postRaw({ action: "complete", id: pid });
+  queueAction({ action: "complete", id: pid });
   delete sending[pid];
-  if (!r.ok) {
-    delete optStageDone[pid];
-    try { await fetchState(); } catch (_) { render(); }
-    showErr("記録できませんでした。通信を確認して、もう一度試してください。");
-    return;
-  }
-  serverPendingIds[pid] = true; // 再取得後もサーバ側の未適用として同じ状態が返る前提で保持する
   showOk("先行チェックしました（この段階が送られた時点で、そのまま完了として消し込まれます）");
 }
 
@@ -1183,23 +1446,16 @@ async function cancelStagePending(ev, pid) {
   const key = "cancel:" + pid;
   if (sending[key]) return;
   sending[key] = true;
-  const saved = optStageDone[pid];
-  const wasServer = !!serverPendingIds[pid];
   delete optStageDone[pid];
-  if (wasServer) delete serverPendingIds[pid];
   document.querySelectorAll("input[data-collect-check=" + attrQ(pid) + "]").forEach((inp) => {
     inp.checked = false;
     const row = inp.closest(".collect-row");
     if (row) setCollectRowState(row, "notyet");
   });
   syncCollectDom(ev);
-  const r = await postRaw({ action: "cancelAction", id: pid });
+  queueCancelFor(pid);
   delete sending[key];
-  const done = await cancelSettled(r, () => {
-    if (saved) optStageDone[pid] = saved;
-    if (wasServer) serverPendingIds[pid] = true;
-  }, "先行チェック");
-  if (done) showOk("先行チェックを取り消しました");
+  showOk("先行チェックを取り消しました");
 }
 
 // 「内定にする」: 確認は挟まず即POSTし、押した瞬間に案件を内定確定済みとして扱って入社待ちへ即移動させる。
@@ -1217,22 +1473,11 @@ async function decideOffer(eventId, opts) {
   optStageDone[pid] = { eventId: eventId, stageKey: "offer" };
   delete openCases[eventId]; // 詳細を開いたまま面談タブに残さず、入社待ちへ移動したことを見せる
   stableView(() => { renderDash(); bindEvents($("dash")); render(); });
-  const r = await postRaw({ action: "complete", id: pid });
+  // 記録はアウトボックスへ（タップした瞬間にローカルへ永続化し、送信は後からまとめて行う）。
+  // 送信に失敗しても内定扱いの表示は保持され、失敗はアウトボックスのステータスに残る。
+  queueAction({ action: "complete", id: pid });
   delete sending[pid];
-  if (!r.ok) {
-    delete optStageDone[pid];
-    if (optDecided[eventId]) {
-      rollbackOfferDecided(cases.find((x) => x.eventId === eventId), optDecided[eventId]);
-      delete optDecided[eventId];
-    }
-    try { await fetchState(); } catch (_) { render(); }
-    showErr(r.error === "bad_pending_id"
-      ? "内定を記録できませんでした: この操作はまだ有効化されていません（APIの更新待ちです）。時間をおいてもう一度試してください。"
-      : "内定を記録できませんでした。通信を確認して、もう一度試してください。");
-    return false;
-  }
   if (!opts.quietOk) showOk("「" + c.facility + " " + c.person + "」を内定にしました（反映待ち・" + nextSyncLabel() + "）。入社待ちへ移動しました。");
-  serverPendingIds[pid] = true;
   return true;
 }
 
@@ -1245,24 +1490,13 @@ async function cancelOffer(eventId) {
   if (!c || !offerPending(c)) return;
   sending[key] = true;
   const savedDecided = optDecided[eventId];
-  const savedStage = optStageDone[pid];
-  const wasServer = !!serverPendingIds[pid];
   delete optDecided[eventId];
   delete optStageDone[pid];
-  if (wasServer) delete serverPendingIds[pid];
   if (savedDecided) rollbackOfferDecided(c, savedDecided);
   stableView(() => { renderDash(); bindEvents($("dash")); render(); });
-  const r = await postRaw({ action: "cancelAction", id: pid });
+  queueCancelFor(pid);
   delete sending[key];
-  const done = await cancelSettled(r, () => {
-    if (savedStage) optStageDone[pid] = savedStage;
-    if (wasServer) serverPendingIds[pid] = true;
-    if (savedDecided) {
-      const cc = cases.find((x) => x.eventId === eventId);
-      if (cc) optDecided[eventId] = applyOfferDecided(cc);
-    }
-  }, "内定にする");
-  if (done) showOk("「内定にする」を取り消しました。案件は面談待ちに戻っています。");
+  showOk("「内定にする」を取り消しました。案件は面談待ちに戻っています。");
 }
 
 // ---- 「内定まで一括で進める」（準備①②の実在タスクをまとめて完了し、そのまま内定まで進める） ----
@@ -1299,8 +1533,8 @@ function canBulk(c) {
 }
 
 // 段階タスク1件の楽観完了（complete() と同じ表示処理。ただし optDecided には触らない）。
-// 成功したら true。失敗したらそのタスクだけ optFail で巻き戻して false を返す
-// （先に成功したタスクの optTasks は残るので、完了済みの表示は維持される）。
+// アウトボックス方式では記録はタップした瞬間にローカルへ積まれ、送信は後からまとめて行うため、
+// この場で失敗が分かることはなく常に true を返す（送信失敗はアウトボックスのステータスに残る）。
 async function bulkCompleteOne(t) {
   if (sending[t.id]) return false;
   sending[t.id] = true;
@@ -1308,9 +1542,8 @@ async function bulkCompleteOne(t) {
   tasks = tasks.filter((x) => x.id !== t.id);
   history = history.concat(optTasks[t.id].row);
   stableView(() => { removeTaskDom(t.id); refreshChrome(); refreshOpenPeople(); });
-  const r = await postRaw({ action: "complete", id: t.id });
+  queueAction({ action: "complete", id: t.id });
   delete sending[t.id];
-  if (!r.ok) { await optFail(optTasks, t.id, "記録できませんでした。通信を確認して、もう一度試してください。"); return false; }
   return true;
 }
 
@@ -1330,7 +1563,7 @@ async function bulkDecide(eventId) {
   }
   if (failed) {
     delete bulkRunning[eventId];
-    // optFail が読み戻しと理由表示を行う。完了済みがある場合は途中経過も上書きで伝える
+    // アウトボックス方式では bulkCompleteOne は常に成功扱い（送信失敗はステータスに残る）ため通常は到達しない
     if (doneCount > 0) showErr("一括処理を中断しました: " + doneCount + "件のタスクは完了として記録しましたが、内定までは進めていません。残りのタスクから個別に進めてください。");
     return;
   }
@@ -1437,13 +1670,7 @@ async function sendSummary(person) {
   if (!window.confirm(label + "の未対応 " + list.length + "件を、Slack DMで送ります（次の同期で送信。同日にボタン/自動で送信済みなら送りません）。よろしいですか？")) return;
   summaryPendingLocal[person] = true;
   refreshPersonCard(person);
-  const r = await postRaw({ action: "sendSummary", member: person });
-  if (!r.ok) {
-    delete summaryPendingLocal[person];
-    try { await fetchState(); } catch (_) { render(); }
-    showErr("送信予約を記録できませんでした。通信を確認して、もう一度試してください。");
-    return;
-  }
+  queueAction({ action: "sendSummary", member: person });
   showOk(label + "への送信を受け付けました。次の同期で送ります。");
 }
 
@@ -1468,14 +1695,8 @@ async function submitAdd() {
   optAdds.push(entry);
   adds = adds.concat(entry);
   render();
-  const r = await postRaw({ action: "addTask", title: entry.title, datetime: entry.datetime, assignee: entry.assignee });
+  queueAction({ action: "addTask", title: entry.title, datetime: entry.datetime, assignee: entry.assignee });
   btn.disabled = false;
-  if (!r.ok) {
-    optAdds = optAdds.filter((o) => o !== entry);
-    try { await fetchState(); } catch (_) { render(); }
-    showErr("追加を記録できませんでした。通信を確認して、もう一度試してください。");
-    return;
-  }
   $("addTitle").value = ""; $("addWhen").value = "";
   showOk("タスクの追加を受け付けました。次の同期でカレンダーに登録されます。");
 }
@@ -1490,14 +1711,8 @@ async function submitMeeting() {
   optMeetings.push(entry);
   meetingAdds = meetingAdds.concat(entry);
   render();
-  const r = await postRaw({ action: "addMeeting", text: entry.text, assignee: entry.assignee });
+  queueAction({ action: "addMeeting", text: entry.text, assignee: entry.assignee });
   btn.disabled = false;
-  if (!r.ok) {
-    optMeetings = optMeetings.filter((o) => o !== entry);
-    try { await fetchState(); } catch (_) { render(); }
-    showErr("面談の追加を記録できませんでした。通信を確認して、もう一度試してください。");
-    return;
-  }
   $("mtgText").value = "";
   showOk("面談の追加を受け付けました。次の同期でカレンダーに登録されます。");
 }
@@ -1518,14 +1733,7 @@ async function submitStart() {
   startFormOpen = false;
   startAddTextVal = ""; startAddDateVal = ""; startAddAssigneeVal = "自分"; startAddDocsVal = false;
   render();
-  const r = await postRaw({ action: "addStart", text: text, date: date, assignee: entry.assignee, docsCollected: entry.docsCollected });
-  if (!r.ok) {
-    optStarts = optStarts.filter((o) => o !== entry);
-    try { await fetchState(); } catch (_) { render(); }
-    showErr("入社待ちの追加を記録できませんでした。通信を確認して、もう一度試してください。");
-    delete sending["addStart"];
-    return;
-  }
+  queueAction({ action: "addStart", text: text, date: date, assignee: entry.assignee, docsCollected: entry.docsCollected });
   showOk("入社待ちの追加を受け付けました。次の同期でカレンダーに入社予定が作られます。");
   delete sending["addStart"];
 }
@@ -1542,14 +1750,8 @@ async function submitMember() {
   optMemberAdds.push(entry);
   memberAdds = memberAdds.concat(entry);
   render();
-  const r = await postRaw({ action: "addMember", name: name, email: email });
+  queueAction({ action: "addMember", name: name, email: email });
   btn.disabled = false;
-  if (!r.ok) {
-    optMemberAdds = optMemberAdds.filter((o) => o !== entry);
-    try { await fetchState(); } catch (_) { render(); }
-    showErr("メンバー追加を記録できませんでした。通信を確認して、もう一度試してください。");
-    return;
-  }
   $("memName").value = ""; $("memEmail").value = "";
   showOk("メンバー追加を受け付けました。次の同期から監視対象に入ります。");
 }
@@ -1562,12 +1764,8 @@ async function disableMember(label) {
   const m = members.find((x) => x.label === label);
   if (m) m.pendingOff = true;
   render();
-  const r = await postRaw({ action: "disableMember", member: label });
+  queueAction({ action: "disableMember", member: label });
   delete sending[key];
-  if (!r.ok) {
-    try { await fetchState(); } catch (_) { render(); }
-    showErr("無効化を記録できませんでした。通信を確認して、もう一度試してください。");
-  }
 }
 </script>
 <script>
@@ -1776,6 +1974,9 @@ function offerPid(ev) { return "tour:pending:" + ev + ":offer"; }
 function offerPending(c) {
   if (!c) return false;
   const pid = offerPid(c.eventId);
+  const intent = outboxIntentFor(pid);
+  if (intent === "complete") return true;
+  if (intent === "cancel") return false;
   if (optStageDone[pid] || serverPendingIds[pid]) return true;
   return tasks.some((t) => t.id === pid && t.pending);
 }
@@ -1997,6 +2198,9 @@ function stageKeyOf4(name) {
 }
 
 function isStagePending(pid) {
+  const intent = outboxIntentFor(pid);
+  if (intent === "complete") return true;
+  if (intent === "cancel") return false;
   if (optStageDone[pid] || serverPendingIds[pid]) return true;
   return tasks.some((t) => t.id === pid && t.pending);
 }
@@ -2386,21 +2590,48 @@ function personOpenTasks(person) {
   return sortSummaryTasks(list);
 }
 
+// まとめのコピー用テキスト（2026-11-18: 同期がDM送信する「まとめ送信」と同内容・同形式に格上げ。
+// ユーザーがそのままSlack/LINE等へ貼って即送信できるようにするため）。
+// 整形ルールは送信版に合わせる: 1行目「【タスクボード】未対応まとめ ｜ **<呼び名>さん** ｜ 全○件」
+// （自分は「**自分の分**」）、2行目「<M/D H時>時点」、種別ごとの■見出しブロック（空は出さない）、
+// 期限超過は行頭「⚠️期限超過 」、ボード設定の期日がある項目はその期日を締切として表示（📌行は出さない）、
+// メモ・投稿リンクは子行、末尾は✅依頼の1行。クライアント側の state から生成できる範囲で送信版に寄せる
+// （面談のフェーズバッジは phase まで。送信版の「・前日」等の細分は状態ファイル側の情報のため含めない）。
 function buildSummaryText(person, list) {
   const now = new Date();
-  const md = (now.getMonth() + 1) + "/" + now.getDate();
-  const lines = [person === "自分"
-    ? "\u3010自分の分\u3011未対応 " + list.length + "件（" + md + "時点）"
-    : "\u3010" + person + "さん\u3011未対応 " + list.length + "件（" + md + "時点）"];
-  for (const t of list) {
-    let line = effOverdue(t) ? "⚠️期限超過 ・" : "・";
-    line += t.title;
-    if (t.metaDue) line += "｜締切: " + fmtMD(t.metaDue);
-    else line += t.deadlineLabel ? "｜締切: " + t.deadlineLabel : "｜" + (t.elapsedDays || 0) + "日経過";
-    lines.push(line);
+  const head = [
+    "【タスクボード】未対応まとめ ｜ **" + (person === "自分" ? "自分の分" : person + "さん") + "** ｜ 全" + list.length + "件",
+    (now.getMonth() + 1) + "/" + now.getDate() + " " + now.getHours() + "時時点"
+  ];
+  const cats = person === "自分"
+    ? [["■ メール", (t) => t.type === "mail"], ["■ Slack", (t) => t.type === "slack"], ["■ カレンダー", (t) => t.type === "calendar"], ["■ 面談", (t) => t.type === "tour"], ["■ 入社", (t) => t.type === "onboarding"]]
+    : [["■ 面談", (t) => t.type === "tour"], ["■ 依頼", (t) => t.type === "member" && t.shareKind === "依頼共有"], ["■ メンション共有", (t) => t.type === "member" && t.shareKind === "メンション共有"], ["■ 割当タスク", (t) => t.type === "member" && t.shareKind === "割当タスク"]];
+  const blocks = [];
+  for (const pair of cats) {
+    const items = list.filter(pair[1]);
+    if (!items.length) continue;
+    const lines = [pair[0]];
+    for (const t of items) {
+      let line;
+      if (t.type === "tour") {
+        line = "・**" + (t.groupTitle || t.title) + "** ｜ 【" + (t.phase || "面談") + "】" + (t.datetimeLabel || "");
+        if (t.metaDue) line += " ｜ 締切: " + fmtMD(t.metaDue);
+      } else {
+        const mid = t.type === "member" ? (t.shareKind || t.typeLabel || "") : (t.typeLabel || "");
+        let when;
+        if (t.metaDue) when = "締切: " + fmtMD(t.metaDue);
+        else if (t.deadlineLabel) when = "締切: " + t.deadlineLabel;
+        else when = t.datetimeLabel || "";
+        line = "・**" + t.title + "**" + (mid ? " ｜ " + mid : "") + (when ? " ｜ " + when : "");
+      }
+      if (effOverdue(t)) line = "⚠️期限超過 " + line;
+      lines.push(line);
+      if (t.memo) lines.push("・📝 メモ: " + t.memo);
+      if (t.slackUrl) lines.push("・<" + t.slackUrl + "|投稿を開く>");
+    }
+    blocks.push(lines.join("\n"));
   }
-  if (person !== "自分") lines.push("対応したら元のメッセージに✅をお願いします");
-  return lines.join("\n");
+  return head.join("\n") + "\n\n" + blocks.join("\n\n") + "\n\n対応したら元のメッセージに✅をお願いします";
 }
 
 async function copySummary(person) {
@@ -2896,9 +3127,14 @@ $("memSubmit").addEventListener("click", submitMember);
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js").catch(() => {});
 }
-fetchState().catch(() => { showErr("読み込みに失敗しました。通信を確認してページを再読み込みしてください。"); $("syncNote").textContent = "同期できていません"; render(); });
-setInterval(() => { if (!document.hidden) fetchState().catch(() => {}); }, 30000);
-document.addEventListener("visibilitychange", () => { if (!document.hidden) fetchState().catch(() => {}); });
+fetchState().catch(() => { showErr("読み込みに失敗しました。通信を確認してページを再読み込みしてください。"); $("syncNote").textContent = "同期できていません"; render(); })
+  .then(() => { renderOutboxStatus(); flushOutbox(false); });
+setInterval(() => { if (!document.hidden) { flushOutbox(false); fetchState().catch(() => {}); } }, 30000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) { flushOutbox(false); fetchState().catch(() => {}); }
+  else flushOutbox(true); // 隠れるタイミングでも未送信分を送り切る（keepalive）
+});
+window.addEventListener("pagehide", () => { flushOutbox(true); }); // 閉じるタイミングでも flush を試みる
 </script>
 </body>
 </html>

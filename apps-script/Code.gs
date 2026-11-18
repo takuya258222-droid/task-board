@@ -3,6 +3,7 @@
 * バージョン v8（2026-11-18）: complete に tour:pending: 特例（未送信ステージの先行完了）を追加
 * バージョン v9（2026-11-18）: tour:pending: の stageKey に offer（内定確認の先行確定）を追加
 * バージョン v10（2026-11-18）: state に pendingActionIds（未適用アクションの対象ID一覧）を追加。先行チェック（tour:pending:）など、タスク行に紐づかない未適用アクションの反映待ち状態をフロントが再読み込み後も復元できるようにするため
+* バージョン v11（2026-11-18）: tour:pending: の解析を「最後の ':' の後ろが stageKey、それより前全体が eventId」に変更。direct: で始まる案件キー（コロンを含む eventId）の先行チェックが bad_pending_id になっていた不具合の修正
 * 公開ページ（GitHub Pages）から Googleシート「タスクボード」を読み書きするための受け口。
 * 合言葉なし＝オープンモード（URLを知っている人だけが使える、家事/西STリストと同じ方式。ボードはユーザー専用）。
 * - 状態取得: GET?action=state
@@ -392,9 +393,12 @@ return { ok: true, id: id, pending: true, already: true};
 // いない段階への完了操作。タスクシートには行が無いので照合をスキップし、channel/ts は
 // 空のまま通常の complete と同じ形式で処理待ちへ積む（消込は同期が案件記録側で行う）。
 if (id.indexOf("tour:pending:") === 0) {
-const parts = id.slice("tour:pending:".length).split(":");
+const rest = id.slice("tour:pending:".length);
+const cut = rest.lastIndexOf(":");
+const eventIdPart = cut > 0 ? rest.slice(0, cut) : "";
+const stageKeyPart = cut > 0 ? rest.slice(cut + 1) : "";
 const stageKeys = ["offer", "docs", "duo", "sesio", "contract", "formrun", "followup"];
-if (parts.length !== 2 || !parts[0] || stageKeys.indexOf(parts[1]) < 0) {
+if (!eventIdPart || stageKeys.indexOf(stageKeyPart) < 0) {
 return { ok: false, error: "bad_pending_id", id: id };
 }
 const ssP = SpreadsheetApp.openById(SPREADSHEET_ID);

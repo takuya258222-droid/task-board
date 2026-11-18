@@ -301,6 +301,18 @@ check("pending 不正stageKeyは bad_pending_id", r.ok === false && r.error === 
 r = post({ action: "complete", id: "tour:pending:evT:docs:extra" });
 check("pending 余分な区切りは bad_pending_id", r.ok === false && r.error === "bad_pending_id");
 check("有効な pending 行は7件のみ（不正形式では増えない）", sheets["処理待ち"].rows.filter((x) => String(x[1]).indexOf("tour:pending:") === 0).length === 7);
+// ---- v11: direct: で始まる案件キー（コロンを含む eventId）の先行チェック ----
+r = post({ action: "complete", id: "tour:pending:direct:20261118of12o6:duo" });
+check("pending complete（direct:キー）ok", r.ok === true && r.pending === true && r.already !== true, JSON.stringify(r));
+const dirRow = sheets["処理待ち"].rows.find((x) => x[1] === "tour:pending:direct:20261118of12o6:duo" && x[2] === "complete");
+check("pending complete行（direct:キー。B=id / status=未適用 / channel・ts は空）", Boolean(dirRow) && dirRow[4] === "未適用" && (dirRow[7] || "") === "" && (dirRow[8] || "") === "", JSON.stringify(dirRow));
+r = post({ action: "complete", id: "tour:pending:direct:20261118of12o6:duo" });
+check("pending complete（direct:キー）二重は already", r.ok === true && r.already === true);
+check("pending complete行（direct:キー）は増えない", sheets["処理待ち"].rows.filter((x) => x[1] === "tour:pending:direct:20261118of12o6:duo").length === 1);
+r = post({ action: "complete", id: "tour:pending:direct:20261118of12o6:offer" });
+check("pending offer（direct:キー）ok", r.ok === true && r.pending === true, JSON.stringify(r));
+r = post({ action: "complete", id: "tour:pending:direct:20261118of12o6:xyz" });
+check("pending 不正stageKey（direct:キー）は bad_pending_id", r.ok === false && r.error === "bad_pending_id");
 // 通常の complete は従来どおり（タスクシートに無い tour:<ts> は task_not_found）
 r = post({ action: "complete", id: "tour:1794961085.408449" });
 check("通常complete（tour:<ts>）は従来どおり task_not_found", r.ok === false && r.error === "task_not_found", JSON.stringify(r));
@@ -313,6 +325,7 @@ check("pending行は failures に混ざらない（未適用のため）", st5.f
 check("state に pendingActionIds（配列）がある", Array.isArray(st5.pendingActionIds));
 check("pendingActionIds に先行チェック（docs）が含まれる", st5.pendingActionIds.includes("tour:pending:evT:docs"));
 check("pendingActionIds に offer も含まれる", st5.pendingActionIds.includes("tour:pending:evT:offer"));
+check("pendingActionIds に direct:キーの先行チェックも含まれる", st5.pendingActionIds.includes("tour:pending:direct:20261118of12o6:duo"));
 check("pendingActionIds に sendSummary の対象も含まれる", st5.pendingActionIds.includes("summary:和田"));
 check("pendingActionIds に適用済の行は含まれない", !st5.pendingActionIds.includes("mail:555.5"));
 // cancelAction でも pending 行を取り消せる（既存の扱いに乗る）
