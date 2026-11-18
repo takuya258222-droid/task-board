@@ -2253,9 +2253,13 @@ return Boolean(slot) && slot.textContent.includes("準備完了");
 }));
 await page23.click('[data-tab="member"]');
 await page23.waitForTimeout(300);
-check("人ビュー: 和田の未対応に回収漏れが数えられる（合計3件・内訳に回収漏れ1件）", await page23.evaluate(() => {
+check("人ビュー: 和田の未対応に回収漏れが数えられる（合計2件・内訳に回収漏れ1件）", await page23.evaluate(() => {
 const s = personStats("和田");
-return s.total === 3 && s.leaks.length === 1 && s.bd.leak === 1;
+// 合計2件 = 通常1件（tour:444.4）+ 回収漏れ1件（evWLeak）。
+// member:666.6 はメインページの流れで完了POST済み＝モック上で pending（反映待ち）のため、
+// 「アプリで完了したら終わっているものとして数えない」ルール（2026-11-18）で未対応に数えない。
+// tour:888.1 は回収漏れ案件（evWLeak）のタスクなので通常リストに出ず回収漏れ側に寄る。
+return s.total === 2 && s.list.length === 1 && s.list[0].id === "tour:444.4" && s.leaks.length === 1 && s.bd.leak === 1;
 }) && await page23.locator(".person-card", { hasText: "和田さん" }).innerText().then((s) => s.includes("回収漏れ 1件")));
 await page23.click("[data-ptoggle='和田']");
 await page23.waitForTimeout(200);
@@ -2541,6 +2545,242 @@ await page27.click("[data-send='和田']");
 await page27.waitForTimeout(500);
 check("回収漏れのみのメンバーでも sendSummary がPOSTされる", posts.some((p) => p.action === "sendSummary" && p.member === "和田"));
 await page27.close();
+
+// ---- v24: 「アプリで完了したら終わっているものとして数える」まとめ文面の監査 ----
+// (1) 完了キュー済み（pending）の段階タスクは通常セクションに出ず、回収漏れの残りにも入らない（堀の実データ不具合）
+// (2) 先行チェック済みの実タスク（タスク自体は未pending）も文面・件数から除外される（梅村の実データ不具合）
+// (3) 回収漏れ案件の残りを全部チェックすると案件ごと文面から消え、総件数が減る
+// (4) 「内定にする」を押した案件は面談側に残らず、回収漏れ側に寄る
+// (5) 段階ラベルに「／項目名」があるタスクは、まとめ行の行末に項目名が付く
+const page28 = await ctx.newPage();
+page28.on("pageerror", (e) => errors.push(String(e)));
+const pend28 = new Set(["tour:301.1"]); // evHのセシオ入力は完了キュー済み（サーバ未適用）
+await page28.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+if (body.action === "complete") pend28.add(body.id);
+let resp28 = { ok: true };
+if (body.action === "cancelAction") {
+if (pend28.delete(body.id)) resp28 = { ok: true };
+else resp28 = { ok: false, error: "no_pending_action" };
+}
+await new Promise((r) => setTimeout(r, 250));
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(resp28) });
+return;
+}
+const st28 = mockState();
+st28.startAdds = [];
+st28.tasks = st28.tasks.filter((t) => (t.owner || "自分") !== "和田" && t.member !== "和田");
+const T28 = (o) => Object.assign({ elapsedDays: 1, deadlineLabel: "", slackUrl: "", groupKey: "", groupTitle: "", member: "", shareKind: "", overdue: false, phase: "", owner: "和田", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" }, o);
+st28.tasks.push(
+T28({ id: "tour:301.1", type: "tour", typeLabel: "面談", title: "🟪【④入力・申請／セシオ入力】監査苑 監査様", datetimeLabel: mdOf(-4) + " 11時", elapsedDays: 4, groupKey: "evH", groupTitle: "監査苑 監査様", phase: "④入力・申請", slackUrl: "https://example.com/h41" }),
+T28({ id: "tour:301.2", type: "tour", typeLabel: "面談", title: "🟪【④入力・申請／duo入力】監査苑 監査様", datetimeLabel: mdOf(-4) + " 11時", elapsedDays: 4, groupKey: "evH", groupTitle: "監査苑 監査様", phase: "④入力・申請", slackUrl: "https://example.com/h42" }),
+T28({ id: "tour:301.3", type: "tour", typeLabel: "面談", title: "🟪【④入力・申請／契約申請】監査苑 監査様", datetimeLabel: mdOf(-4) + " 11時", elapsedDays: 4, groupKey: "evH", groupTitle: "監査苑 監査様", phase: "④入力・申請", slackUrl: "https://example.com/h43" }),
+T28({ id: "tour:302.1", type: "tour", typeLabel: "面談", title: "🟪【④入力・申請／duo登録】先行苑 先行様", datetimeLabel: mdOf(0) + " 9時", elapsedDays: 0, groupKey: "direct:evU1", groupTitle: "先行苑 先行様", phase: "④入力・申請", slackUrl: "https://example.com/u41" }),
+T28({ id: "tour:303.1", type: "tour", typeLabel: "面談", title: "🟦内定前苑 内定前様（3日前）", datetimeLabel: mdOf(1) + " 10時", elapsedDays: 0, groupKey: "evO", groupTitle: "内定前苑 内定前様", phase: "①準備", slackUrl: "https://example.com/o1" }),
+T28({ id: "tour:304.1", type: "tour", typeLabel: "面談", title: "🟪【④入力・申請／契約申請】単独苑 単独様", datetimeLabel: mdOf(-2) + " 10時", elapsedDays: 2, groupKey: "evGhost", groupTitle: "単独苑 単独様", phase: "④入力・申請", slackUrl: "https://example.com/g41" }),
+T28({ id: "tour:304.2", type: "tour", typeLabel: "面談", title: "🟧【③書類回収】単独苑 単独様", datetimeLabel: mdOf(-2) + " 10時", elapsedDays: 2, groupKey: "evGhost", groupTitle: "単独苑 単独様", phase: "③書類回収", slackUrl: "https://example.com/g31" })
+);
+st28.tasks.forEach((x) => { x.pending = pend28.has(x.id); });
+st28.pendingActionIds = Array.from(pend28).concat(["tour:pending:direct:evU1:duo", "tour:pending:direct:evU1:followup"]);
+st28.cases = st28.cases.filter((c) => c.owner !== "和田");
+st28.cases.push(
+{ eventId: "evH", facility: "監査苑", person: "監査様", owner: "和田", meetingLabel: mdOf(-4) + " 11時", meetingIso: daysFromNow(-4).toISOString(), currentPhase: "④入力・申請", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(9)), daysToStart: 9, startResult: "", startResultDate: "",
+stages: [
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "300.1" },
+{ phase: "③書類回収", label: "③書類回収", status: "done", slackUrl: "https://example.com/h3", ts: "300.3" },
+{ phase: "④入力・申請", label: "④入力・申請／セシオ入力", status: "open", slackUrl: "https://example.com/h41", ts: "301.1" },
+{ phase: "④入力・申請", label: "④入力・申請／duo入力", status: "open", slackUrl: "https://example.com/h42", ts: "301.2" },
+{ phase: "④入力・申請", label: "④入力・申請／契約申請", status: "open", slackUrl: "https://example.com/h43", ts: "301.3" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]},
+{ eventId: "direct:evU1", facility: "先行苑", person: "先行様", owner: "和田", meetingLabel: mdOf(0) + " 9時", meetingIso: daysFromNow(0).toISOString(), currentPhase: "④入力・申請", status: "進行中", pending: false, startDate: ymdOf(daysFromNow(5)), daysToStart: 5, startResult: "", startResultDate: "",
+stages: [
+{ phase: "②内定確認", label: "②内定確認", status: "done", slackUrl: "", ts: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "done", slackUrl: "https://example.com/u3", ts: "302.0" },
+{ phase: "④入力・申請", label: "④入力・申請／duo登録", status: "open", slackUrl: "https://example.com/u41", ts: "302.1" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]},
+{ eventId: "evO", facility: "内定前苑", person: "内定前様", owner: "和田", meetingLabel: mdOf(1) + " 10時", meetingIso: daysFromNow(1).toISOString(), currentPhase: "①準備", status: "進行中", pending: false, startDate: "", daysToStart: null, startResult: "", startResultDate: "",
+stages: [
+{ phase: "①準備", label: "①準備・3日前", status: "open", slackUrl: "https://example.com/o1", ts: "" },
+{ phase: "②内定確認", label: "②内定確認", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "③書類回収", label: "③書類回収", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "④入力・申請", label: "④入力・申請", status: "notyet", slackUrl: "", ts: "" },
+{ phase: "⑤入職フォロー", label: "⑤入職フォロー", status: "notyet", slackUrl: "", ts: "" }
+]}
+);
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st28) });
+});
+await page28.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page28.evaluate(() => {
+window.__copied = null;
+Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } });
+});
+await page28.click('[data-tab="member"]');
+await page28.waitForTimeout(300);
+check("監査: 和田の総件数は通常3件+回収漏れ1件=4件（pending完了・先行チェック済みは数えない）", await page28.evaluate(() => {
+const s = personStats("和田");
+return s.total === 4 && s.list.length === 3 && s.leaks.length === 1 && s.leaks[0].case.eventId === "evH";
+}));
+await page28.click("[data-copy='和田']");
+await page28.waitForTimeout(300);
+const auditText1 = await page28.evaluate(() => window.__copied);
+const auditLines1 = (auditText1 || "").split("\n");
+check("監査: まとめ1行目は全4件（カードの未対応件数と一致）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全4件$/.test(auditLines1[0] || ""), auditLines1[0]);
+check("監査: 完了キュー済みの段階タスクは通常セクションに出ない（監査苑は面談ブロックに無い）", !(auditText1 || "").includes("■ 面談\n⚠️") && auditLines1.filter((l) => l.includes("監査苑") && l.includes("【④")).length === 0, auditText1);
+check("監査: 先行チェック済みの実タスクの案件（先行苑）は通常・回収漏れのどちらにも出ない", !(auditText1 || "").includes("先行苑"), auditText1);
+check("監査: 回収漏れの残りに完了キュー済み項目は入らない（残り: duo入力・契約申請・入職フォロー）", auditLines1.some((l) => l === "・監査苑 × **監査様** ｜ 残り: duo入力・契約申請・入職フォロー ｜ 入社日: " + mdOf(9)), auditText1);
+check("監査: ④タスクの行末に項目名が付く（単独苑の契約申請）", auditLines1.some((l) => l.includes("単独苑") && l.endsWith(" ｜ 契約申請")), auditText1);
+check("監査: 項目名のない段階（③書類回収）は行末に項目名が付かない", auditLines1.some((l) => l.includes("単独苑") && l.includes("【③書類回収】") && !l.includes(" ｜ 書類回収")), auditText1);
+check("監査: 内定前の案件の①タスクは通常セクションに出る（offer前）", auditLines1.some((l) => l.includes("内定前苑")), auditText1);
+// 回収チェックリストで残りを順にチェックしていく
+await page28.click('[data-tab="onboarding"]');
+await page28.waitForTimeout(300);
+await page28.click("[data-collect-toggle='evH']");
+await page28.waitForTimeout(200);
+await page28.click("#dash [data-collect-check='tour:301.2']");
+await page28.waitForTimeout(700);
+await page28.click('[data-tab="member"]');
+await page28.waitForTimeout(300);
+await page28.click("[data-copy='和田']");
+await page28.waitForTimeout(300);
+const auditText2 = await page28.evaluate(() => window.__copied);
+const auditLines2 = (auditText2 || "").split("\n");
+check("監査: チェックリストで完了した段階は回収漏れの残りから外れる（残り: 契約申請・入職フォロー）", auditLines2.some((l) => l === "・監査苑 × **監査様** ｜ 残り: 契約申請・入職フォロー ｜ 入社日: " + mdOf(9)), auditText2);
+check("監査: 残りが減っても総件数は4件のまま（案件単位で数える）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全4件$/.test(auditLines2[0] || ""), auditLines2[0]);
+await page28.click('[data-tab="onboarding"]');
+await page28.waitForTimeout(300);
+await page28.click("#dash [data-collect-check='tour:301.3']");
+await page28.waitForTimeout(700);
+await page28.click("#dash [data-collect-check='tour:pending:evH:followup']");
+await page28.waitForTimeout(700);
+await page28.click('[data-tab="member"]');
+await page28.waitForTimeout(300);
+check("監査: 残りを全部チェックすると案件ごと文面から消え総件数が減る（4件→3件）", await page28.evaluate(() => personStats("和田").total === 3 && personStats("和田").leaks.length === 0));
+await page28.click("[data-copy='和田']");
+await page28.waitForTimeout(300);
+const auditText3 = await page28.evaluate(() => window.__copied);
+check("監査: 全チェック後のまとめに監査苑は出ない・全3件", !(auditText3 || "").includes("監査苑") && (auditText3 || "").split("\n")[0].includes("全3件"), auditText3);
+// 「内定にする」を押した案件は面談側に残らない
+await page28.click('[data-tab="tour"]');
+await page28.waitForTimeout(300);
+await page28.click("[data-offer='evO']");
+await page28.waitForTimeout(700);
+await page28.click('[data-tab="member"]');
+await page28.waitForTimeout(300);
+await page28.click("[data-copy='和田']");
+await page28.waitForTimeout(300);
+const auditText4 = await page28.evaluate(() => window.__copied);
+const auditLines4 = (auditText4 || "").split("\n");
+check("監査: offerした案件は通常セクション（面談側）に出ない", auditLines4.filter((l) => l.includes("内定前苑") && l.includes("【①")).length === 0, auditText4);
+check("監査: offerした案件は回収漏れ側に寄る（残り6項目）", auditLines4.some((l) => l === "・内定前苑 × **内定前様** ｜ 残り: 書類回収・duo登録・セシオ登録・契約申請・フォームラン回収・入職フォロー"), auditText4);
+check("監査: offer後の総件数は3件（通常2件+回収漏れ1件）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全3件$/.test(auditLines4[0] || ""), auditLines4[0]);
+await page28.close();
+
+// ---- v24: 通常タスクの完了が「未送信→送信済み未適用→再読み込み後」まで一貫して文面から除外される ----
+// 専用コンテキスト（localStorage永続）で、完了→再読み込み（未送信のまま）→送信着地→再読み込みの順に確認する
+const ctx4 = await browser.newContext({ viewport: { width: 390, height: 844 }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15" });
+const page29 = await ctx4.newPage();
+page29.on("pageerror", (e) => errors.push(String(e)));
+let fail29 = true;
+const srv29 = new Set();
+await page29.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") {
+if (fail29) { await route.abort(); return; }
+const body = JSON.parse(req.postData() || "{}");
+posts.push(body);
+if (body.action === "complete") srv29.add(body.id);
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
+return;
+}
+const st29 = mockState();
+st29.startAdds = [];
+st29.cases = [];
+st29.history = [];
+const T29 = (o) => Object.assign({ elapsedDays: 1, deadlineLabel: "", slackUrl: "", groupKey: "", groupTitle: "", member: "", shareKind: "", overdue: false, phase: "", owner: "和田", dueToday: false, eventIso: "", pending: false, metaDue: "", memo: "" }, o);
+st29.tasks = [
+T29({ id: "member:901.1", type: "member", typeLabel: "メンバー", title: "連携テスト依頼", datetimeLabel: mdOf(-1) + " 17時", elapsedDays: 1, groupKey: "member:和田", groupTitle: "和田", member: "和田", shareKind: "依頼共有" }),
+T29({ id: "member:901.2", type: "member", typeLabel: "メンバー", title: "残る依頼", datetimeLabel: mdOf(-1) + " 17時", elapsedDays: 1, groupKey: "member:和田", groupTitle: "和田", member: "和田", shareKind: "依頼共有" })
+];
+st29.tasks.forEach((x) => { x.pending = srv29.has(x.id); });
+st29.pendingActionIds = Array.from(srv29);
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(st29) });
+});
+await page29.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page29.evaluate(() => {
+window.__copied = null;
+Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } });
+});
+await page29.click("[data-done='member:901.1']");
+await page29.waitForTimeout(600);
+await page29.click('[data-tab="member"]');
+await page29.waitForTimeout(300);
+await page29.click("[data-copy='和田']");
+await page29.waitForTimeout(300);
+const lifeText1 = await page29.evaluate(() => window.__copied);
+check("監査: 未送信（アウトボックス残存）の完了は文面から除外される", !(lifeText1 || "").includes("連携テスト依頼") && (lifeText1 || "").includes("残る依頼") && (lifeText1 || "").split("\n")[0].includes("全1件"), lifeText1);
+await page29.reload({ waitUntil: "networkidle" });
+await page29.waitForTimeout(400);
+await page29.evaluate(() => {
+window.__copied = null;
+Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } });
+});
+await page29.click('[data-tab="member"]');
+await page29.waitForTimeout(300);
+await page29.click("[data-copy='和田']");
+await page29.waitForTimeout(300);
+const lifeText2 = await page29.evaluate(() => window.__copied);
+check("監査: 再読み込み後も未送信の完了は文面から除外される（アウトボックス復元）", !(lifeText2 || "").includes("連携テスト依頼") && (lifeText2 || "").split("\n")[0].includes("全1件"), lifeText2);
+fail29 = false;
+await page29.evaluate(() => flushOutbox(false).then(() => fetchState()));
+await page29.waitForTimeout(800);
+check("監査: 送信が着地したらアウトボックスは畳まれる", await page29.evaluate(() => (JSON.parse(localStorage.getItem("tb_outbox_v1") || "[]")).length === 0) && srv29.has("member:901.1"));
+await page29.reload({ waitUntil: "networkidle" });
+await page29.waitForTimeout(400);
+await page29.evaluate(() => {
+window.__copied = null;
+Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } });
+});
+await page29.click('[data-tab="member"]');
+await page29.waitForTimeout(300);
+await page29.click("[data-copy='和田']");
+await page29.waitForTimeout(300);
+const lifeText3 = await page29.evaluate(() => window.__copied);
+check("監査: 着地後の再読み込みでも完了タスクは文面に出ない（サーバpendingで除外）", !(lifeText3 || "").includes("連携テスト依頼") && (lifeText3 || "").includes("残る依頼") && (lifeText3 || "").split("\n")[0].includes("全1件"), lifeText3);
+await page29.close();
+await ctx4.close();
+
+// ---- v24: 実データ state（2026-11-18 16:32 取得）での回帰確認 ----
+// 堀: 完了キュー済みの2件が通常セクションに出ず、案件は回収漏れにだけ出る（残りは未完了の3項目）
+// 梅村: 全項目がアプリで完了済みのため、文面のどこにも出ない
+const page30 = await ctx.newPage();
+page30.on("pageerror", (e) => errors.push(String(e)));
+const realState = JSON.parse(fs.readFileSync(path.resolve(__dirname, "..", "scratch", "state-1632.json"), "utf8"));
+await page30.route("https://script.google.com/**", async (route) => {
+const req = route.request();
+if (req.method() === "POST") { await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, pending: true }) }); return; }
+await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(realState) });
+});
+await page30.goto("http://127.0.0.1:" + port + "/index.html", { waitUntil: "networkidle" });
+await page30.evaluate(() => {
+window.__copied = null;
+Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async (t) => { window.__copied = t; } } });
+});
+await page30.click('[data-tab="member"]');
+await page30.waitForTimeout(400);
+await page30.click("[data-copy='和田']");
+await page30.waitForTimeout(400);
+const realText = await page30.evaluate(() => window.__copied);
+const realLines = (realText || "").split("\n");
+check("実データ: 和田まとめは全4件（カードの未対応件数と一致）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全4件$/.test(realLines[0] || "") && await page30.evaluate(() => personStats("和田").total === 4), realLines[0]);
+check("実データ: 通常セクション（■ 面談）は出ない", !(realText || "").includes("■ 面談"), realText);
+check("実データ: 堀は回収漏れにだけ出る（残り: 契約申請・フォームラン回収・入職フォロー）", realLines.some((l) => l === "・特別養護老人ホーム山科苑 × **堀様** ｜ 残り: 契約申請・フォームラン回収・入職フォロー ｜ 入社日: 12/1") && realLines.filter((l) => l.includes("山科苑")).length === 1, realText);
+check("実データ: 梅村は文面のどこにも出ない（全項目がアプリで完了済み）", !(realText || "").includes("梅村") && !(realText || "").includes("たんぽぽ"), realText);
+await page30.close();
 
 check("コンソールエラー0", errors.length === 0, errors.join(" | ").slice(0, 300));
 
