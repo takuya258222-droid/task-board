@@ -510,26 +510,28 @@ await page.click("[data-copy='和田']");
 await page.waitForTimeout(300);
 const wadaText = await page.evaluate(() => window.__copied);
 const wadaLines = (wadaText || "").split("\n");
-check("和田まとめ1行目（送信版と同じ見出し）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全2件$/.test(wadaLines[0] || ""), wadaLines[0]);
+check("和田まとめ1行目（送信版と同じ見出し・**なし）", /^【タスクボード】未対応まとめ ｜ 和田さん ｜ 全2件$/.test(wadaLines[0] || ""), wadaLines[0]);
 check("和田まとめ2行目（M/D H時時点）", /^\d{1,2}\/\d{1,2} \d{1,2}時時点$/.test(wadaLines[1] || ""), wadaLines[1]);
 check("和田まとめは種別ブロック順（■ 面談→■ 依頼）", (wadaText || "").indexOf("■ 面談") >= 0 && (wadaText || "").indexOf("■ 面談") < (wadaText || "").indexOf("■ 依頼"), wadaText);
-check("和田まとめ期限超過行（⚠️+太字+締切）", wadaLines.some((l) => l.startsWith("⚠️期限超過 ・**福井様SOの実施待ち連絡**") && l.includes("締切: 11/16 18時")), wadaText);
-check("和田まとめ面談行（太字+フェーズバッジ+日時）", wadaLines.some((l) => l.startsWith("・**清和苑 黒木さん**") && l.includes("【①準備】") && l.includes(mdOf(2) + " 10時")), wadaText);
-check("和田まとめに投稿リンクの子行がある", wadaLines.some((l) => l.startsWith("・<https://") && l.includes("|投稿を開く>")), wadaText);
+check("和田まとめ期限超過行（・の直後に⚠️期限超過+タイトル）", wadaLines.some((l) => l === "・⚠️期限超過 福井様SOの実施待ち連絡"), wadaText);
+check("和田まとめ依頼のサブ行（種別+締切を字下げ）", wadaLines.some((l) => l === "　依頼共有 ｜ 締切: 11/16 18時"), wadaText);
+check("和田まとめ面談行（タイトル行+フェーズ・日時のサブ行）", wadaLines.some((l) => l === "・清和苑 黒木さん") && wadaLines.some((l) => l === "　【①準備】" + mdOf(2) + " 10時"), wadaText);
+check("和田まとめに投稿リンクの子行がある（字下げ）", wadaLines.some((l) => l.startsWith("　<https://") && l.includes("|投稿を開く>")), wadaText);
 check("和田まとめ末尾に✅依頼の1行", wadaLines[wadaLines.length - 1] === "対応したら元のメッセージに✅をお願いします");
-check("和田まとめは全12行（見出し2+空行+面談3+空行+依頼3+空行+末尾）", wadaLines.length === 12, "lines=" + wadaLines.length);
+check("和田まとめは全14行（見出し2+空行+面談4+空行+依頼4+空行+末尾）", wadaLines.length === 14, "lines=" + wadaLines.length);
+check("和田まとめの文面全体に ** が無い", !(wadaText || "").includes("**"), wadaText);
 check("コピー成功フィードバック表示", await page.locator("#okBar").isVisible() && await page.locator("#okBar").innerText().then((s) => s.includes("コピーしました")));
 await page.click("[data-copy='自分']");
 await page.waitForTimeout(300);
 const selfText = await page.evaluate(() => window.__copied);
 const selfLines = (selfText || "").split("\n");
-check("自分まとめ1行目（送信版と同じ見出し・総件数に回収漏れ1件を含む）", /^【タスクボード】未対応まとめ ｜ \*\*自分の分\*\* ｜ 全6件$/.test(selfLines[0] || ""), selfLines[0]);
+check("自分まとめ1行目（送信版と同じ見出し・総件数に回収漏れ1件を含む）", /^【タスクボード】未対応まとめ ｜ 自分の分 ｜ 全6件$/.test(selfLines[0] || ""), selfLines[0]);
 check("自分まとめにも✅依頼の行がある（送信版と同内容）", selfLines[selfLines.length - 1] === "対応したら元のメッセージに✅をお願いします");
 check("自分まとめに回収漏れセクションがある（種別ブロックの最後・フッターの前）", (selfText || "").includes("■ 回収漏れ（内定済み・未回収）") && (selfText || "").indexOf("■ 入社") < (selfText || "").indexOf("■ 回収漏れ（内定済み・未回収）") && (selfText || "").indexOf("■ 回収漏れ（内定済み・未回収）") < (selfText || "").indexOf("対応したら元のメッセージに✅をお願いします"), selfText);
-check("自分まとめ回収漏れ行（未登録苑: 入社日なしは入社日部分を省略）", selfLines.some((l) => l === "・未登録苑 × **未登録様** ｜ 残り: 書類回収"), selfText);
+check("自分まとめ回収漏れ行（未登録苑: ・相手様（施設）+残りのサブ行・入社日なしは入社日行を省略）", selfLines.some((l) => l === "・未登録様（未登録苑）") && selfLines.some((l) => l === "　残り: 書類回収") && !selfLines.some((l) => l.startsWith("　入社日:")), selfText);
 check("自分まとめは種別ブロック順（■ Slack→■ カレンダー→■ 面談→■ 入社）", ["■ Slack", "■ カレンダー", "■ 面談", "■ 入社"].every((h, i, a) => (selfText || "").indexOf(h) >= 0 && (i === 0 || (selfText || "").indexOf(a[i - 1]) < (selfText || "").indexOf(h))), selfText);
-check("自分まとめカレンダー行は期日が締切表示+メモ子行", selfLines.some((l) => l.includes("**コンサルタントプロフィール記入**") && l.includes("締切: " + mdOf(3))) && selfLines.some((l) => l === "・📝 メモ: プロフィール写真も用意する"), selfText);
-check("自分まとめSlack行は期日（過去）が締切表示", selfLines.some((l) => l.includes("**河添大地｜週2日アテンドNG・譲渡基準の統一判断**") && l.includes("締切: " + mdOf(-1))), selfText);
+check("自分まとめカレンダー行はタイトル行+締切・メモのサブ行（字下げ）", selfLines.some((l) => l === "・コンサルタントプロフィール記入") && selfLines.some((l) => l === "　締切: " + mdOf(3)) && selfLines.some((l) => l === "　📝 メモ: プロフィール写真も用意する"), selfText);
+check("自分まとめSlack行はタイトル行（期限超過つき）+期日（過去）の締切サブ行", selfLines.some((l) => l === "・⚠️期限超過 河添大地｜週2日アテンドNG・譲渡基準の統一判断") && selfLines.some((l) => l === "　締切: " + mdOf(-1)), selfText);
 check("自分まとめに全種別が混在（面談・Slack・カレンダー・入社）", (selfText || "").includes("深堀香織") && (selfText || "").includes("河添大地") && (selfText || "").includes("コンサルタントプロフィール記入") && (selfText || "").includes("伊藤奈美"));
 // フォールバック: clipboard が失敗したらテキストエリア表示
 await page.evaluate(() => {
@@ -2535,10 +2537,10 @@ await page27.click("[data-copy='和田']");
 await page27.waitForTimeout(300);
 const leakText = await page27.evaluate(() => window.__copied);
 const leakLines = (leakText || "").split("\n");
-check("回収漏れのみのまとめ1行目（総件数=回収漏れ2件）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全2件$/.test(leakLines[0] || ""), leakLines[0]);
+check("回収漏れのみのまとめ1行目（総件数=回収漏れ2件）", /^【タスクボード】未対応まとめ ｜ 和田さん ｜ 全2件$/.test(leakLines[0] || ""), leakLines[0]);
 check("回収漏れのみのまとめは回収漏れセクションだけ（通常の種別ブロックなし）", (leakText || "").includes("■ 回収漏れ（内定済み・未回収）") && !(leakText || "").includes("■ 面談") && !(leakText || "").includes("■ 依頼"), leakText);
-check("回収漏れ行（入社日あり: 残り項目を・で連結＋入社日）", leakLines.some((l) => l === "・専漏苑 × **専漏様** ｜ 残り: duo登録・セシオ登録・契約申請・フォームラン回収・入職フォロー ｜ 入社日: " + mdOf(4)), leakText);
-check("回収漏れ行（入社日なし: 入社日部分を省略）", leakLines.some((l) => l === "・専漏苑B × **漏二様** ｜ 残り: 書類回収"), leakText);
+check("回収漏れ行（入社日あり: ・相手様（施設）+残り・入社日のサブ行）", leakLines.some((l) => l === "・専漏様（専漏苑）") && leakLines.some((l) => l === "　残り: duo登録・セシオ登録・契約申請・フォームラン回収・入職フォロー") && leakLines.some((l) => l === "　入社日: " + mdOf(4)), leakText);
+check("回収漏れ行（入社日なし: 入社日行を省略・案件間は空行で区切る）", (() => { const i = leakLines.indexOf("・漏二様（専漏苑B）"); return i > 0 && leakLines[i - 1] === "" && leakLines[i + 1] === "　残り: 書類回収" && leakLines[i + 2] === ""; })(), leakText);
 check("回収漏れのみのまとめ末尾に✅依頼の1行", leakLines[leakLines.length - 1] === "対応したら元のメッセージに✅をお願いします");
 page27.once("dialog", (d) => d.accept());
 await page27.click("[data-send='和田']");
@@ -2551,7 +2553,7 @@ await page27.close();
 // (2) 先行チェック済みの実タスク（タスク自体は未pending）も文面・件数から除外される（梅村の実データ不具合）
 // (3) 回収漏れ案件の残りを全部チェックすると案件ごと文面から消え、総件数が減る
 // (4) 「内定にする」を押した案件は面談側に残らず、回収漏れ側に寄る
-// (5) 段階ラベルに「／項目名」があるタスクは、まとめ行の行末に項目名が付く
+// (5) 段階ラベルに「／項目名」があるタスクは、まとめのサブ行の行末に項目名が付く
 const page28 = await ctx.newPage();
 page28.on("pageerror", (e) => errors.push(String(e)));
 const pend28 = new Set(["tour:301.1"]); // evHのセシオ入力は完了キュー済み（サーバ未適用）
@@ -2629,12 +2631,12 @@ await page28.click("[data-copy='和田']");
 await page28.waitForTimeout(300);
 const auditText1 = await page28.evaluate(() => window.__copied);
 const auditLines1 = (auditText1 || "").split("\n");
-check("監査: まとめ1行目は全4件（カードの未対応件数と一致）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全4件$/.test(auditLines1[0] || ""), auditLines1[0]);
-check("監査: 完了キュー済みの段階タスクは通常セクションに出ない（監査苑は面談ブロックに無い）", !(auditText1 || "").includes("■ 面談\n⚠️") && auditLines1.filter((l) => l.includes("監査苑") && l.includes("【④")).length === 0, auditText1);
+check("監査: まとめ1行目は全4件（カードの未対応件数と一致）", /^【タスクボード】未対応まとめ ｜ 和田さん ｜ 全4件$/.test(auditLines1[0] || ""), auditLines1[0]);
+check("監査: 完了キュー済みの段階タスクは通常セクションに出ない（監査苑の面談タイトル行が無い）", !auditLines1.some((l) => l === "・監査苑 監査様"), auditText1);
 check("監査: 先行チェック済みの実タスクの案件（先行苑）は通常・回収漏れのどちらにも出ない", !(auditText1 || "").includes("先行苑"), auditText1);
-check("監査: 回収漏れの残りに完了キュー済み項目は入らない（残り: duo入力・契約申請・入職フォロー）", auditLines1.some((l) => l === "・監査苑 × **監査様** ｜ 残り: duo入力・契約申請・入職フォロー ｜ 入社日: " + mdOf(9)), auditText1);
-check("監査: ④タスクの行末に項目名が付く（単独苑の契約申請）", auditLines1.some((l) => l.includes("単独苑") && l.endsWith(" ｜ 契約申請")), auditText1);
-check("監査: 項目名のない段階（③書類回収）は行末に項目名が付かない", auditLines1.some((l) => l.includes("単独苑") && l.includes("【③書類回収】") && !l.includes(" ｜ 書類回収")), auditText1);
+check("監査: 回収漏れの残りに完了キュー済み項目は入らない（残り: duo入力・契約申請・入職フォロー）", auditLines1.some((l) => l === "・監査様（監査苑）") && auditLines1.some((l) => l === "　残り: duo入力・契約申請・入職フォロー") && auditLines1.some((l) => l === "　入社日: " + mdOf(9)), auditText1);
+check("監査: ④タスクのサブ行末に項目名が付く（単独苑の契約申請）", auditLines1.some((l) => l.startsWith("　【④入力・申請】") && l.endsWith(" ｜ 契約申請")), auditText1);
+check("監査: 項目名のない段階（③書類回収）のサブ行に項目名は付かない", auditLines1.some((l) => l.startsWith("　【③書類回収】") && !l.includes(" ｜ ")), auditText1);
 check("監査: 内定前の案件の①タスクは通常セクションに出る（offer前）", auditLines1.some((l) => l.includes("内定前苑")), auditText1);
 // 回収チェックリストで残りを順にチェックしていく
 await page28.click('[data-tab="onboarding"]');
@@ -2649,8 +2651,8 @@ await page28.click("[data-copy='和田']");
 await page28.waitForTimeout(300);
 const auditText2 = await page28.evaluate(() => window.__copied);
 const auditLines2 = (auditText2 || "").split("\n");
-check("監査: チェックリストで完了した段階は回収漏れの残りから外れる（残り: 契約申請・入職フォロー）", auditLines2.some((l) => l === "・監査苑 × **監査様** ｜ 残り: 契約申請・入職フォロー ｜ 入社日: " + mdOf(9)), auditText2);
-check("監査: 残りが減っても総件数は4件のまま（案件単位で数える）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全4件$/.test(auditLines2[0] || ""), auditLines2[0]);
+check("監査: チェックリストで完了した段階は回収漏れの残りから外れる（残り: 契約申請・入職フォロー）", auditLines2.some((l) => l === "・監査様（監査苑）") && auditLines2.some((l) => l === "　残り: 契約申請・入職フォロー") && auditLines2.some((l) => l === "　入社日: " + mdOf(9)), auditText2);
+check("監査: 残りが減っても総件数は4件のまま（案件単位で数える）", /^【タスクボード】未対応まとめ ｜ 和田さん ｜ 全4件$/.test(auditLines2[0] || ""), auditLines2[0]);
 await page28.click('[data-tab="onboarding"]');
 await page28.waitForTimeout(300);
 await page28.click("#dash [data-collect-check='tour:301.3']");
@@ -2675,9 +2677,9 @@ await page28.click("[data-copy='和田']");
 await page28.waitForTimeout(300);
 const auditText4 = await page28.evaluate(() => window.__copied);
 const auditLines4 = (auditText4 || "").split("\n");
-check("監査: offerした案件は通常セクション（面談側）に出ない", auditLines4.filter((l) => l.includes("内定前苑") && l.includes("【①")).length === 0, auditText4);
-check("監査: offerした案件は回収漏れ側に寄る（残り6項目）", auditLines4.some((l) => l === "・内定前苑 × **内定前様** ｜ 残り: 書類回収・duo登録・セシオ登録・契約申請・フォームラン回収・入職フォロー"), auditText4);
-check("監査: offer後の総件数は3件（通常2件+回収漏れ1件）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全3件$/.test(auditLines4[0] || ""), auditLines4[0]);
+check("監査: offerした案件は通常セクション（面談側）に出ない", !auditLines4.some((l) => l === "・内定前苑 内定前様") && auditLines4.filter((l) => l.includes("内定前苑") && l.includes("【①")).length === 0, auditText4);
+check("監査: offerした案件は回収漏れ側に寄る（残り6項目）", auditLines4.some((l) => l === "・内定前様（内定前苑）") && auditLines4.some((l) => l === "　残り: 書類回収・duo登録・セシオ登録・契約申請・フォームラン回収・入職フォロー"), auditText4);
+check("監査: offer後の総件数は3件（通常2件+回収漏れ1件）", /^【タスクボード】未対応まとめ ｜ 和田さん ｜ 全3件$/.test(auditLines4[0] || ""), auditLines4[0]);
 await page28.close();
 
 // ---- v24: 通常タスクの完了が「未送信→送信済み未適用→再読み込み後」まで一貫して文面から除外される ----
@@ -2776,9 +2778,10 @@ await page30.click("[data-copy='和田']");
 await page30.waitForTimeout(400);
 const realText = await page30.evaluate(() => window.__copied);
 const realLines = (realText || "").split("\n");
-check("実データ: 和田まとめは全4件（カードの未対応件数と一致）", /^【タスクボード】未対応まとめ ｜ \*\*和田さん\*\* ｜ 全4件$/.test(realLines[0] || "") && await page30.evaluate(() => personStats("和田").total === 4), realLines[0]);
+check("実データ: 和田まとめは全4件（カードの未対応件数と一致）", /^【タスクボード】未対応まとめ ｜ 和田さん ｜ 全4件$/.test(realLines[0] || "") && await page30.evaluate(() => personStats("和田").total === 4), realLines[0]);
 check("実データ: 通常セクション（■ 面談）は出ない", !(realText || "").includes("■ 面談"), realText);
-check("実データ: 堀は回収漏れにだけ出る（残り: 契約申請・フォームラン回収・入職フォロー）", realLines.some((l) => l === "・特別養護老人ホーム山科苑 × **堀様** ｜ 残り: 契約申請・フォームラン回収・入職フォロー ｜ 入社日: 12/1") && realLines.filter((l) => l.includes("山科苑")).length === 1, realText);
+check("実データ: 文面全体に ** が無い", !(realText || "").includes("**"), realText);
+check("実データ: 堀は回収漏れにだけ出る（残り: 契約申請・フォームラン回収・入職フォロー）", realLines.some((l) => l === "・堀様（特別養護老人ホーム山科苑）") && realLines.some((l) => l === "　残り: 契約申請・フォームラン回収・入職フォロー") && realLines.some((l) => l === "　入社日: 12/1") && realLines.filter((l) => l.includes("山科苑")).length === 1, realText);
 check("実データ: 梅村は文面のどこにも出ない（全項目がアプリで完了済み）", !(realText || "").includes("梅村") && !(realText || "").includes("たんぽぽ"), realText);
 await page30.close();
 
