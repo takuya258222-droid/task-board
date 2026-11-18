@@ -66,6 +66,8 @@ button.primary:disabled{ opacity:.5;}
 .alert-row .al{ flex:1; font-size:15px; font-weight:700; line-height:1.45;}
 .alert-row .ad{ font-size:13px; color:var(--sub); line-height:1.5;}
 .meet-date{ font-size:13px; font-weight:700; color:var(--accent-d); background:#eef2ff; border-radius:8px; padding:5px 9px; margin:10px 0 6px;}
+.start-owner{ font-size:13.5px; font-weight:700; color:var(--accent-d); background:#eef2ff; border-radius:8px; padding:6px 10px; margin:12px 0 7px; display:flex; align-items:center; gap:8px;}
+.start-owner .oc{ font-size:12.5px; font-weight:700; background:#fff; color:var(--accent); border:1px solid #c7d2fe; border-radius:999px; padding:1px 8px;}
 .meet-row{ display:flex; gap:8px; align-items:flex-start; border:1px solid var(--line); border-radius:10px; padding:11px 12px; margin-bottom:7px; background:#fff;}
 .meet-row .mi2{ flex:1; min-width:0;}
 .meet-row .mt{ font-size:15.5px; font-weight:700; line-height:1.45;}
@@ -1838,7 +1840,18 @@ function renderDash() {
   box.innerHTML = h;
 }
 
+// 入社日未登録（要対応）の行: 警告文＋その場で登録できるピッカー＋回収チェックリスト
+function needDateRowHtml(c) {
+  return '<div class="start-row past"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + '</div>' +
+       '<div style="font-size:13px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div>' +
+       '<div class="panel-start-form"><input type="date" id="panelStartDate-' + esc(c.eventId) + '" data-panel-start-input="' + esc(c.eventId) + '" value="' + esc(panelStartDateVals[c.eventId] || "") + '">' +
+       '<button class="sb-save" data-start-save-panel="' + esc(c.eventId) + '">入社日を登録</button></div>' +
+       startCollectHtml(c) + '</div>' +
+       '<div class="acts"><button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
+}
+
 // 入社待ちセクション（2026-11-18: 「すべて」タブ上部から入社タブの先頭へ移設。内容は従来どおり）
+// 2026-11-18 v10: 担当者別セクション（自分→メンバー登録順）に分け、各セクション内は未登録を先頭＋入社日が近い順
 function startPanelHtml() {
   let h = "";
   const waiting = cases.filter((c) => c.startDate && c.startResult !== "started" && c.startResult !== "cancelled")
@@ -1856,16 +1869,24 @@ function startPanelHtml() {
   if (!waiting.length && !needDate.length && !pendStarts.length) {
     h += '<div class="dash-sub">現在、入社待ちの案件はありません</div>';
   }
-  for (const c of needDate) {
-    h += '<div class="start-row past"><div class="mi2"><div style="font-size:15.5px; font-weight:700;">' + esc(c.facility) + " " + esc(c.person) + '</div>' +
-         '<div style="font-size:13px; color:var(--danger); font-weight:700; margin-top:2px;">⚠️ 入社日を入れてください</div>' +
-         '<div class="panel-start-form"><input type="date" id="panelStartDate-' + esc(c.eventId) + '" data-panel-start-input="' + esc(c.eventId) + '" value="' + esc(panelStartDateVals[c.eventId] || "") + '">' +
-         '<button class="sb-save" data-start-save-panel="' + esc(c.eventId) + '">入社日を登録</button></div>' +
-         startCollectHtml(c) + '</div>' +
-         '<div class="acts"><button class="mini-ghost" data-gocase="' + esc(c.eventId) + '">詳細を開く</button></div></div>';
+  // 担当者別グルーピング: 並びは ownersList()（自分→有効メンバー登録順）を正とし、名簿に無い担当（無効化済み等）が
+  // データに残っていれば末尾に足して行が消えないようにする。追加直後の仮表示行（pendStarts）は自分の分に入る。
+  const ownerOf = (c) => c.owner || "自分";
+  const order = ownersList();
+  const seenOwner = (o) => { if (order.indexOf(o) < 0) order.push(o); };
+  needDate.forEach((c) => seenOwner(ownerOf(c)));
+  waiting.forEach((c) => seenOwner(ownerOf(c)));
+  for (const o of order) {
+    const nd = needDate.filter((c) => ownerOf(c) === o);
+    const wt = waiting.filter((c) => ownerOf(c) === o); // waiting は全体で入社日昇順にソート済み（近い順を維持）
+    const pd = o === "自分" ? pendStarts : [];
+    const cnt = nd.length + wt.length + pd.length;
+    if (!cnt) continue;
+    h += '<div class="start-owner" data-start-owner="' + esc(o) + '">' + esc(o === "自分" ? "自分の分" : o + "さんの分") + '<span class="oc">' + cnt + "件</span></div>";
+    for (const c of nd) h += needDateRowHtml(c);
+    for (const c of wt) h += startRowHtml(c);
+    for (const p of pd) h += pendingStartRowHtml(p);
   }
-  for (const c of waiting) h += startRowHtml(c);
-  for (const o of pendStarts) h += pendingStartRowHtml(o);
   h += '<div class="start-add">';
   if (startFormOpen) {
     h += '<label>施設・相手が読み取れる文を貼り付け<textarea id="startAddText" rows="2" placeholder="例：○○施設 △△様 入社決定">' + esc(startAddTextVal) + '</textarea></label>' +
